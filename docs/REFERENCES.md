@@ -9,7 +9,9 @@ The four originals are committed byte-for-byte. [originals.json](originals.json)
 records their source byte sizes and Git blob hashes; CI verifies them.
 
 The implementation spec pins official Universal Paperclips, retrieved 2026-10-02.
-The five source files are not vendored by setup. Hashes:
+Issue #2 reverified all five official files against these hashes; see
+[reference evidence](reference/README.md) and the reproducible retrieval tool.
+Upstream bytes remain in an ignored local cache. Hashes:
 
 | Official file | SHA-256 |
 | --- | --- |
@@ -25,8 +27,9 @@ Secondary comparison only:
 https://github.com/jgmize/paperclips/tree/d1e9177d02f7460363ebc7d28fe133228db18ed5
 The older mirror differs in costs/conditions; never mix editions or silently repin.
 
-Reuse/license permission for upstream source is unestablished by setup. Issue #2
-must record terms before vendoring/distributing translated implementation.
+Reuse/license permission remains unestablished after the bounded inspection in
+[issue #2 evidence](reference/README.md). Applicable terms
+must be established before vendoring/distributing translated implementation.
 Repository MIT covers original code/compatible attributed copies, not Paperclips
 or Blizzard art. Public source availability alone is not a reuse license.
 
