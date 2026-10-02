@@ -1,0 +1,52 @@
+name: Package check
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lua5.1
+      - name: Syntax-check Lua and run tests
+        run: |
+          set -euo pipefail
+          test "$(lua5.1 -e 'print(_VERSION)')" = 'Lua 5.1'
+          mapfile -d '' files < <(find . -name '*.lua' -not -path './.git/*' -print0)
+          test "${#files[@]}" -gt 0
+          for f in "${files[@]}"; do luac5.1 -p "$f"; done
+          for f in tests/test_*.lua; do lua5.1 "$f"; done
+      - name: Parse PowerShell tooling
+        shell: pwsh
+        run: |
+          Get-ChildItem Tools, tests -Filter '*.ps1' -Recurse | ForEach-Object {
+            $tokens = $null
+            $parseErrors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+          }
+      - name: Package dry run
+        uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0
+        with:
+          args: -d
+      - name: Verify exact package contents and version
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          archives=(.release/*.zip)
+          test "${#archives[@]}" -gt 0
+          for archive in "${archives[@]}"; do python3 Tools/check_package.py "$archive"; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: timeismoney-package
+          path: .release/*.zip
+          include-hidden-files: true
+          if-no-files-found: error

@@ -1,0 +1,43 @@
+-- Allowlist from forever-api-1.60.1.70170.md; no rendering/persistence claim.
+local function New(saved)
+    local captured = { frames = {}, messages = {} }
+    local env = {
+        TimeIsMoneyDB = saved, SlashCmdList = {}, _VERSION = _VERSION,
+        tostring = tostring,
+        print = function(message) captured.messages[#captured.messages + 1] = message end,
+        GetBuildInfo = function() return "1.60.1", "70170", "Oct 1 2026", 16001 end,
+    }
+    local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true }
+    setmetatable(env, { __index = function(_, key)
+        if allowedNil[key] then return nil end
+        error("Unvalidated global: " .. tostring(key), 2)
+    end })
+    env.CreateFrame = function(kind)
+        assert(kind == "Frame")
+        local frame = { events = {}, scripts = {} }
+        function frame:RegisterEvent(event)
+            assert(event == "ADDON_LOADED")
+            self.events[event] = true
+            return true
+        end
+        function frame:UnregisterEvent(event)
+            self.events[event] = nil
+            return true
+        end
+        function frame:SetScript(kind, callback)
+            assert(kind == "OnEvent")
+            self.scripts[kind] = callback
+        end
+        captured.frames[#captured.frames + 1] = frame
+        return frame
+    end
+    function captured:Fire(addonName)
+        for _, frame in ipairs(self.frames) do
+            if frame.events.ADDON_LOADED then
+                frame.scripts.OnEvent(frame, "ADDON_LOADED", addonName, false)
+            end
+        end
+    end
+    return env, captured
+end
+return { New = New }

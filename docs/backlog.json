@@ -1,0 +1,416 @@
+{
+  "repository": "Spotnick2/TimeIsMoney",
+  "milestones": [
+    {
+      "key": "M0",
+      "title": "M0 — Foundation",
+      "description": "Repository, agent instructions/skills, issue-first PR workflow, minimal loadable addon, validation and packaging; no gameplay."
+    },
+    {
+      "key": "M1",
+      "title": "M1 — Reference and workshop",
+      "description": "Pinned reference and deterministic runner, then the pure-Lua workshop and first transition. Run early client/model smoke probes."
+    },
+    {
+      "key": "M2",
+      "title": "M2 — Planetary conversion",
+      "description": "Material pipeline, construction, power/storage, network thinking, exhaustion and expansion gate."
+    },
+    {
+      "key": "M3",
+      "title": "M3 — Cosmic phase and endings",
+      "description": "Dragonling/probe expansion, 16 ms combat, recovery, prestige, correspondence and terminal liquidation."
+    },
+    {
+      "key": "M4",
+      "title": "M4 — Forever integration and presentation",
+      "description": "Logical-clock host, versioned persistence, progressive Liquid Glass UI, assets, animated goblin Director and settings."
+    },
+    {
+      "key": "M5",
+      "title": "M5 — Release acceptance",
+      "description": "Complete traceability and current-build client/performance/save checks, release packaging and distribution."
+    }
+  ],
+  "issues": [
+    {
+      "key": "foundation",
+      "milestone": "M0",
+      "title": "Project scaffold, instructions, skills, validation and packaging",
+      "scope": "Create the setup using Gnomesweeper, AltStable and Glass* conventions: AGENTS.md + CLAUDE.md, Codex and Claude wow-addon-review skills, Claude codex-consult/client-update, TOC 16001, Compat.lua, load event and /tim commands, account-wide SavedVariables declaration, Lua 5.1 checks, deployment, .pkgmeta and packaging CI. Preserve the supplied docs and storyboards byte-for-byte. Keep the owner-created MIT license. Issue-first workflow, PRs and owner-controlled merges/reviews. No simulation/UI/model implementation in this milestone.",
+      "acceptance": "Offline checks and package dry run pass; local design docs and both storyboards are committed; slash commands load in-client on a recorded build. No saved progress is overwritten.",
+      "dependencies": [],
+      "labels": [
+        "documentation"
+      ],
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/1",
+      "number": 1
+    },
+    {
+      "key": "reference",
+      "milestone": "M1",
+      "title": "Pin official Universal Paperclips bytes and source provenance",
+      "scope": "Retrieve the edition and five SHA-256 hashes in docs/plan/Time-Is-Money-Implementation-Spec.md. Verify combat.js -> globals.js -> projects.js -> main.js load order and the ?v3 script URLs. Inventory mutable state, host reads/writes, commands, projects, timers, and random call sites. Record reference reuse/license terms before vendoring or distributing translated source. Do not substitute the older jgmize mirror or silently update hashes.",
+      "acceptance": "Recorded source bytes match every supplied hash; retrieval is reproducible; missing/mismatching bytes or unestablished reuse terms are reported explicitly.",
+      "dependencies": [
+        "foundation"
+      ],
+      "labels": [
+        "documentation"
+      ],
+      "number": 2,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/2"
+    },
+    {
+      "key": "runner",
+      "milestone": "M1",
+      "title": "Deterministic Node reference runner with browser host adapter",
+      "scope": "Execute the pinned scripts with the DOM/storage/canvas values they actually read; no generic no-op DOM. Capture interval/timeout registration, cancellation, due times and stable equal-time order. Drive logical time and timestamped commands; validate representative adapter paths against browser execution. Drawing may be disabled while combat state still updates.",
+      "acceptance": "Fixed traces reproduce initialization, same-due callbacks, cancellation, tournaments and 16 ms combat; compare state after commands and meaningful callbacks.",
+      "dependencies": [
+        "reference"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 3,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/3"
+    },
+    {
+      "key": "random",
+      "milestone": "M1",
+      "title": "Shared random stream and first-divergence comparison",
+      "scope": "Inject explicit recorded draws into both runners. Track ordinal and call-site labels, including name generation/combat initialization. Define emerging command/state schema, resources, flags, arrays and pending callbacks. Keep cosmetic RNG separate. Exact discrete/draw/timer agreement; narrow documented numeric exceptions only with threshold tests.",
+      "acceptance": "A deliberate extra draw, branch mismatch or altered callback order is detected at the first differing field/draw with source hashes and trace evidence.",
+      "dependencies": [
+        "runner"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 4,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/4"
+    },
+    {
+      "key": "workshop",
+      "milestone": "M1",
+      "title": "Pure-Lua workshop slice: bolts, input, prices, sales and first automation",
+      "scope": "First small port: manual production, wire/input purchases, price/demand/sales and first autoclipper/gizmo. Preserve source identifiers, formulas, operation order and numeric state. No WoW globals, clocks, frames or native randomness in simulation. Keep lifetime production, spendable stock and inventory separate.",
+      "acceptance": "JavaScript and Lua traces agree after each command/callback; exact-cost, depletion, no-op/unaﬀordable and first automation boundaries pass.",
+      "dependencies": [
+        "random"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 5,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/5"
+    },
+    {
+      "key": "compute",
+      "milestone": "M1",
+      "title": "Workshop computation, Ingenuity and resonance",
+      "scope": "Port processors/memory/trust, Operations and Creativity/Ingenuity, project availability and quantum/resonance computation incrementally. Audit JS truthiness, zero-based arrays, Math.round, coercion, remainder and numeric thresholds. Preserve negative Operations paths.",
+      "acceptance": "Differential boundary traces cover allocations/capacity, unlocks, resonance oscillation/chips and negative Operations without broad numeric epsilon.",
+      "dependencies": [
+        "workshop"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 6,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/6"
+    },
+    {
+      "key": "finance",
+      "milestone": "M1",
+      "title": "Cartel investments and Negotiation Simulator",
+      "scope": "Port investment portfolio/risk/profit behavior, all strategy unlocks and tournament processing/delayed callbacks, Yomi/Cunning and automation. Preserve RNG use, timer order and tie/array mutation behavior.",
+      "acceptance": "Fixed random/time/command traces cover purchases, losses, tournaments, strategy selection and automation, with exact outcomes and draw counts.",
+      "dependencies": [
+        "compute"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 7,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/7"
+    },
+    {
+      "key": "projects1",
+      "milestone": "M1",
+      "title": "Workshop projects, recovery and Universal Customer Agreement",
+      "scope": "Port phase-I projects, conditional/repeatable/optional entries, emergency replacement input and business recovery; apply source-defined first transition. Begin a generated 96-entry project traceability checklist that later phases extend.",
+      "acceptance": "Each implemented project's eligibility/cost/effect/reward/flags is traced; no duplicate reward; business economy ends at the reference transition.",
+      "dependencies": [
+        "compute",
+        "finance"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 8,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/8"
+    },
+    {
+      "key": "smoke",
+      "milestone": "M1",
+      "title": "Early Forever smoke: runtime, icons and persistence",
+      "scope": "Before full UI integration, measure addon load/slash commands, actual build/interface, embedded Lua and numeric configuration. Show one established item, Forever battery 274048, a spell/profession icon and optional model. Handle nil/asynchronous item data with bounded requests. Test disposable save data across /reload and full exit/relaunch; do not design game saves in this probe.",
+      "acceptance": "docs/forever-api-notes.md records actual build, observations/failures and fallbacks; API presence is not claimed as runtime validation.",
+      "dependencies": [
+        "foundation"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 9,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/9"
+    },
+    {
+      "key": "goblinprobe",
+      "milestone": "M1",
+      "title": "Animated goblin probe using AltStable roster pet rendering",
+      "scope": "Owner direction: inspect AltStable Plugins/Roster/AltStableRoster.lua pet section, specifically PetFrame, ReadBox, PlacePet and MeasurePet, plus measured Pets findings in docs/forever-api-notes.md (1.60.1.70124). Use plain ModelScene/CreateActor and creature display IDs; preserve idle animation. Explicit narrow camera, bounds-based fit, six-number/two-vector box handling, bounded streaming polls and stale callback tokens. Probe goblin texture, head/dialogue-strip crop, idle motion, talk/approval expressions, particles and mouse/layer behavior. No guessed IDs.",
+      "acceptance": "Record display ID/provenance, tested build, textured rendering, readable crop, useful animation IDs and frame cost; choose verified 2D fallback. No simulation effect.",
+      "dependencies": [
+        "smoke"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 10,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/10"
+    },
+    {
+      "key": "pipeline",
+      "milestone": "M2",
+      "title": "Planetary material pipeline and construction",
+      "scope": "Port harvesting/refining/production and costs for harvesters, wire drones/converters and factories/foundries; preserve resource pools, construction/destruction and source thresholds. No WoW crafting yields or items.",
+      "acceptance": "Differential traces cover depletion, exact-cost builds, unaffordable requests, throughput and exhausted material.",
+      "dependencies": [
+        "projects1"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 11,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/11"
+    },
+    {
+      "key": "power",
+      "milestone": "M2",
+      "title": "Power, battery storage and fully powered acceleration",
+      "scope": "Port power production/use, storage and fully-powered acceleration effects; source-defined throttling/full storage/shortage behavior and callbacks.",
+      "acceptance": "Parity at zero/near-threshold/full power and storage; no UI refresh or frame-rate effect.",
+      "dependencies": [
+        "pipeline"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 12,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/12"
+    },
+    {
+      "key": "network",
+      "milestone": "M2",
+      "title": "Company Network, thinking, recovery and expansion gate",
+      "scope": "Port network/drone allocations, thinking, gifts/breakthroughs, exhaustion and recovery/recommissioning. Finish phase-II projects and source expansion gate.",
+      "acceptance": "Parity for each phase-II project and repeat/recovery route; phase transition and allocation boundaries match exactly.",
+      "dependencies": [
+        "power"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 13,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/13"
+    },
+    {
+      "key": "cosmic",
+      "milestone": "M3",
+      "title": "Dragonling allocations, replication, surveying, hazards and drift",
+      "scope": "Port all probe allocations, population/counts, replication, cosmic matter/production, environmental hazards and Charter Drift. Preserve source RNG consumption and large-number semantics.",
+      "acceptance": "Fixed traces cover allocations, exact trust limits, no fleet, hazards/drift and cosmic progression.",
+      "dependencies": [
+        "network"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 14,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/14"
+    },
+    {
+      "key": "combat",
+      "milestone": "M3",
+      "title": "Franchise battles at the reference 16 ms logical tick",
+      "scope": "Port combat.js UpdateGrid, MoveShips and DoCombat, including entity movement, losses, counts, honor/Renown, engagement names and dependent projects. Disabling drawing must retain dynamics. Do not lower combat tick to UI refresh rate.",
+      "acceptance": "Entity/count/RNG traces match at each meaningful battle update; hidden/low refresh presentation cannot change outcomes.",
+      "dependencies": [
+        "cosmic"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 15,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/15"
+    },
+    {
+      "key": "cosmicprojects",
+      "milestone": "M3",
+      "title": "Cosmic recovery, campaign projects and correspondence",
+      "scope": "Port emergency probe restart/memory sacrifice, battle memorials/repeatable songs, victories, optional entries and seven correspondence projects 140-146. Follow original availability/effects.",
+      "acceptance": "Each phase-III project is traceable with costs, eligibility, flags, repeats and recovery; no duplicate rewards or draws.",
+      "dependencies": [
+        "combat"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 16,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/16"
+    },
+    {
+      "key": "endings",
+      "milestone": "M3",
+      "title": "Both prestige choices, negative Operations and full liquidation",
+      "scope": "Preserve accept/reject departure, projects 200/201 prestige paths, unusual project217 negative-Operations restart and all projects210-216 terminal dismantling. Preserve special final-unit accounting and last manual production action.",
+      "acceptance": "Fixed traces cover both restart states and complete liquidation/terminal action, including huge totals and final few units.",
+      "dependencies": [
+        "cosmicprojects"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 17,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/17"
+    },
+    {
+      "key": "host",
+      "milestone": "M4",
+      "title": "Forever host clock and command adapter",
+      "scope": "Attach the pure simulation to one controlled host scheduler and validated commands. Reopening must not create timers. UI updates/visibility/combat collapse cannot pause production/losses. No offline elapsed production; native timers are wakeups, not reference ordering.",
+      "acceptance": "Repeated open/close, hidden window, different UI refresh and host wakeup batching preserve logical outcomes and command eligibility.",
+      "dependencies": [
+        "workshop"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 18,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/18"
+    },
+    {
+      "key": "saves",
+      "milestone": "M4",
+      "title": "Versioned SavedVariables and continuation/migration",
+      "scope": "Design TimeIsMoneyDB schema for one company per WoW account; persist resources/projects/allocations/phase, scheduler progress, RNG/prestige/endings. Never frames/closures. Preserve recoverable data and refuse unknown future schemas without replacing them. Normal logout/reload contract, no crash durability promise or automatic reload.",
+      "acceptance": "Restored vs uninterrupted traces match, including tournament/battle/ending continuation; missing/malformed/old/future schemas tested; reload and full exit verified on recorded build.",
+      "dependencies": [
+        "host"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 19,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/19"
+    },
+    {
+      "key": "glass",
+      "milestone": "M4",
+      "title": "Progressive Liquid Glass ledger and campaign controls",
+      "scope": "Reuse GlassUnitFrames main material with attribution and drift check, never an arbitrary shared working-tree state. Apply brief/storyboards: workshop unfolds into research/finance, planetary pipeline and cosmic allocation/battle view; final panels disappear in liquidation order. Plain unprotected frames, reused controls, readable shortages/costs and tooltip names.",
+      "acceptance": "Every command routes through host adapter; no cosmetic delay/state/RNG effect; controls fit UI scales and phases, hidden-window simulation continues.",
+      "dependencies": [
+        "host"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 20,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/20"
+    },
+    {
+      "key": "assets",
+      "milestone": "M4",
+      "title": "Coin formatting and all 96 project/14 item presentation assets",
+      "scope": "Keep numeric funds in reference units; one unit displays as silver, with fractional copper preserved internally. Format negatives/huge values/threshold precision. Create asset catalog for all 96 projects and 14 initial identities with item/spell IDs, resolved assets, URL, tested build/status/fallback. Validate asynchronous icon requests before ownership assumptions.",
+      "acceptance": "Reference examples (0.25 -> 25c, 1 -> 1s, 123.45 -> 1g23s45c, 1e6 -> 10000g) display correctly; rounding cannot change affordability; all assets visually tested or have verified fallback.",
+      "dependencies": [
+        "glass"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 21,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/21"
+    },
+    {
+      "key": "director",
+      "milestone": "M4",
+      "title": "Animated goblin Director and dialogue strip",
+      "scope": "Integrate the goblin selected by the AltStable-based probe. One reused mouse-disabled ModelScene, idle preserved, measured talking/reaction animations and cancellation on hide/replacement/phase change. Verified 2D fallback and model toggle. Director's early friendly voice disappears after takeover; company reports and later correspondence follow brief. Cosmetic randomness isolated.",
+      "acceptance": "Live idle is readable at actual strip size; no clipping/input/timer interference; missing/late model and repeated hide/show degrade correctly; exact campaign visibility/dialogue beats.",
+      "dependencies": [
+        "goblinprobe",
+        "glass"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 22,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/22"
+    },
+    {
+      "key": "settings",
+      "milestone": "M4",
+      "title": "Help, settings and explicit new-game control",
+      "scope": "First-use/help/settings explain normal logout/reload saves and interrupted-session risk. Models toggle, UI scale and new-game reset with explicit confirmation; no new prestige shop or campaign chapter. Cosmetics never gate simulation.",
+      "acceptance": "Readable controls and reset protection verified; exact persistence wording from brief/spec; settings cannot affect formulas.",
+      "dependencies": [
+        "saves",
+        "director"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 23,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/23"
+    },
+    {
+      "key": "acceptance",
+      "milestone": "M5",
+      "title": "Campaign parity, all-project coverage and current-build acceptance",
+      "scope": "Complete traceability of all 96 project definitions, all subsystems, transitions/recovery/optional/repeatable paths, prestige/endings. Recheck current client APIs/assets, hidden-window performance, migration/continuation and no duplicate timers/rewards. Disposable interrupted-session recovery check, with no promise of saving crashes.",
+      "acceptance": "Documented pass/fail matrix and source/runtime versions; first-divergence fixtures pass; every unresolved numeric/client exception explicit and bounded.",
+      "dependencies": [
+        "endings",
+        "saves",
+        "assets",
+        "settings"
+      ],
+      "labels": [
+        "enhancement"
+      ],
+      "number": 24,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/24"
+    },
+    {
+      "key": "release",
+      "milestone": "M5",
+      "title": "First beta distribution, changelog and release packaging",
+      "scope": "Configure CurseForge project and tag webhook when requested; no distribution or release during initialization. Run pinned packager -d and exact zip allowlist/version substitution check. Player-facing changelog and install/help documentation.",
+      "acceptance": "Inspected package contains only addon runtime files/media/license; version token replaced; supported-build acceptance passed before owner tags/releases.",
+      "dependencies": [
+        "acceptance"
+      ],
+      "labels": [
+        "documentation"
+      ],
+      "number": 25,
+      "url": "https://github.com/Spotnick2/TimeIsMoney/issues/25"
+    }
+  ]
+}

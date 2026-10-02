@@ -1,0 +1,13 @@
+* text=auto
+*.lua text eol=lf
+*.md text eol=lf
+*.toc text eol=lf
+*.ps1 text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.png binary
+*.tga binary
+*.blp binary
+*.ogg binary
