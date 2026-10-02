@@ -1,0 +1,25 @@
+{
+  "description": "Original owner-supplied files transferred byte-for-byte on 2026-10-02. Git blob hashes include the blob header.",
+  "files": [
+    {
+      "path": "docs/plan/Time-Is-Money-Implementation-Spec.md",
+      "size": 19976,
+      "git_blob_sha": "1e24a9e1938650c0838ec349820e0465ec98b84c"
+    },
+    {
+      "path": "docs/plan/Time-Is-Money-Original-Plan.md",
+      "size": 30198,
+      "git_blob_sha": "5230a9a54bd4ea6c3ce1ee9188538e705db4bac5"
+    },
+    {
+      "path": "docs/storyboard/Time is money_ Goblin addon storyboard-1.png",
+      "size": 2305844,
+      "git_blob_sha": "2543d4aecbc53306ab63a426f4267109ef50864e"
+    },
+    {
+      "path": "docs/storyboard/Time Is Money_ Copper Bolt Ledger-2.png",
+      "size": 2204990,
+      "git_blob_sha": "baae2ccb8c1923fd0a1774efb7ca3ad1da9f44be"
+    }
+  ]
+}

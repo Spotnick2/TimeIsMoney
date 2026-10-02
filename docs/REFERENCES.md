@@ -2,10 +2,11 @@
 
 ## Authoritative owner-supplied design
 
-The local docs/plan/Time-Is-Money-Implementation-Spec.md and
-docs/plan/Time-Is-Money-Original-Plan.md are version 1.2, dated 2026-10-02.
-Two local storyboards under docs/storyboard are illustrative concepts.
-These originals still need uploading byte-for-byte; no excerpts are substitutes.
+[Implementation spec](plan/Time-Is-Money-Implementation-Spec.md) and
+[creative brief](plan/Time-Is-Money-Original-Plan.md) are version 1.2, dated 2026-10-02.
+Both original storyboards under [storyboard](storyboard) are illustrative concepts.
+The four originals are committed byte-for-byte. [originals.json](originals.json)
+records their source byte sizes and Git blob hashes; CI verifies them.
 
 The implementation spec pins official Universal Paperclips, retrieved 2026-10-02.
 The five source files are not vendored by setup. Hashes:

@@ -15,7 +15,8 @@ Account-wide SavedVariables: TimeIsMoneyDB (one company per account).
 M0 is initialization only: loadable scaffold, evidence pointers, tools, tests,
 skills and backlog. No simulation, game save schema, glass window or models.
 The scaffold never modifies saved progress. Original docs/storyboards are
-local-only until uploaded into this PR; never reconstruct them from excerpts.
+committed byte-for-byte; docs/originals.json records their sizes/Git blob hashes.
+Preserve the originals rather than reconstructing them from excerpts.
 
 ## Design contract
 
@@ -48,10 +49,12 @@ declared but never initialized/replaced until the schema is designed.
 tests: Lua 5.1 loader behavior with allowlist stub and PowerShell runner.
 Tools/deploy.ps1: TOC inputs and runtime media, deployed dev version only.
 Tools/check_package.py: exact archive contents/version validation.
-.github/workflows/package-check.yml: Lua checks + pinned packager -d dry run.
+.github/workflows/package-check.yml: original byte checks, Lua checks, Windows
+test/deploy execution in temporary folders, and pinned packager -d dry run.
 docs/BACKLOG.md and backlog.json: recoverable issues and milestone definitions.
-Tools/provision_backlog.ps1: attach issues to actual milestones when CLI access
-returns; preserve issue bodies and owner edits.
+Tools/provision_backlog.ps1: attach issues to actual milestones; preserve issue
+bodies and owner edits. The initialization-branch Actions workflow runs this script
+with an issues-write token; normal package/test CI remains read-only.
 
 Glass: reuse ..\GlassUnitFrames main through git show main:Glass.lua, because shared
 working trees can be switched by another session. Retain attribution and add a

@@ -11,3 +11,6 @@
 *.tga binary
 *.blp binary
 *.ogg binary
+
+# Preserve the owner-supplied plan bytes on every platform.
+docs/plan/*.md -text

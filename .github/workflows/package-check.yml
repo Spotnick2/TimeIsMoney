@@ -12,6 +12,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Verify original design bytes
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          for entry in json.loads(Path("docs/originals.json").read_text())["files"]:
+              data = Path(entry["path"]).read_bytes()
+              actual = hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+              assert len(data) == entry["size"] and actual == entry["git_blob_sha"], entry["path"]
+          print("design: all four original files match their source byte sizes and Git blob hashes")
+          PY
       - name: Install Lua 5.1
         run: |
           sudo apt-get update -qq
@@ -50,3 +61,42 @@ jobs:
           path: .release/*.zip
           include-hidden-files: true
           if-no-files-found: error
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build declared Lua 5.1 toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = Join-Path $env:RUNNER_TEMP 'lua-5.1.5.tar.gz'
+          Invoke-WebRequest 'https://www.lua.org/ftp/lua-5.1.5.tar.gz' -OutFile $archive
+          # Official checksum: https://www.lua.org/ftp/
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne '2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333') {
+            throw 'Lua source checksum mismatch.'
+          }
+          tar -xzf $archive -C $env:RUNNER_TEMP
+          if ($LASTEXITCODE -ne 0) { throw 'Lua source extraction failed.' }
+          $luaRoot = Join-Path $env:RUNNER_TEMP 'lua-5.1.5'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vsRoot = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or !$vsRoot) { throw 'Runner MSVC toolchain not found.' }
+          $devCmd = Join-Path $vsRoot 'Common7/Tools/VsDevCmd.bat'
+          $build = Join-Path $luaRoot 'build.cmd'
+          @(
+            '@echo off'
+            ('call "' + $devCmd + '" -arch=x64')
+            'if errorlevel 1 exit /b %errorlevel%'
+            ('cd /d "' + (Join-Path $luaRoot 'src') + '"')
+            'call ..\etc\luavs.bat'
+            'if errorlevel 1 exit /b %errorlevel%'
+          ) | Set-Content -LiteralPath $build -Encoding ascii
+          & cmd.exe /d /c $build
+          if ($LASTEXITCODE -ne 0) { throw 'Lua MSVC build failed.' }
+          "TIM_LUA=$(Join-Path $luaRoot 'src/lua.exe')" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Execute Windows test runner
+        shell: pwsh
+        run: ./tests/run.ps1 -Lua $env:TIM_LUA
+      - name: Execute deploy tooling in temporary AddOns folder
+        shell: pwsh
+        run: ./tests/test_deploy.ps1
