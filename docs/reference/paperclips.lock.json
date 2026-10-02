@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "edition_url": "https://www.decisionproblem.com/paperclips/index2.html",
+  "spec_date": "2026-10-02",
+  "script_order": [
+    "combat.js",
+    "globals.js",
+    "projects.js",
+    "main.js"
+  ],
+  "reuse_status": "unestablished",
+  "files": [
+    {
+      "name": "index2.html",
+      "url": "https://www.decisionproblem.com/paperclips/index2.html",
+      "bytes": 34994,
+      "sha256": "526b148a2eabe6543c4964e625fc3bba53984b2c294415fdec939b077478b9cb"
+    },
+    {
+      "name": "combat.js",
+      "url": "https://www.decisionproblem.com/paperclips/combat.js?v3",
+      "bytes": 23856,
+      "sha256": "c7226d012193c32a00bed53d7cb0119d4d3f91cb556b8e8d1b98dd3375be811a"
+    },
+    {
+      "name": "globals.js",
+      "url": "https://www.decisionproblem.com/paperclips/globals.js?v3",
+      "bytes": 3496,
+      "sha256": "968abd83c7090f24b6817842b4453b6d24de0e03e06d7ccb5ec4d15bee520919"
+    },
+    {
+      "name": "projects.js",
+      "url": "https://www.decisionproblem.com/paperclips/projects.js?v3",
+      "bytes": 80149,
+      "sha256": "05034c51809bc0632e8963e671c8e68c68604ca3643da291e0c6fabc86152774"
+    },
+    {
+      "name": "main.js",
+      "url": "https://www.decisionproblem.com/paperclips/main.js?v3",
+      "bytes": 209215,
+      "sha256": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
+    }
+  ]
+}

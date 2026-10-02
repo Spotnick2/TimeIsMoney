@@ -23,6 +23,8 @@ jobs:
               assert len(data) == entry["size"] and actual == entry["git_blob_sha"], entry["path"]
           print("design: all four original files match their source byte sizes and Git blob hashes")
           PY
+      - name: Check pinned reference tooling and evidence
+        run: python3 -m unittest discover -s tests -p test_paperclips_reference.py -v
       - name: Install Lua 5.1
         run: |
           sudo apt-get update -qq
