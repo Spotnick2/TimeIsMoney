@@ -1,0 +1,19 @@
+package-as: TimeIsMoney
+enable-nolib-creation: no
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+ignore:
+  - .github
+  - .agents
+  - .claude
+  - .codex
+  - .playwright-mcp
+  - docs
+  - tests
+  - Tools
+  - AGENTS.md
+  - CLAUDE.md
+  - README.md
+  - CHANGELOG.md
+  - Media/README.md

@@ -1,0 +1,102 @@
+name: Package check
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify original design bytes
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          for entry in json.loads(Path("docs/originals.json").read_text())["files"]:
+              data = Path(entry["path"]).read_bytes()
+              actual = hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+              assert len(data) == entry["size"] and actual == entry["git_blob_sha"], entry["path"]
+          print("design: all four original files match their source byte sizes and Git blob hashes")
+          PY
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lua5.1
+      - name: Syntax-check Lua and run tests
+        run: |
+          set -euo pipefail
+          test "$(lua5.1 -e 'print(_VERSION)')" = 'Lua 5.1'
+          mapfile -d '' files < <(find . -name '*.lua' -not -path './.git/*' -print0)
+          test "${#files[@]}" -gt 0
+          for f in "${files[@]}"; do luac5.1 -p "$f"; done
+          for f in tests/test_*.lua; do lua5.1 "$f"; done
+      - name: Parse PowerShell tooling
+        shell: pwsh
+        run: |
+          Get-ChildItem Tools, tests -Filter '*.ps1' -Recurse | ForEach-Object {
+            $tokens = $null
+            $parseErrors = $null
+            $null = [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+          }
+      - name: Package dry run
+        uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0
+        with:
+          args: -d
+      - name: Verify exact package contents and version
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          archives=(.release/*.zip)
+          test "${#archives[@]}" -gt 0
+          for archive in "${archives[@]}"; do python3 Tools/check_package.py "$archive"; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: timeismoney-package
+          path: .release/*.zip
+          include-hidden-files: true
+          if-no-files-found: error
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build declared Lua 5.1 toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = Join-Path $env:RUNNER_TEMP 'lua-5.1.5.tar.gz'
+          Invoke-WebRequest 'https://www.lua.org/ftp/lua-5.1.5.tar.gz' -OutFile $archive
+          # Official checksum: https://www.lua.org/ftp/
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne '2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333') {
+            throw 'Lua source checksum mismatch.'
+          }
+          tar -xzf $archive -C $env:RUNNER_TEMP
+          if ($LASTEXITCODE -ne 0) { throw 'Lua source extraction failed.' }
+          $luaRoot = Join-Path $env:RUNNER_TEMP 'lua-5.1.5'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vsRoot = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or !$vsRoot) { throw 'Runner MSVC toolchain not found.' }
+          $devCmd = Join-Path $vsRoot 'Common7/Tools/VsDevCmd.bat'
+          $build = Join-Path $luaRoot 'build.cmd'
+          @(
+            '@echo off'
+            ('call "' + $devCmd + '" -arch=x64')
+            'if errorlevel 1 exit /b %errorlevel%'
+            ('cd /d "' + (Join-Path $luaRoot 'src') + '"')
+            'call ..\etc\luavs.bat'
+            'if errorlevel 1 exit /b %errorlevel%'
+          ) | Set-Content -LiteralPath $build -Encoding ascii
+          & cmd.exe /d /c $build
+          if ($LASTEXITCODE -ne 0) { throw 'Lua MSVC build failed.' }
+          "TIM_LUA=$(Join-Path $luaRoot 'src/lua.exe')" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Execute Windows test runner
+        shell: pwsh
+        run: ./tests/run.ps1 -Lua $env:TIM_LUA
+      - name: Execute deploy tooling in temporary AddOns folder
+        shell: pwsh
+        run: ./tests/test_deploy.ps1

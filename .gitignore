@@ -1,0 +1,12 @@
+luac.out
+.claude/settings.local.json
+.claude/worktrees/
+.codex/*
+!.codex/config.toml
+.playwright-mcp/
+.release/
+dist/
+*.zip
+__pycache__/
+.tmp*/
+Media/Source/

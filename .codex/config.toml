@@ -1,0 +1,4 @@
+# Project-scoped OpenAI documentation server. Requires a trusted local checkout.
+# Setup: https://developers.openai.com/learn/docs-mcp
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"

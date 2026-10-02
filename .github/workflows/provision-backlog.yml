@@ -1,0 +1,22 @@
+name: Provision initialization backlog
+on:
+  push:
+    branches: [chore/initialize-project]
+    paths:
+      - .github/workflows/provision-backlog.yml
+      - Tools/provision_backlog.ps1
+      - docs/backlog.json
+permissions:
+  contents: read
+  issues: write
+jobs:
+  provision:
+    if: github.repository == 'Spotnick2/TimeIsMoney'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create milestones and attach existing issues
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./Tools/provision_backlog.ps1

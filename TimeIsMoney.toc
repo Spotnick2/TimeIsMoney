@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: Time Is Money
+## Notes: A goblin copper-bolt ledger. Time is money, friend! /tim
+## Author: Spotnick
+## Version: @project-version@
+## SavedVariables: TimeIsMoneyDB
+
+Compat.lua
+TimeIsMoney.lua
