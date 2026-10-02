@@ -72,7 +72,6 @@ for (const name of Traces.names) test("fixed "+name+" trace reproduces every che
     assert.deepEqual(Runner.report(a.result,source),Runner.report(b.result,source));
     const native=evidence.cases.find(item=>item.case===name);
     const finalHash=Runner.report(a.result,source).final_sha256;
-    if (finalHash!==native.final_sha256) console.log("NATIVE_MISMATCH "+JSON.stringify(a.result.final));
     assert.equal(finalHash,native.final_sha256);
     assert.equal(a.result.checkpoints.length,native.checkpoints);
     assert.equal(a.result.checkpoints[0].kind,"initialization");

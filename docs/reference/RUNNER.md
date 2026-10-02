@@ -7,11 +7,13 @@ representative traces with the same files in a native browser DOM.
 
 ## Run and reproduce
 
-Use Node 20+ with its built-in VM/test runner, existing Python 3, and an installed
+The measured numerical profile is Windows with Node 24 and its built-in VM/test
+runner, existing Python 3, and an installed
 Chromium browser for native checks. There are no npm dependencies or browser
 downloads. Local measurements used Node v24.15.0, Python 3.13.13 and
 HeadlessChrome 154 on Windows; the evidence records the observed versions.
-CI uses the hosted runner's existing Node/Python/Chrome installation.
+CI selects the Windows hosted runner's cached Node 24 and existing Python/Chrome.
+It fails if that cached runtime is absent; it does not download another dependency.
 
 ~~~powershell
 python Tools/paperclips_reference.py fetch
@@ -114,6 +116,19 @@ negative zero, undefined and array holes explicitly. Skip functions, native
 host objects and project presentation text; no closures are serialized.
 The snapshots are inspection evidence, not a resumable save format.
 
+Exact numerical hashes are tied to this measured profile. A preliminary Ubuntu
+hosted-runner comparison failed at workshop checkpoint 46, in state.p10f:
+Node produced 190931795304.0943 and native Chrome produced
+190931795304.09433 (one binary64 step, 0.000030517578125).
+This is the sum of ten Math.pow-based factory costs, not a DOM/timer discrepancy.
+[The diagnostic CI run](https://github.com/Spotnick2/TimeIsMoney/actions/runs/37079870514)
+records the first field and both values. ECMAScript specifies
+[implementation-approximated exponentiation](https://tc39.es/ecma262/2025/multipage/ecmascript-data-types-and-values.html#sec-numeric-types-number-exponentiate).
+The runner preserves each runtime's arithmetic rather than replacing Math.pow,
+rounding persistent state or applying a broad epsilon. Exact Windows comparisons
+remain required. Cross-platform numerical/threshold evidence belongs in issue #4;
+these traces do not establish exact arithmetic on Linux or other JS engines.
+
 SHA-256 checks locate a divergent checkpoint; the browser diagnostic then
 compares parsed state and reports the first differing field. The six current
 cases compare all checkpoints exactly, with no numerical tolerance.
@@ -138,11 +153,11 @@ behavior. It does not independently prove native wall-clock timing.
 | combat-nodraw | 325 | Same complete state and draws as combat with drawing suppressed |
 
 All 1,146 callback/command/setup/final checkpoints matched in the recorded run.
-Thirteen Node tests cover deterministic repeats, native final-state expectations,
+Thirteen Node tests on the Windows profile cover deterministic repeats, native final-state expectations,
 timer rules, DOM lifecycle/selection, storage, numeric encoding, drawing
-independence, input exhaustion and evidence consistency. CI repeats source
-retrieval, Node checks and the native-browser comparison before existing
-Lua/Windows/package checks.
+independence, input exhaustion and evidence consistency. The Windows CI job repeats
+source retrieval, native-browser comparison and Node checks before its Lua/deploy
+checks. Linux retains original-byte, provenance, Lua, tooling and package checks.
 
 No in-game addon behavior, Lua translation, gameplay UI, persistence schema,
 full-campaign parity, media playback or native browser timing guarantee is
