@@ -1,7 +1,8 @@
 luac.out
 .claude/settings.local.json
 .claude/worktrees/
-.codex/
+.codex/*
+!.codex/config.toml
 .playwright-mcp/
 .release/
 dist/

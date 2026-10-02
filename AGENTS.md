@@ -16,5 +16,7 @@ it owns project facts, mechanics, layout, validation and workflow.
   initialization branch, commits, issue backlog and PR.
 
 The project review skill is also installed for Claude; keep both copies identical.
-Use the OpenAI developer docs MCP first for OpenAI/Codex setup questions once
-configured; installation into this local session remains pending shell recovery.
+Use the OpenAI developer docs MCP first for OpenAI/Codex setup questions.
+.codex/config.toml declares the official server for a trusted local checkout.
+Remote configuration does not make tools callable in this running session; verify
+local activation with codex mcp list after checkout synchronization.

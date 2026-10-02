@@ -4,9 +4,10 @@ GitHub issues are the work queue. This catalog records the initialization baseli
 update the issue body when a decision changes. Implement one bounded PR at a time.
 The original implementation spec controls mechanics; the brief controls presentation.
 
-Actual GitHub milestone objects are pending local CLI access. Groups are recorded in
-issue titles/bodies in the meantime. Run **pwsh Tools/provision_backlog.ps1** after
-access is restored to create milestone objects and attach the existing issues.
+All six GitHub milestone objects exist and issues #1–25 are attached. The
+[initialization provisioning run](https://github.com/Spotnick2/TimeIsMoney/actions/runs/37068534961)
+executed Tools/provision_backlog.ps1 with gh. The script remains idempotent and
+preserves issue bodies and owner edits.
 
 ## M0 — Foundation
 
@@ -75,7 +76,9 @@ Complete traceability and current-build client/performance/save checks, release 
 | [#24](https://github.com/Spotnick2/TimeIsMoney/issues/24) | Campaign parity, all-project coverage and current-build acceptance |
 | [#25](https://github.com/Spotnick2/TimeIsMoney/issues/25) | First beta distribution, changelog and release packaging |
 
-M0 remains incomplete until the owner-supplied original docs/storyboards are uploaded,
-local checks/deploy tooling are validated and live-client load is recorded. Early
+The original docs/storyboards are committed byte-for-byte, and Linux/Windows
+checks plus temporary-folder deployment pass. M0 remains incomplete until the
+local checkout is synchronized, docs MCP activation is confirmed, and live-client
+scaffold load is recorded; see [M0-STATUS.md](M0-STATUS.md). Early
 client and model probes are in M1; they need not wait for the full simulation port.
 No milestones after M0 are implemented by initialization.
