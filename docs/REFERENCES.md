@@ -33,6 +33,8 @@ must be established before vendoring/distributing translated implementation.
 Repository MIT covers original code/compatible attributed copies, not Paperclips
 or Blizzard art. Public source availability alone is not a reuse license.
 
+Developer execution and native-DOM comparison: [reference runner](reference/RUNNER.md).
+
 ## Forever evidence supplied by the owner
 
 | Local source | Scope |

@@ -25,6 +25,16 @@ jobs:
           PY
       - name: Check pinned reference tooling and evidence
         run: python3 -m unittest discover -s tests -p test_paperclips_reference.py -v
+      - name: Retrieve pinned reference developer inputs
+        run: python3 Tools/paperclips_reference.py fetch
+      - name: Test deterministic reference runner
+        env:
+          TIM_PYTHON: python3
+        run: node --test tests/reference/runner.test.cjs
+      - name: Compare reference adapter with installed Chromium
+        env:
+          TIM_PYTHON: python3
+        run: node Tools/reference/check_browser.cjs
       - name: Install Lua 5.1
         run: |
           sudo apt-get update -qq
