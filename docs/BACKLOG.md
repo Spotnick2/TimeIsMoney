@@ -77,8 +77,9 @@ Complete traceability and current-build client/performance/save checks, release 
 | [#25](https://github.com/Spotnick2/TimeIsMoney/issues/25) | First beta distribution, changelog and release packaging |
 
 The original docs/storyboards are committed byte-for-byte, and Linux/Windows
-checks plus temporary-folder deployment pass. M0 remains incomplete until the
-local checkout is synchronized, docs MCP activation is confirmed, and live-client
-scaffold load is recorded; see [M0-STATUS.md](M0-STATUS.md). Early
+checks plus temporary-folder deployment pass both in CI and on the owner's machine.
+The local checkout is synchronized and codex mcp list confirms the docs server.
+The owner recorded /tim help and /tim status on client 1.60.1.70170, Interface
+16001, Lua 5.1. M0 setup gates are complete; see [M0-STATUS.md](M0-STATUS.md). Early
 client and model probes are in M1; they need not wait for the full simulation port.
 No milestones after M0 are implemented by initialization.

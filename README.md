@@ -22,8 +22,9 @@ Validate with **pwsh tests/run.ps1**; deploy with **pwsh Tools/deploy.ps1**.
 Deployment defaults to the Forever _classic_beta_ AddOns folder. Restart after
 first installing, enable script errors, then run /tim status.
 
-The initialization PR is a draft pending local checkout/MCP setup and a recorded
-live-client scaffold load. The original design docs and both storyboards are
+M0 setup gates are complete: original documents, milestone backlog, local checkout,
+docs MCP configuration, Windows validation and recorded client command responses.
+See [M0 status](docs/M0-STATUS.md). This remains a scaffold, not a playable game. The original design docs and both storyboards are
 committed byte-for-byte; docs/originals.json records their sizes and Git blob hashes.
 CI checks the original bytes, Lua bootstrap, Windows test/deploy tooling and package.
 
