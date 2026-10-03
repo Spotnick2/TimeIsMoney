@@ -6,6 +6,17 @@ const {spawnSync}=require("node:child_process");
 const Runner=require("../../Tools/reference/runner.cjs");
 const LUA=process.env.TIM_LUA || "C:/Program Files (x86)/Lua/5.1/lua.exe";
 
+// Documented numeric exceptions (docs/reference/WORKSHOP.md). V8's Math.pow is not
+// reproducible in portable Lua; the pure-Lua result can differ by one binary64 step
+// for x^1.15. These two display-only fields (written by calculateRev, read only for
+// presentation and saves) amplify that step to at most the measured bounds below.
+// Sale quantities, eligibility, branches, timers and draws stay exact; the threshold
+// test in jsmath.test.cjs proves the bounds and sale-floor insensitivity.
+const TOLERANCES=[
+    {path:"$.state.avgRev",maxUlps:6,reason:"calculateRev display value from Math.pow(demand, 1.15)"},
+    {path:"$.state.avgSales",maxUlps:4,reason:"calculateRev display value from Math.pow(demand, 1.15)"},
+];
+
 // Explicit equidistributed fixture values (fractional parts of i times the golden
 // ratio), recorded into the trace. Not a PRNG in either runner.
 function stream(length=60000) {
@@ -48,6 +59,10 @@ const traces={
         click(0,"btnMakeMegaClipper"),click(0,"btnMakeMegaClipper"),click(100,"btnMakeMegaClipper")]},
     // No input, money or stock: Beg for More Wire appears and Operations (#6) is
     // enabled; the Lua slice stops with an explicit unported error at that point.
+    // Reachable cent prices where the pow step reaches the display fields
+    // (found by the #32 review): margin 10.06 and margin 1.50 with marketing level 4.
+    highPrice:{until:1000,fixture:{globals:{margin:10.06,marketingLvl:1,unsoldClips:10}},commands:[]},
+    pricedMarketing:{until:2000,fixture:{globals:{margin:1.5,marketingLvl:4,unsoldClips:200}},commands:[]},
     computationBoundary:{until:600,fixture:{globals:{wire:0.5,funds:1,unsoldClips:0}},commands:[
         click(0,"btnMakePaperclip")]},
 };
@@ -106,17 +121,19 @@ function compare(name, source=Runner.inputs()) {
         left={...left,events:left.events.slice(0,port.events.length),
             checkpoints:left.checkpoints.slice(0,port.checkpoints.length)};
     }
-    return {trace,reference,port,divergence:Runner.compare(left,port,source)};
+    const tolerated=[];
+    const divergence=Runner.compare(left,port,source,{tolerances:TOLERANCES,onTolerated:item=>tolerated.push(item)});
+    return {trace,reference,port,divergence,tolerated};
 }
-module.exports={names:Object.keys(traces),make,lua,compare,stream,exactParts,LUA};
+module.exports={names:Object.keys(traces),make,lua,compare,stream,exactParts,LUA,TOLERANCES};
 
 if (require.main===module) {
     for (const name of process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(traces)) {
-        const t0=Date.now(), {port,divergence}=compare(name);
+        const t0=Date.now(), {port,divergence,tolerated}=compare(name);
         const d=divergence && {kind:divergence.kind,event:divergence.event,ordinal:divergence.ordinal,
             checkpoint:divergence.checkpoint,after:divergence.after,field:divergence.field,
             difference:divergence.difference,left:divergence.left,right:divergence.right};
-        console.log(name,(Date.now()-t0)+"ms","events",port.events.length,"error",port.error,
+        console.log(name,(Date.now()-t0)+"ms","events",port.events.length,"error",port.error,"tolerated",tolerated.length,
             divergence ? "DIVERGES "+JSON.stringify(d) : "matches");
     }
 }

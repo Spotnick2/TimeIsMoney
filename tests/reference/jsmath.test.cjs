@@ -6,7 +6,7 @@ const test=require("node:test"), assert=require("node:assert/strict");
 const fs=require("node:fs"), path=require("node:path"), os=require("node:os");
 const {spawnSync}=require("node:child_process");
 const {ulps}=require("../../Tools/reference/host.js");
-const {LUA,exactParts}=require("./workshop.cjs");
+const {LUA,exactParts,TOLERANCES}=require("./workshop.cjs");
 
 // Exact transport: "mantissa:exponent" pairs, so no decimal parsing is involved.
 const tokens={NaN:NaN,Infinity:Infinity,"-Infinity":-Infinity,"-0":-0};
@@ -63,4 +63,32 @@ test("pure-Lua Math.pow matches V8 for integer exponents and specials, within V8
         assert.ok(counts.fraction[1]<=counts.fraction[0]*0.001,JSON.stringify(counts));
         t.diagnostic("cases and one-step differences: "+JSON.stringify(counts));
     } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+});
+
+// Threshold evidence for the workshop's numeric exception: over every reachable
+// demand in this slice (cent prices up to $100, marketing levels 1-60, slice
+// constants for effectiveness, boost and prestige), a one-step change in
+// Math.pow(demand, 1.15) never changes a sale quantity and moves the display
+// fields by no more than the declared bounds.
+test("a one-step pow difference cannot change sale quantities and stays within the declared bounds",t=>{
+    const view=new DataView(new ArrayBuffer(8));
+    const neighbor=(x,d)=>{view.setFloat64(0,x);view.setBigUint64(0,view.getBigUint64(0)+BigInt(d));return view.getFloat64(0);};
+    const bound=Object.fromEntries(TOLERANCES.map(t=>[t.path,t.maxUlps]));
+    let cases=0, maxSales=0, maxRev=0;
+    for (let cents=1;cents<=10000;cents++) {
+        const margin=cents/100;
+        for (let level=1;level<=60;level++) {
+            let demand=(((.8/margin)*Math.pow(1.1,level-1)*1)*1);
+            demand=demand+((demand/10)*0);
+            const p=Math.pow(demand,1.15), chance=Math.min(demand/100,1);
+            for (const q of [neighbor(p,-1),neighbor(p,1)]) {
+                cases++;
+                assert.equal(Math.floor(.7*q),Math.floor(.7*p),"sale floor at margin "+margin+" level "+level);
+                maxSales=Math.max(maxSales,ulps(chance*(.7*p)*10,chance*(.7*q)*10));
+                maxRev=Math.max(maxRev,ulps(chance*(.7*p)*margin*10,chance*(.7*q)*margin*10));
+            }
+        }
+    }
+    assert.ok(maxSales<=bound["$.state.avgSales"] && maxRev<=bound["$.state.avgRev"]);
+    t.diagnostic("neighbor cases "+cases+"; max steps avgSales "+maxSales+", avgRev "+maxRev);
 });

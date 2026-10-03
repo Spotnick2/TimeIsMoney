@@ -94,9 +94,24 @@ The next tick reaches calculateOperations, so a workshop trace stops there.
 
   On a separate 87,236 normal positive-base cases, an 80-digit decimal check
   found the Lua result correctly rounded in every case. All 34 differences from
-  V8 there are at misrounded V8 results. Subnormal results are not claimed. No
-  workshop trace reaches such a case. If a trace does, the exact comparison
-  reports it, and a narrow exception with threshold evidence would be needed.
+  V8 there are at misrounded V8 results. Subnormal results are not claimed.
+
+  **Numeric exception.** The #32 review found reachable cent prices where that
+  one step reaches state: margin 10.06, and margin 1.50 at marketing level 4. The
+  workshop comparison therefore declares a narrow exception for exactly
+  `$.state.avgRev` (at most 6 steps) and `$.state.avgSales` (at most 4 steps).
+  calculateRev writes these fields; the reference only displays and saves them,
+  and no decision reads them. The comparison reports every accepted difference,
+  and every other field, event, draw and timer stays exact.
+
+  Threshold evidence (jsmath.test.cjs): the test covers every reachable demand in
+  this slice, meaning cent prices up to $100 and marketing levels 1–60, with the
+  slice's constant effectiveness, boost and prestige. Moving Math.pow(demand,
+  1.15) one step either way (1,200,000 cases) never changes the sale quantity
+  `floor(.7 * pow)`. It moves the two fields by at most 4 and 6 steps, which
+  become the declared bounds. Sale probability uses demand, and demand uses only
+  integer exponents, which match exactly. Later slices that change effectiveness,
+  boost or prestige must extend this evidence.
 - **Math.sin:** the wire price uses Lua's `math.sin`, which comes from the C
   library. Its result passes through Math.ceil, so only a value within one step
   of an integer could differ. This is a known dependency, not proven exact.
@@ -109,7 +124,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines eight traces with an explicit equidistributed
+tests/reference/workshop.cjs defines ten traces with an explicit equidistributed
 stream: the fractional part of i × 0.6180339887498949, recorded into the trace.
 The #4 repeat pattern never draws below 0.06, so it would never sell at the
 default 5 % sale probability.
@@ -118,7 +133,7 @@ The reference runner and tests/reference/lua_trace_runner.lua run each trace.
 The reference document is projected to the fields the Lua document declares:
 every ported global, the slice's button states, the readouts, the timers and the
 draw count. compareTraces then requires **exact** agreement of every event, every
-labeled draw and every checkpoint.
+labeled draw and every checkpoint, apart from the declared numeric exception above.
 
 | Trace | Covers | Result |
 | --- | --- | --- |
@@ -129,6 +144,8 @@ labeled draw and every checkpoint.
 | priceFloor | Two clicks before the first tick reach margin 0. Demand becomes NaN (∞ + ∞ × 0) and sales stop until the price recovers | match |
 | milestones | 500 and 1,000 clip messages ("1 hour 2 minutes 1 second"), trust and the next Fibonacci target | match |
 | mega | MegaClipper purchase, the recomputed cost and the disabled control | match |
+| highPrice | Margin 10.06: `avgRev` differs by one step under the declared exception; it diverges without it | match with exception |
+| pricedMarketing | Margin 1.50, marketing level 4: `avgSales` uses the exception | match with exception |
 | computationBoundary | Out of wire, money and stock: the slice stops with the #6 error, and the agreed prefix matches | match up to the stop |
 
 Changing one decrement in the Lua port by a single binary64 step was caught at

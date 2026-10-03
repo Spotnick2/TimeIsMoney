@@ -209,3 +209,19 @@ test("the Lua recorded stream reads identical doubles and labels draws in the sa
             ["draw",2,"main.js:704:14","main.js:1737:22"]);
     } finally { fs.rmSync(dir,{recursive:true,force:true}); }
 });
+test("numeric exceptions apply only to their exact path and bound",()=>{
+    const doc=(value,funds=1)=>({schema:2,source_sha256:{a:"1"},input:null,
+        events:[{action:"checkpoint",index:0,kind:"final",at:0}],
+        checkpoints:[{kind:"final",at:0,json:JSON.stringify({state:{avgRev:value,funds}})}]});
+    const step=x=>{const v=new DataView(new ArrayBuffer(8));v.setFloat64(0,x);v.setBigUint64(0,v.getBigUint64(0)+1n);return v.getFloat64(0);};
+    const tolerances=[{path:"$.state.avgRev",maxUlps:2,reason:"test"}], seen=[];
+    const opts={tolerances,onTolerated:item=>seen.push(item)};
+    assert.equal(Harness.compareTraces(doc(0.1),doc(step(0.1)),8,opts),null);
+    assert.deepEqual([seen.length,seen[0].path,seen[0].ulps,seen[0].checkpoint],[1,"$.state.avgRev",1,0]);
+    assert.equal(Harness.compareTraces(doc(0.1),doc(step(step(step(0.1)))),8,opts).difference.path,"$.state.avgRev");
+    // Later differences are still reported, and other paths get no allowance.
+    assert.equal(Harness.compareTraces(doc(0.1),doc(step(0.1),2),8,opts).difference.path,"$.state.funds");
+    assert.equal(Harness.compareTraces(doc(0.1,1),doc(0.1,step(1)),8,opts).difference.path,"$.state.funds");
+    assert.equal(Harness.compareTraces(doc(NaN),doc(0.1),8,opts).difference.path,"$.state.avgRev");
+    assert.throws(()=>Harness.compareTraces(doc(0.1),doc(0.1),8,{tolerances:[{path:"$.state.avgRev",maxUlps:2}]}),/reason/);
+});

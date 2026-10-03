@@ -98,3 +98,14 @@ test("the battle core is exercised beyond its first combat roll",()=>{
     assert.ok(sales.length>=30);
     assert.ok(final(port).state.clipsSold>0);
 });
+test("reachable prices use only the declared display-field exception, never elsewhere",()=>{
+    for (const name of Workshop.names) for (const item of run(name).tolerated)
+        assert.ok(["$.state.avgRev","$.state.avgSales"].includes(item.path),name+" "+item.path);
+    const {tolerated,port,trace}=run("highPrice");
+    assert.ok(tolerated.some(item=>item.path==="$.state.avgRev" && item.ulps>=1));
+    assert.ok(run("pricedMarketing").tolerated.some(item=>item.path==="$.state.avgSales"));
+    // Without the exception the reference comparison reports the one-step difference.
+    const reference=Runner.report(Runner.run(trace,source).result,source,true);
+    const exact=Runner.compare(Runner.project(reference,port.projection),port,source);
+    assert.deepEqual([exact.kind,exact.difference.path,exact.difference.ulps],["state","$.state.avgRev",1]);
+});

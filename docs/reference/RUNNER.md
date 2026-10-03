@@ -158,9 +158,12 @@ The runner preserves each runtime's arithmetic rather than replacing Math.pow,
 rounding persistent state or applying a broad epsilon. Exact Windows comparisons
 remain required; these traces do not establish exact arithmetic on Linux or other
 JS engines. The comparator reports a numeric difference's distance in doubles
-(state.p10f above is 1) as evidence, but **accepts no tolerance**. Any future
-exception needs its own change with a narrow path, a documented bound and a
-threshold test showing that no decision changes.
+(state.p10f above is 1) as evidence. By default it **accepts no tolerance**. A
+caller may pass `tolerances`: exact checkpoint field paths, each with a maximum
+distance in doubles and a reason. Every accepted difference is reported through
+`onTolerated`, and later differences are still found. An exception needs a
+documented bound and a threshold test showing that no decision changes. The only
+current use is the workshop's two display fields ([WORKSHOP.md](WORKSHOP.md)).
 
 ## First-divergence comparison
 

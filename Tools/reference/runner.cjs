@@ -92,8 +92,8 @@ function report(result, source, full = false) {
             final_sha256:sha256(JSON.stringify(Harness.encode(result.final)))};
 }
 // Adds inventory scopes to the differing draw labels.
-function compare(left, right, source = null) {
-    const found=Harness.compareTraces(left,right);
+function compare(left, right, source = null, options = {}) {
+    const found=Harness.compareTraces(left,right,8,options);
     if (found && source) for (const side of ["left","right"])
         if (found[side]?.action==="draw") found[side]={...found[side],scope:siteScope(found[side].site,source)};
     return found;
