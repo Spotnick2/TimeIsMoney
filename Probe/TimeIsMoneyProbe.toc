@@ -16,3 +16,4 @@ Sim/Projects.lua
 Vectors.lua
 Checks.lua
 Probe.lua
+Goblin.lua

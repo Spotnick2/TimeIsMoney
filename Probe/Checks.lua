@@ -275,5 +275,57 @@ function Checks.workshop(ns)
     return overall, random.count, S.ticks, fields
 end
 
+-- Goblin model probe helpers (#10) ------------------------------------------
+
+-- The npc ID in a creature GUID: Creature-0-<server>-<instance>-<zone>-<npc>-<spawn>
+-- (also Vehicle-). nil for players, pets and anything else.
+function Checks.npcFromGUID(guid)
+    local kind, npc = tostring(guid):match("^(%a+)%-0%-%d+%-%d+%-%d+%-(%d+)%-")
+    if kind == "Creature" or kind == "Vehicle" then return tonumber(npc) end
+    return nil
+end
+
+-- The box as Forever returns it: six numbers (measured by AltStable on 70124), or
+-- two vectors should a build switch. Returns {l, w, h} or nil before loading.
+function Checks.readBox(...)
+    local a = { ... }
+    local x0, y0, z0, x1, y1, z1
+    if type(a[1]) == "table" and type(a[2]) == "table" then
+        x0, y0, z0, x1, y1, z1 = a[1].x, a[1].y, a[1].z, a[2].x, a[2].y, a[2].z
+    else
+        x0, y0, z0, x1, y1, z1 = a[1], a[2], a[3], a[4], a[5], a[6]
+    end
+    x0, y0, z0, x1, y1, z1 = tonumber(x0), tonumber(y0), tonumber(z0), tonumber(x1), tonumber(y1), tonumber(z1)
+    if not (x0 and y0 and z0 and x1 and y1 and z1) or z1 - z0 <= 0.001 then return nil end
+    return { l = x1 - x0, w = y1 - y0, h = z1 - z0 }
+end
+
+-- Framing for a camera at distance d with field of view fov spanning the frame's
+-- larger side (AltStable, measured). fraction is the share of the model's height
+-- that fills the frame, measured from the top (1 = whole body, about 0.35 = head);
+-- margin leaves headroom. Returns the actor scale and the vertical offset that
+-- centres that top slice.
+function Checks.framing(box, frameW, frameH, d, fov, fraction, margin)
+    local span = 2 * d * math.tan(fov / 2)
+    local viewH = (frameW >= frameH) and (span * frameH / frameW) or span
+    local scale = viewH / (box.h * fraction * margin)
+    -- The actor's origin is its centre; the slice's centre sits (1 - fraction)/2
+    -- of the height above it.
+    local offset = -(1 - fraction) / 2 * box.h * scale
+    return scale, offset
+end
+
+-- "0-5, 7, 9-11" for a sorted list of integers.
+function Checks.compactRanges(list)
+    local parts, i = {}, 1
+    while i <= #list do
+        local j = i
+        while j < #list and list[j + 1] == list[j] + 1 do j = j + 1 end
+        parts[#parts + 1] = (i == j) and tostring(list[i]) or (list[i] .. "-" .. list[j])
+        i = j + 1
+    end
+    return table.concat(parts, ", ")
+end
+
 ns.Checks = Checks
 return Checks
