@@ -134,15 +134,20 @@ a bounded 3 s poll and a stale-callback token.
 | --- | --- | --- | --- | --- |
 | Roxxik | targeted in Orgrimmar, npc 11017 | **10472** | 0.84, 1.06, 1.39 | 119376 |
 | Jelinek Sharpshear (barber) | targeted in Stormwind City, npc 277024 | **148768** | 0.84, 1.06, 1.39 | — |
+| Gazlowe | targeted in Ratchet | **7052** | 1.04, 1.24, 1.48 | — |
+| Fuzruckle (banker) | targeted | **7058** | 1.04, 1.24, 1.48 | — |
+| Tinkerwiz (journeyman engineer) | targeted | **7073** | 1.04, 1.24, 1.48 | — |
 | Mupsi Shacklefridd (female) | rendered by display ID next to the NPC (the target record was not saved) | **16171** | 0.79, 1.05, 1.55 | 119369 |
 
-- **Texture:** all three render **fully textured** from the display ID with the idle
+- **Texture:** all six render **fully textured** from the display ID with the idle
   animation running. Display IDs (not npc IDs) keep the chosen look (AltStable).
 - **2D fallback:** `SetPortraitTextureFromCreatureDisplayID` gives a textured round
   head portrait for both. This is the verified fallback.
 - **Framing:**
-  - The box arrived at once (cached models). Both males share one box (one body);
-    the female is taller (h 1.55), and the same crop still frames her head.
+  - The box arrived at once (cached models). There are three bodies: the classic
+    male (7052, 7058, 7073: 1.04 x 1.24 x 1.48), the newer male (10472, 148768:
+    0.84 x 1.06 x 1.39) and the female (16171: h 1.55). The same crop frames
+    every head.
   - Fitting the height alone clipped the arms in the tall body pane, so the whole
     body fits both height and width (`box.w`, world Y across the view).
   - **The actor's position is multiplied by its scale.** An offset computed in view
