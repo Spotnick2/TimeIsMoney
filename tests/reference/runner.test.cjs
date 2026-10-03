@@ -93,6 +93,21 @@ for (const name of Traces.names) test("fixed "+name+" trace reproduces every che
         assert.equal(state.tourneyInProg,0);assert.equal(state.resultsFlag,1);assert.ok(state.yomi>0);
         assert.ok(a.result.timerLog.some(t=>t.action==="register" && !t.repeat && t.delay===50));
     }
+    if (name==="range") {
+        const expected=["100","100","100","99","200","0","125","100"];
+        const commands=a.result.checkpoints.filter(point=>point.kind==="command");
+        assert.equal(commands.length,expected.length);
+        for (const [i,point] of commands.entries()) {
+            assert.equal(JSON.parse(point.json).dom.slider.value,expected[i]);
+            const at=100*(i+1);
+            const next=a.result.checkpoints.filter(point=>point.kind==="callback" && point.at===at).at(-1);
+            const snapshot=JSON.parse(next.json);
+            assert.equal(snapshot.dom.slider.value,expected[i]);
+            assert.equal(snapshot.state.sliderPos,expected[i],"swarm read-back after input "+i);
+        }
+        a.global.document.getElementById("slider").setAttribute("step","any");
+        assert.throws(()=>{a.global.document.getElementById("slider").value="99.5";},/outside pinned/);
+    }
     if (name==="combat") {
         assert.equal(a.result.timerLog.filter(t=>t.action==="fire" && t.id===1).length,100);
         assert.ok(state.probesLostCombat>0 || state.driftersKilled>0);
@@ -116,7 +131,7 @@ test("random exhaustion and disallowed developer commands fail",()=>{
 
 test("recorded native browser evidence pins current implementation and inputs",()=>{
     const fs=require("node:fs"),path=require("node:path");
-    assert.equal(evidence.cases.length,6);
+    assert.equal(evidence.cases.length,7);
     for (const record of evidence.cases) {
         assert.deepEqual(record.source_sha256,source.index.source_sha256);
         assert.deepEqual(record.native_timer_probe,["first","second"]);

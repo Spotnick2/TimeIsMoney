@@ -8,7 +8,7 @@ const candidates=process.platform==="win32" ? [
 ] : ["/usr/bin/google-chrome","/usr/bin/google-chrome-stable","/usr/bin/chromium"];
 const browser=process.env.TIM_BROWSER || candidates.find(file=>fs.existsSync(file));
 if (!browser) throw new Error("Set TIM_BROWSER to an already installed Chromium browser executable.");
-const cases=["initialization","workshop","cancellation","tournament","combat","combat-nodraw"];
+const cases=["initialization","workshop","cancellation","tournament","range","combat","combat-nodraw"];
 async function main() {
     fs.mkdirSync(CACHE,{recursive:true});
     const server=spawn(process.execPath,[path.join(__dirname,"browser_server.cjs")],{

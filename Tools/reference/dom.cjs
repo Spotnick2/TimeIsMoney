@@ -38,6 +38,7 @@ class Node {
                 if (document.drawing !== false) document.drawCalls++;
             }};
         }
+        if (tag === "input" && attrs.type === "range") this.value = this._value;
     }
     get id() { return this.attrs.id || ""; }
     set id(v) { this.attrs.id = String(v); }
@@ -62,9 +63,16 @@ class Node {
         if (this.tag === "select") this._selectedValue = this.options.some(n=>n.value===value) ? value : "";
         else if (this.tag === "option") this.attrs.value = value;
         else if (this.tag === "input" && this.attrs.type === "range") {
-            const min = Number(this.attrs.min ?? 0), max = Number(this.attrs.max ?? 100);
-            const n = Number(value);
-            this._value = String(Math.max(min,Math.min(max,Number.isFinite(n) ? n : (min+max)/2)));
+            // The verified page has one 0..200 slider with a default unit step.
+            // Reject other profiles rather than claim general HTML range support.
+            if (this.attrs.min !== "0" || this.attrs.max !== "200" || (this.attrs.step ?? "1") !== "1")
+                throw new Error("Range configuration outside pinned 0..200 unit-step contract");
+            // HTML decimal syntax excludes empty/whitespace, hex and leading +.
+            const decimal = /^-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/;
+            const match = value.match(decimal);
+            const n = match?.[0] === value ? Number(value) : NaN;
+            // Invalid/nonfinite values use the midpoint; ties round upward.
+            this._value = String(Math.round(Math.max(0,Math.min(200,Number.isFinite(n) ? n : 100))));
         } else if (["input","button"].includes(this.tag)) this._value = value;
         else throw new Error("Unsupported value setter: " + this.tag);
     }

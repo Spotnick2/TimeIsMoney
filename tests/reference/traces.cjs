@@ -35,6 +35,12 @@ const traces = {
             {at:110,type:"click",id:"btnRunTournament"}
         ]
     },
+    range: {
+        until:800,
+        fixture:{globals:{humanFlag:0,swarmFlag:1}},
+        commands:["99.5","","0x10","99.49","201","-1","1.25e2","42\n"].map((value,i)=>
+            ({at:1+i*100,type:"value",id:"slider",value}))
+    },
     combat: {
         until:1600,
         fixture:{globals:{probeCount:100000000,drifterCount:100000000,battleNameFlag:1}},

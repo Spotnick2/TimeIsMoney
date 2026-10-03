@@ -24,7 +24,7 @@ node Tools/reference/check_browser.cjs
 The first command retrieves only the five officially pinned inputs into the
 ignored .tmp-paperclips/ cache. The runner rechecks raw hashes/sizes and inventory
 pins before executing. It does not substitute another edition. Set TIM_PYTHON
-if Python is not named python; CI sets it to python3. Set TIM_BROWSER to an
+if Python is not named python. Set TIM_BROWSER to an
 existing Chromium executable if the usual Chrome/Edge paths do not apply.
 
 To create a fixture input and print a trace report:
@@ -48,6 +48,10 @@ differences. It is not committed as a copy of the game's source/presentation.
   click behavior, option selection and the range input used by the source.
   Missing IDs return null. Initial HTML IDs also supply the named window bindings
   read by the original scripts; ordinary script globals can shadow them.
+  The range adapter supports the pinned 0..200 unit-step slider. Decimal input
+  follows browser rounding (ties upward), clamping and invalid-value midpoint
+  fallback; other range configurations fail explicitly. See the
+  [HTML range-value rules](https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range)).
 - Storage has browser string/null semantics and contains JSON values from the
   reference's own save/load routines. The snapshot reads the resulting stored
   JSON, not a made-up no-op save. It is not a WoW SavedVariables schema.
@@ -130,7 +134,7 @@ remain required. Cross-platform numerical/threshold evidence belongs in issue #4
 these traces do not establish exact arithmetic on Linux or other JS engines.
 
 SHA-256 checks locate a divergent checkpoint; the browser diagnostic then
-compares parsed state and reports the first differing field. The six current
+compares parsed state and reports the first differing field. The seven current
 cases compare all checkpoints exactly, with no numerical tolerance.
 
 ## Measured native-browser acceptance
@@ -149,12 +153,13 @@ behavior. It does not independently prove native wall-clock timing.
 | workshop | 73 | Manual production/input, first automation and project, price/risk selection, dynamic button removal and reference save/load |
 | cancellation | 106 | A blink interval fires twelve times, cancels itself, restores visibility and stays cancelled |
 | tournament | 285 | Selection, operations charge, alternating 50 ms callbacks, completion, results and Yomi reward |
+| range | 165 | Eight slider assignments: fractional tie/down rounding, empty/hex/newline fallback, bounds, exponent input and subsequent swarm read-back |
 | combat | 325 | 100 combat updates at 16 ms, ship/grid motion and nine million probe losses |
 | combat-nodraw | 325 | Same complete state and draws as combat with drawing suppressed |
 
-All 1,146 callback/command/setup/final checkpoints matched in the recorded run.
-Thirteen Node tests on the Windows profile cover deterministic repeats, native final-state expectations,
-timer rules, DOM lifecycle/selection, storage, numeric encoding, drawing
+All 1,311 callback/command/setup/final checkpoints matched in the recorded run.
+Fourteen Node tests on the Windows profile cover deterministic repeats, native final-state expectations,
+timer rules, DOM lifecycle/selection, range sanitization/read-back, storage, numeric encoding, drawing
 independence, input exhaustion and evidence consistency. The Windows CI job repeats
 source retrieval, native-browser comparison and Node checks before its Lua/deploy
 checks. Linux retains original-byte, provenance, Lua, tooling and package checks.
