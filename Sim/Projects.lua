@@ -107,8 +107,10 @@ local function laterPhase(issue)
 end
 
 local P = {}
-local function add(name, trigger, cost, effect)
-    P[#P + 1] = { name = name, id = "projectButton" .. name:sub(8), trigger = trigger, cost = cost, effect = effect }
+-- stop names the issue where a purchase is refused (the effect is not ported).
+local function add(name, trigger, cost, effect, stop)
+    P[#P + 1] = { name = name, id = "projectButton" .. name:sub(8), trigger = trigger, cost = cost, effect = effect,
+        stop = stop }
 end
 
 add("project1", function(S) return S.clipmakerLevel >= 1 end, ops(750),
@@ -388,11 +390,11 @@ add("project119", function(S) return #S.strats >= 8 end, creat(25000), function(
     game:displayMessage("Yomi production doubled.")
     game:removeProject("project119")
 end)
-add("project121", function(S) return S.probesLostCombat >= 10000000 end, creat(225000), laterPhase("#15"))
-add("project131", function(S) return S.probesLostCombat >= 1 end, ops(150000), laterPhase("#15"))
+add("project121", function(S) return S.probesLostCombat >= 10000000 end, creat(225000), laterPhase("#15"), "#15")
+add("project131", function(S) return S.probesLostCombat >= 1 end, ops(150000), laterPhase("#15"), "#15")
 -- Restart asks confirm() and resets the game (explicit new-game control, #23).
 add("project217", function(S) return S.operations <= -10000 end, function(S) return S.operations <= -10000 end,
-    function() Unported("Quantum Temporal Reversion restart (confirm and reset)", "#23") end)
+    function() Unported("Quantum Temporal Reversion restart (confirm and reset)", "#23") end, "#23")
 add("project218", creat(1000000), creat(1000000), function(game)
     local S = game.S
     S.creativity = S.creativity - 1000000

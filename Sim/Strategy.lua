@@ -2,7 +2,7 @@
 -- random payoff grid, 50 ms round timers, scoring, placing and Yomi, the strategy
 -- picker and automatic tournaments. Extends Sim/Workshop.lua; strategy objects keep
 -- their reference fields (name, active, currentScore, currentPos) and pickMove is
--- dispatched by name. Strategy purchases are project effects (#8).
+-- dispatched by name. Strategy purchases are project effects (Sim/Projects.lua).
 local _, ns = ...
 ns = ns or {}
 
@@ -257,7 +257,7 @@ local function picked(S)
     elseif type(pick) == "string" and (pick == "0" or pick:match("^[1-9]%d*$")) then
         strat = S.strats[tonumber(pick) + 1]
     end
-    if not strat then Unported("reference TypeError: strats[pick] is undefined", "#8") end
+    if not strat then Unported("reference TypeError: strats[pick] is undefined", "#20") end
     return strat
 end
 

@@ -94,7 +94,7 @@ function Workshop.new(random, log)
     local S = copy(Workshop.initial)
     S.incomeTracker = { 0 }
     S.battles, S.stocks, S.activeProjects = {}, {}, {}
-    -- qChip0..qChip9 (main.js): wave seeds .1 to 1, inactive until projects (#8).
+    -- qChip0..qChip9 (main.js): wave seeds .1 to 1, activated by photonic chip purchases.
     S.qChips = {}
     for i, seed in ipairs({ .1, .2, .3, .4, .5, .6, .7, .8, .9, 1 }) do
         S.qChips[i] = { waveSeed = seed, value = 0, active = 0 }
@@ -332,6 +332,17 @@ local clipMilestones = {
     [5] = { 1000000, "1,000,000 clips created in " },
 }
 
+-- Thresholds are the doubles nearest 10^12 ... 10^27 (the reference literals),
+-- built with the correctly rounded pow rather than C decimal parsing.
+local lateMilestones = {
+    [7] = { pow(10, 12), "One Trillion Clips Created in " },
+    [8] = { pow(10, 15), "One Quadrillion Clips Created in " },
+    [9] = { pow(10, 18), "One Quintillion Clips Created in " },
+    [10] = { pow(10, 21), "One Sextillion Clips Created in " },
+    [11] = { pow(10, 24), "One Septillion Clips Created in " },
+    [12] = { pow(10, 27), "One Octillion Clips Created in " },
+}
+
 function Game:milestoneCheck()
     local S = self.S
     if S.milestoneFlag == 0 and S.funds >= 5 then
@@ -362,7 +373,20 @@ function Game:milestoneCheck()
             self:displayMessage(m[2] .. timeCruncher(S.ticks))
         end
     end
-    -- Milestone 6 needs project35 (#8); later milestones cannot be reached first.
+    if S.milestoneFlag == 6 and S.project35.flag == 1 then
+        S.milestoneFlag = S.milestoneFlag + 1
+        self:displayMessage("Full autonomy attained in " .. timeCruncher(S.ticks))
+    end
+    for flag = 7, 12 do
+        local m = lateMilestones[flag]
+        if S.milestoneFlag == flag and ceil(S.clips) >= m[1] then
+            S.milestoneFlag = S.milestoneFlag + 1
+            self:displayMessage(m[2] .. timeCruncher(S.ticks))
+        end
+    end
+    -- 13 needs spaceFlag and 14 needs the universe's matter (later phases).
+    if S.milestoneFlag == 13 and S.spaceFlag == 1 then Unported("space milestone", "#14") end
+    if S.milestoneFlag == 14 then Unported("universal paperclips milestones", "#17") end
 end
 
 -- buttonUpdate: the state it changes and the slice's control eligibility.

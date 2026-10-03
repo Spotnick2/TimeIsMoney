@@ -115,7 +115,7 @@ local ok, failure = pcall(function()
         if Workshop.initial[key] == nil and not Workshop.arrays[key] then ns.Unported("fixture global " .. key, "a later slice") end
         S[key] = value
     end
-    if (trace.fixture or {}).projectFlags then ns.Unported("project flag fixtures", "#8") end
+    if (trace.fixture or {}).projectFlags then error("Project flag fixtures are not supported; buy projects through their buttons", 0) end
     if (trace.fixture or {}).strategies then
         -- Host fixture: strats = strategies.map(i => allStrats[i]).
         local strats = {}

@@ -15,7 +15,8 @@ for (const name of Workshop.names) test("workshop "+name+" trace agrees with the
     assert.equal(divergence,null,JSON.stringify(divergence && {kind:divergence.kind,event:divergence.event,
         field:divergence.field,difference:divergence.difference,left:divergence.left,right:divergence.right}));
     assert.deepEqual(port.source_sha256,source.index.source_sha256);
-    assert.equal(port.error,null);
+    // The transition trace ends with the explicit phase-two stop (asserted below).
+    if (name!=="transition") assert.equal(port.error,null);
 });
 
 test("exact costs buy at equal funds; unaffordable clicks run no-op branches, then controls disable",()=>{
@@ -229,4 +230,82 @@ test("automatic tournaments restart from shown results; without a pick nothing i
         .map(p=>p.dom.readout1.html).filter((m,i,a)=>a.indexOf(m)===i).length,2);
     const none=final(run("noPick").port).state;
     assert.deepEqual([none.tourneyInProg,none.resultsFlag,none.yomi],[0,0,0]);
+});
+
+// Issue #8: phase-one projects and the first transition.
+const PROJECT_RUNS=["projectsProduction","projectsCreativity","projectsStrategy","projectsBusiness",
+    "projectsVolition","projectsMachines","projectsRecovery","projectsLate","transition"];
+const REPEATABLE=new Set(["project2","project40b","project51","project219"]);
+const STOPS=new Set(["project121","project128","project131","project217"]);
+test("every purchasable phase-one project is bought in a trace, with eligibility compared",()=>{
+    const projected=run("projectsProduction").port.projection.state.filter(k=>/^project\d/.test(k));
+    const bought=new Set();
+    for (const name of PROJECT_RUNS) for (const state of states(run(name).port))
+        for (const key of projected) if (state[key] && state[key].flag===1) bought.add(key);
+    const missing=projected.filter(key=>!STOPS.has(key) && !bought.has(key));
+    assert.deepEqual(missing,[]);
+    assert.equal(bought.size,52);
+    assert.ok(run("projectsProduction").port.projection.disabled.includes("projectButton1"),"project buttons compared");
+});
+test("one-use projects never return after purchase (no duplicate reward)",()=>{
+    for (const name of PROJECT_RUNS) {
+        const seenBought=new Set();
+        for (const state of states(run(name).port)) {
+            for (const project of state.activeProjects) {
+                const key="project"+project.id.slice("projectButton".length);
+                assert.ok(REPEATABLE.has(key) || !seenBought.has(key),name+": "+key+" returned after purchase");
+            }
+            for (const key of Object.keys(state)) if (/^project\d/.test(key) && state[key].flag===1) seenBought.add(key);
+        }
+    }
+});
+test("project effects: boosts, wire extrusion text, marketing, strategies and the picker",()=>{
+    const production=final(run("projectsProduction").port).state;
+    assert.deepEqual([production.clipperBoost,production.boostLvl,production.wireSupply,production.revPerSecFlag],
+        [2.5,3,173250,1]);
+    const messages=points(run("projectsProduction").port).map(p=>p.dom.readout1.html);
+    assert.ok(messages.includes("Wire extrusion technique improved, 1,500 supply from every spool"));
+    assert.ok(messages.includes("Using quantum foam annealment we now get 173,250 supply from every spool"));
+    const creative=final(run("projectsCreativity").port).state;
+    assert.equal(creative.marketingEffectiveness,3);
+    assert.equal(creative.creativityOn,true);
+    assert.equal(creative.strategyEngineFlag,1);
+    const strategy=run("projectsStrategy").port, strategyEnd=final(strategy);
+    assert.equal(strategyEnd.state.strats.length,8);
+    assert.equal(strategyEnd.state.tourneyCost,16000,"Theory of Mind fixes the tournament cost");
+    assert.equal(strategyEnd.state.yomiBoost,2);
+    assert.equal(strategyEnd.dom.stratPicker.value,"7","the picker gained the strategy options");
+    assert.equal(strategyEnd.state.project118.flag,0,"AutoTourney was shown but unaffordable");
+    assert.equal(strategyEnd.dom.projectButton118.disabled,true);
+});
+test("repeatable projects: emergency wire, goodwill gifts, photonic chips and Xavier",()=>{
+    const recovery=run("projectsRecovery").port, rec=final(recovery).state;
+    assert.equal(rec.project2.flag,1);
+    assert.equal(rec.trust,7,"two emergency spools cost 2 trust");
+    assert.deepEqual([rec.memory,rec.processors,rec.creativitySpeed,rec.project219.uses],[0,0,0,1]);
+    const business=final(run("projectsBusiness").port).state;
+    assert.equal(business.bribe,8000000,"three gifts double the bribe three times");
+    assert.deepEqual([business.investmentEngineFlag,business.demandBoost],[1,50]);
+    const machines=final(run("projectsMachines").port).state;
+    assert.deepEqual(machines.qChips.map(c=>c.active),[1,1,1,0,0,0,0,0,0,0]);
+    assert.deepEqual([machines.qChipCost,machines.nextQchip,machines.qFlag,machines.megaClipperBoost,machines.wireBuyerFlag],
+        [25000,3,1,2.75,1]);
+    const volition=final(run("projectsVolition").port).state;
+    assert.equal(volition.stockGainThreshold,0.54);
+    const late=final(run("projectsLate").port).state;
+    assert.deepEqual([late.project218.flag,late.autoTourneyFlag],[1,1]);
+});
+test("Release the HypnoDrones ends phase one at the reference transition",()=>{
+    const {port}=run("transition"), end=final(port);
+    assert.match(port.error,/Unported reference path: phase-two controls \(issue #11\)/);
+    assert.deepEqual([end.state.humanFlag,end.state.trust,end.state.clipmakerLevel,end.state.megaClipperLevel],[0,0,0,0]);
+    assert.equal(end.state.nanoWire,end.state.wire);
+    assert.ok(!end.state.activeProjects.some(p=>p.id==="projectButton219"),"the shown Xavier button is removed");
+    assert.ok(end.timers.some(t=>t.delay===32),"the hypnodrone blink runs");
+    assert.deepEqual([end.dom.readout1.html,end.dom.readout2.html],["All of the resources of Earth are now available for clip production ",
+        "Releasing the HypnoDrones "]);
+});
+test("the project traceability checklist is current",()=>{
+    const Checklist=require("./project_checklist.cjs");
+    assert.equal(require("node:fs").readFileSync(Checklist.OUTPUT,"utf8"),Checklist.generate());
 });

@@ -164,6 +164,9 @@ const traces={
         margin:.01,creativityOn:1,creativity:100000,processors:3,memory:4,standardOps:4000})},
         commands:[click(20,"projectButton2"),click(30,"btnMakePaperclip"),click(40,"btnMakePaperclip"),
             click(50,"projectButton219"),click(120,"projectButton2")]},
+    // Late phase-one creativity purchases: Limerick (cont.) and AutoTourney.
+    projectsLate:{until:300,fixture:{globals:rich(10,{strategyEngineFlag:1,trust:95,creativity:1100000})},
+        commands:[...buy(20,"218","118")]},
     // The first transition: Hypno Harmonics, HypnoDrones and Release the HypnoDrones,
     // which removes the shown Xavier button; the next tick reaches phase two (#11).
     transition:{until:400,fixture:{globals:rich(120,{creativity:100500,trust:101})},
