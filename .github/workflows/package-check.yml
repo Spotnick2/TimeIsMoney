@@ -64,22 +64,21 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
   windows:
-    runs-on: windows-2022
+    # The owner's local runner (tim-local), started at logon as the owner's account,
+    # so jobs use the installed Node 24, Python, Chrome and MSVC. Keeps the long
+    # Windows job off the hosted-minutes budget; the short Linux job stays hosted.
+    runs-on: [self-hosted, Windows, tim]
     steps:
       - uses: actions/checkout@v4
-      - name: Select cached Node 24 reference profile
+      - name: Verify installed Node 24 reference profile
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $nodeVersions = Get-ChildItem (Join-Path $env:RUNNER_TOOL_CACHE 'node') -Directory |
-            Where-Object { $_.Name -match '^24\.\d+\.\d+$' } |
-            Sort-Object { [version]$_.Name } -Descending
-          if (!$nodeVersions) { throw 'The measured profile requires preinstalled Node 24.' }
-          $nodeDirectory = Join-Path $nodeVersions[0].FullName 'x64'
-          $nodeExecutable = Join-Path $nodeDirectory 'node.exe'
-          if (!(Test-Path -LiteralPath $nodeExecutable)) { throw 'Cached Node executable not found.' }
-          $nodeDirectory | Out-File -LiteralPath $env:GITHUB_PATH -Append -Encoding utf8
-          & $nodeExecutable --version
+          $version = node --version
+          if ($LASTEXITCODE -ne 0 -or $version -notmatch '^v24\.\d+\.\d+$') {
+            throw "The measured profile requires Node 24; found '$version'."
+          }
+          "Node $version at $((Get-Command node).Source)"
       - name: Retrieve pinned reference developer inputs
         shell: pwsh
         run: python Tools/paperclips_reference.py fetch
