@@ -130,21 +130,27 @@ a bounded 3 s poll and a stale-callback token.
 
 ### Results — 2026-10-03, client 1.60.1.70205
 
-| Goblin | Source | Display | Box (l, w, h) | Model file |
-| --- | --- | --- | --- | --- |
-| Roxxik | targeted in Orgrimmar, npc 11017 | **10472** | 0.84, 1.06, 1.39 | 119376 |
-| Jelinek Sharpshear (barber) | targeted in Stormwind City, npc 277024 | **148768** | 0.84, 1.06, 1.39 | — |
-| Gazlowe | targeted in Ratchet | **7052** | 1.04, 1.24, 1.48 | — |
-| Fuzruckle (banker) | targeted | **7058** | 1.04, 1.24, 1.48 | — |
-| Tinkerwiz (journeyman engineer) | targeted | **7073** | 1.04, 1.24, 1.48 | — |
-| Vexspindle (cloth and leather armor merchant) | targeted | **7094** | 1.04, 1.24, 1.48 | — |
-| Innkeeper Wiley | targeted | **7153** | 1.04, 1.24, 1.48 | — |
-| unnamed female (screenshot) | targeted | **7909** | 1.32, 1.18, 1.66 | — |
-| unnamed female (near Wrenix's Gizmotronic Apparatus) | targeted | **146928** | 1.32, 1.18, 1.66 | — |
-| unnamed female (screenshot) | targeted | **147838** | 1.32, 1.18, 1.66 | — |
-| Mupsi Shacklefridd (female) | rendered by display ID next to the NPC (the target record was not saved) | **16171** | 0.79, 1.05, 1.55 | 119369 |
+Every row was targeted with `/timprobe target` on 1.60.1.70205 and saved in
+TimeIsMoneyProbeDB. "The Barrens" is GetRealZoneText's zone for Ratchet.
 
-- **Texture:** all eleven render **fully textured** from the display ID with the idle
+| Goblin | npc | Zone | Display | Box (l, w, h) | Model file |
+| --- | --- | --- | --- | --- | --- |
+| **Gazlowe (chosen Director)** | 3391 | The Barrens (Ratchet) | **7052** | 1.04, 1.24, 1.48 | — |
+| Fuzruckle | 3496 | The Barrens | 7058 | 1.04, 1.24, 1.48 | — |
+| Tinkerwiz | 3494 | The Barrens | 7073 | 1.04, 1.24, 1.48 | — |
+| Vexspindle | 3492 | The Barrens | 7094 | 1.04, 1.24, 1.48 | — |
+| Innkeeper Wiley | 6791 | The Barrens | 7153 | 1.04, 1.24, 1.48 | — |
+| Ratchet Bruiser | 3502 | The Barrens | 7060 and 146928 | 146928: 1.32, 1.18, 1.66 | — |
+| Roxxik | 11017 | Orgrimmar | 10472 | 0.84, 1.06, 1.39 | 119376 |
+| Jelinek Sharpshear | 277024 | Stormwind City | 148768 | 0.84, 1.06, 1.39 | — |
+| Mupsi Shacklefridd | 16418 | The Barrens | 16171 | 0.79, 1.05, 1.55 | 119369 |
+| Liv Rizzlefix | 8496 | The Barrens | 7909 | 1.32, 1.18, 1.66 | — |
+| Kitzy Werkblaster | 274740 | The Barrens | 147838 | 1.32, 1.18, 1.66 | — |
+
+**One NPC, several displays:** two Ratchet Bruisers (npc 3502) answered 7060 and
+146928. Pin a look by display ID, never by npc ID (as AltStable found for pets).
+
+- **Texture:** every display renders **fully textured** from the display ID with the idle
   animation running. Display IDs (not npc IDs) keep the chosen look (AltStable).
 - **2D fallback:** `SetPortraitTextureFromCreatureDisplayID` gives a textured round
   head portrait for both. This is the verified fallback.
@@ -159,8 +165,8 @@ a bounded 3 s poll and a stale-callback token.
     | Female | 0.79 x 1.05 x 1.55 | 16171 |
     | Second female | 1.32 x 1.18 x 1.66 | 7909, 146928, 147838 |
 
-  - NPC IDs for the targeted rows marked "targeted" are in TimeIsMoneyProbeDB once
-    the client writes it (/reload or logout).
+  - The probe's records reach disk only on /reload or logout: the first file read
+    held three of the twelve records until the owner reloaded.
   - Fitting the height alone clipped the arms in the tall body pane, so the whole
     body fits both height and width (`box.w`, world Y across the view).
   - **The actor's position is multiplied by its scale.** An offset computed in view

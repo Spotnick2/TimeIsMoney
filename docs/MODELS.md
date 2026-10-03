@@ -36,11 +36,8 @@ Inspected local HEAD: 01708d2a4fedc941b4e9ce5aa4109c2afcde1b24.
 [#10](https://github.com/Spotnick2/TimeIsMoney/issues/10) measured two goblin displays on
 1.60.1.70205 (docs/forever-api-notes.md, "#10 goblin model probe"):
 
-- These render textured, with idle running:
-  - 7052 Gazlowe, 7058 Fuzruckle, 7073 Tinkerwiz, 7094 Vexspindle, 7153 Innkeeper
-    Wiley;
-  - 10472 Roxxik (npc 11017), 148768 Jelinek Sharpshear (npc 277024);
-  - females: 16171 Mupsi Shacklefridd, 7909, 146928 and 147838.
+- Twelve targeted goblin records (eleven NPCs, four bodies) render textured with
+  idle running. One NPC can answer several displays, so pin a look by display ID.
 - The 2D fallback is `SetPortraitTextureFromCreatureDisplayID`.
 - The actor's position scales with the actor, so offsets are in model units.
 - A crop of the top 0.40 of the height with a 1.15 margin frames the 96x72 strip.
@@ -48,7 +45,9 @@ Inspected local HEAD: 01708d2a4fedc941b4e9ce5aa4109c2afcde1b24.
 - Talk, approval and reaction animations are still unidentified: idle only until
   measured. Do not guess IDs from Retail animation lists.
 
-The Director's display is the owner's choice between the measured candidates.
+**Director: Gazlowe, creature display 7052** (npc 3391, Ratchet; owner choice,
+2026-10-03). Use the display ID with SetModelByCreatureDisplayID, the 2D portrait
+from the same ID as the fallback, and the 0.40 / 1.15 strip crop.
 
 [#22](https://github.com/Spotnick2/TimeIsMoney/issues/22) integrates one reused Director
 scene, idle by default, measured reactions only. Cosmetics cannot delay commands,
