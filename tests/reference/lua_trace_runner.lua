@@ -91,6 +91,10 @@ local function snapshot()
     end
     local dom = {}
     for _, id in ipairs(Workshop.buttons) do dom[#dom + 1] = quote(id) .. ':{"disabled":' .. tostring(game.disabled[id]) .. "}" end
+    for _, entry in ipairs(Workshop.projects) do
+        dom[#dom + 1] = quote(entry.id) .. ":" ..
+            (game.projectElements[entry.id] and ('{"disabled":' .. tostring(game.disabled[entry.id]) .. "}") or "null")
+    end
     for i = 1, 5 do dom[#dom + 1] = quote("readout" .. i) .. ':{"html":' .. quote(game.readouts[i]) .. "}" end
     for _, id in ipairs(selectIds) do dom[#dom + 1] = quote(id) .. ':{"value":' .. quote(game.selects[id].value) .. "}" end
     return '{"state":{' .. table.concat(parts, ",") .. '},"dom":{' .. table.concat(dom, ",") ..
@@ -144,6 +148,7 @@ write(',"error":' .. (ok and "null" or quote(tostring(failure))))
 local buttons, readouts, selects = {}, {}, {}
 for i, id in ipairs(selectIds) do selects[i] = quote(id) end
 for i, id in ipairs(Workshop.buttons) do buttons[i] = quote(id) end
+for _, entry in ipairs(Workshop.projects) do buttons[#buttons + 1] = quote(entry.id) end
 for i = 1, 5 do readouts[i] = quote("readout" .. i) end
 local keys = {}
 for i, k in ipairs(stateKeys) do keys[i] = quote(k) end

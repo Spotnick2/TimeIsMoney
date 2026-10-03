@@ -106,7 +106,8 @@ function project(doc, projection) {
         if (json===undefined) throw new Error("Projection needs full checkpoint JSON");
         const point=JSON.parse(json), state={}, dom={};
         for (const key of projection.state) if (Object.hasOwn(point.state,key)) state[key]=point.state[key];
-        for (const id of projection.disabled) dom[id]={disabled:point.dom[id].disabled};
+        // Dynamic controls (project buttons) are null when not in the document.
+        for (const id of projection.disabled) dom[id]=point.dom[id]==null ? null : {disabled:point.dom[id].disabled};
         for (const id of projection.html) dom[id]={html:point.dom[id].html};
         for (const id of projection.value || []) dom[id]={value:point.dom[id].value};
         return {...meta,json:JSON.stringify({state,dom,timers:point.timers,draws:point.draws})};
