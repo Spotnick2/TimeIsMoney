@@ -37,9 +37,10 @@ Inspected local HEAD: 01708d2a4fedc941b4e9ce5aa4109c2afcde1b24.
 1.60.1.70205 (docs/forever-api-notes.md, "#10 goblin model probe"):
 
 - These render textured, with idle running:
-  - 7052 Gazlowe, 7058 Fuzruckle, 7073 Tinkerwiz;
+  - 7052 Gazlowe, 7058 Fuzruckle, 7073 Tinkerwiz, 7094 Vexspindle, 7153 Innkeeper
+    Wiley;
   - 10472 Roxxik (npc 11017), 148768 Jelinek Sharpshear (npc 277024);
-  - 16171 Mupsi Shacklefridd (female).
+  - females: 16171 Mupsi Shacklefridd, 7909, 146928 and 147838.
 - The 2D fallback is `SetPortraitTextureFromCreatureDisplayID`.
 - The actor's position scales with the actor, so offsets are in model units.
 - A crop of the top 0.40 of the height with a 1.15 margin frames the 96x72 strip.
