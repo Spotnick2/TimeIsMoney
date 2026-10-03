@@ -107,7 +107,8 @@ narrow justified numeric tolerances with threshold evidence. Stubs cannot prove 
 ## Workflow and skills
 
 Issue -> main-based branch -> PR with Closes #N -> requested review -> owner squash-merges.
-Owner launches reviews, merges, closes PRs and tags/releases. Never merge/auto-merge.
+Owner launches reviews, merges, closes PRs and tags/releases. Never merge or
+auto-merge without the owner's explicit approval; a request to merge is approval.
 Commit/push only when asked; initial project request authorizes setup/publication.
 
 Use wow-addon-review for requested reviews and post on the actual PR.
