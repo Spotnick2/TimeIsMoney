@@ -265,6 +265,14 @@ end
 local function abs31(v) if v < 0 then return v + 2 ^ 31 end return v end
 local W = fromWords
 
+-- Math.sin and Math.log10 below are Lua ports of fdlibm 5.3 (k_sin.c, k_cos.c,
+-- e_rem_pio2.c, e_log.c, e_log10.c), distributed under this notice:
+--   Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+--   Developed at SunPro, a Sun Microsystems, Inc. business.
+--   Permission to use, copy, modify, and distribute this
+--   software is freely granted, provided that this notice
+--   is preserved.
+
 -- fdlibm 5.3 sin (the variant V8 uses): __kernel_sin, the original __kernel_cos
 -- with qx, and __ieee754_rem_pio2 for |x| <= 2^20 * pi/2 (high word 0x413921fb).
 local S1, S2, S3 = W(0xBFC55555, 0x55555549), W(0x3F811111, 0x1110F8A6), W(0xBF2A01A0, 0x19C161D5)
