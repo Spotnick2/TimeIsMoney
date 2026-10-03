@@ -27,10 +27,14 @@ assert(box.l == 1 and box.w == 0.5 and box.h == 2)
 local vbox = Checks.readBox({ x = 0, y = 0, z = 0 }, { x = 1, y = 2, z = 3 })
 assert(vbox.l == 1 and vbox.w == 2 and vbox.h == 3)
 assert(Checks.readBox(0, 0, 0, 1, 1, 0) == nil and Checks.readBox(nil) == nil)
-local scale, offset = Checks.framing({ h = 2 }, 100, 100, 40, 0.15, 1, 1)
+local scale, offset = Checks.framing({ h = 2, w = 1 }, 100, 100, 40, 0.15, 1, 1)
 assert(math.abs(scale * 2 - 2 * 40 * math.tan(0.075)) < 1e-12 and offset == 0, "whole body fills the view")
-local headScale, headOffset = Checks.framing({ h = 2 }, 100, 100, 40, 0.15, 0.5, 1)
+local wideScale = Checks.framing({ h = 2, w = 3 }, 100, 100, 40, 0.15, 1, 1)
+assert(math.abs(wideScale * 3 - 2 * 40 * math.tan(0.075)) < 1e-12, "a wide model fits its width")
+local headScale, headOffset = Checks.framing({ h = 2, w = 3 }, 100, 100, 40, 0.15, 0.5, 1)
 assert(math.abs(headScale - 2 * scale) < 1e-12 and math.abs(headOffset + 0.5 * headScale) < 1e-12, "top half centred")
+local _, scaledOffset = Checks.framing({ h = 2, w = 3 }, 100, 100, 40, 0.15, 0.5, 1, true)
+assert(math.abs(scaledOffset + 0.5) < 1e-12, "scaled position: offset in model units")
 assert(Checks.compactRanges({ 0, 1, 2, 5, 7, 8 }) == "0-2, 5, 7-8" and Checks.compactRanges({}) == "")
 
 -- FNV-1a reference values.
@@ -89,7 +93,10 @@ local function Widget(kind)
     end
     function w:SetCreature(npc) self.npc = npc end
     function w:GetDisplayInfo() return self.npc and 7001 or 0 end
-    function w:HasAnimation(id) return id == 0 or id == 1 or id == 60 or id == 69 end
+    function w:HasAnimation(id)
+        if id > 1865 then error("Usage: local hasAnimation = self:HasAnimation(anim)") end
+        return id == 0 or id == 1 or id == 60 or id == 69
+    end
     function w:IsMouseEnabled() return self.mouse end
     function w:EnableMouse(on) self.mouse = on end
     function w:GetFrameLevel() return 5 end
@@ -168,9 +175,13 @@ assert(window.strip.actor.scale > window.body.actor.scale and window.strip.actor
 assert(window.body.mouse == false and window.strip.mouse == false, "scenes never take the mouse")
 slash("anims")
 pump()
-assert(messages[#messages - 1]:find("anims for display 7001: 4 IDs: 0-1, 60, 69", 1, true), messages[#messages - 1])
+assert(messages[#messages - 1]:find("anims for display 7001: 4 IDs (HasAnimation rejects 1866 and up): 0-1, 60, 69", 1, true), messages[#messages - 1])
 slash("anim next") slash("anim next") slash("anim next")
 assert(window.body.actor.anim == 60 and last():find("anim 60 (3 of 4)", 1, true), last())
+slash("posmode world")
+assert(window.strip.actor.z < -1 and last():find("posmode world", 1, true))
+slash("posmode scaled")
+assert(window.strip.actor.z > -1)
 slash("crop 0.3 0.1")
 assert(last() == "|cffd9a066TIM probe|r: crop 0.30, nudge 0.10")
 slash("goblin 8000")

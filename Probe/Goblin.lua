@@ -17,7 +17,9 @@ local PORTRAIT = 72                   -- 2D fallback texture
 local POLLS, POLL_STEP = 30, 0.1      -- box poll: about 3 s
 local ANIM_SCAN = 2000                -- animation IDs checked with HasAnimation
 
-local G = { token = 0, crop = 0.4, nudge = 0, particles = false, anims = {}, animIndex = 0 }
+-- posScaled: whether the client multiplies the actor's position by its scale
+-- (unmeasured; /timprobe posmode compares both).
+local G = { token = 0, crop = 0.4, nudge = 0, particles = false, anims = {}, animIndex = 0, posScaled = true }
 
 local function DB()
     TimeIsMoneyProbeDB = TimeIsMoneyProbeDB or {}
@@ -88,9 +90,10 @@ end
 
 -- Scale and lift one pane's actor so the top `fraction` of the model fills it.
 local function Fit(scene, box, fraction)
-    local scale, offset = Checks.framing(box, scene:GetWidth(), scene:GetHeight(), CAMERA, FOV, fraction, MARGIN)
+    local scale, offset = Checks.framing(box, scene:GetWidth(), scene:GetHeight(), CAMERA, FOV, fraction, MARGIN, G.posScaled)
+    local nudge = G.nudge * box.h * (G.posScaled and 1 or scale)
     scene.actor:SetScale(scale)
-    scene.actor:SetPosition(0, 0, offset + G.nudge * box.h * scale)
+    scene.actor:SetPosition(0, 0, offset + nudge)
     return scale
 end
 
@@ -99,8 +102,8 @@ local function Refit()
     if not (w and box) then return end
     local bodyScale = Fit(w.body, box, 1)
     local stripScale = Fit(w.strip, box, G.crop)
-    w.label:SetText(string.format("display %d   box l=%.2f w=%.2f h=%.2f   body scale %.3f   strip crop %.2f nudge %.2f scale %.3f",
-        G.display, box.l, box.w, box.h, bodyScale, G.crop, G.nudge, stripScale))
+    w.label:SetText(string.format("display %d   box l=%.2f w=%.2f h=%.2f   body scale %.3f\nstrip crop %.2f nudge %.2f scale %.3f   posmode %s",
+        G.display, box.l, box.w, box.h, bodyScale, G.crop, G.nudge, stripScale, G.posScaled and "scaled" or "world"))
 end
 
 -- The box exists once the model has streamed in; poll briefly. A newer display or
@@ -210,12 +213,16 @@ function Commands.anims()
             else Print("anims: the model never reported animation 0 (not loaded)") end
             return
         end
-        local found = {}
+        -- HasAnimation rejects IDs past the client's enum (1866 on 70205): stop there.
+        local found, limit = {}, nil
         for id = 0, ANIM_SCAN - 1 do
-            if lookup:HasAnimation(id) then found[#found + 1] = id end
+            local ok, has = pcall(lookup.HasAnimation, lookup, id)
+            if not ok then limit = id break end
+            if has then found[#found + 1] = id end
         end
         G.anims, G.animIndex = found, 0
-        Print(string.format("anims for display %d: %d IDs: %s", G.display, #found, Checks.compactRanges(found)))
+        Print(string.format("anims for display %d: %d IDs (%s): %s", G.display, #found,
+            limit and ("HasAnimation rejects " .. limit .. " and up") or ("checked 0-" .. ANIM_SCAN - 1), Checks.compactRanges(found)))
         Print("play them with /timprobe anim next (or anim <id>, anim idle); note which read as talk, approval or reaction")
     end
     Scan(POLLS)
@@ -243,6 +250,13 @@ function Commands.crop(rest)
     G.crop, G.nudge = share, nudge or G.nudge
     Refit()
     Print(string.format("crop %.2f, nudge %.2f", G.crop, G.nudge))
+end
+
+function Commands.posmode(rest)
+    if rest ~= "scaled" and rest ~= "world" then Print("usage: /timprobe posmode scaled|world") return end
+    G.posScaled = rest == "scaled"
+    Refit()
+    Print("posmode " .. rest .. ": the strip should show the head in exactly one of the two modes")
 end
 
 function Commands.particles(rest)

@@ -303,15 +303,20 @@ end
 -- Framing for a camera at distance d with field of view fov spanning the frame's
 -- larger side (AltStable, measured). fraction is the share of the model's height
 -- that fills the frame, measured from the top (1 = whole body, about 0.35 = head);
--- margin leaves headroom. Returns the actor scale and the vertical offset that
--- centres that top slice.
-function Checks.framing(box, frameW, frameH, d, fov, fraction, margin)
+-- margin leaves headroom. The whole body (fraction 1) also fits the model's width
+-- (box.w: the camera on +X sees world Y across). Returns the actor scale and the
+-- vertical offset that centres that top slice: in view units, or divided by the
+-- scale when the client applies the actor's scale to its position (scaledPosition).
+function Checks.framing(box, frameW, frameH, d, fov, fraction, margin, scaledPosition)
     local span = 2 * d * math.tan(fov / 2)
     local viewH = (frameW >= frameH) and (span * frameH / frameW) or span
+    local viewW = viewH * frameW / frameH
     local scale = viewH / (box.h * fraction * margin)
+    if fraction >= 1 and box.w and box.w > 0 then scale = math.min(scale, viewW / (box.w * margin)) end
     -- The actor's origin is its centre; the slice's centre sits (1 - fraction)/2
     -- of the height above it.
     local offset = -(1 - fraction) / 2 * box.h * scale
+    if scaledPosition then offset = offset / scale end
     return scale, offset
 end
 

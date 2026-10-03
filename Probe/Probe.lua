@@ -205,7 +205,7 @@ local function Slash(message)
     elseif ns.ProbeCommands[command] then ns.ProbeCommands[command](rest)
     else
         Print("/timprobe env | math | sim | nan | icons | save <text> | status | all")
-        Print("goblins: /timprobe target | npc <id> | goblin <displayID> | anims | anim <id> | crop <share> | particles on|off | frametime | close")
+        Print("goblins: /timprobe target | npc <id> | goblin <displayID> | anims | anim <id> | crop <share> [nudge] | posmode scaled|world | particles on|off | frametime | close")
     end
 end
 
