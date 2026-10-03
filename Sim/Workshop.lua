@@ -1,7 +1,7 @@
 -- Phase-one workshop slice of the pinned reference (main.js/globals.js): manual
 -- production, wire purchases, price/demand/sales, revenue tracking, marketing,
--- AutoClippers/MegaClippers, trust and milestones, plus the always-running battle
--- core. Source identifiers, formulas and statement order are preserved; state
+-- AutoClippers/MegaClippers, trust and milestones, processors/memory, Operations,
+-- creativity and quantum computing, plus the always-running battle core. Source identifiers, formulas and statement order are preserved; state
 -- uses the reference global names. Reference paths outside this slice stop with
 -- an explicit unported error naming the issue that will port them.
 local _, ns = ...
@@ -10,6 +10,7 @@ ns = ns or {}
 local JSMath, Scheduler, Battle = ns.JSMath, ns.Scheduler, ns.Battle
 local floor, ceil = math.floor, math.ceil
 local round, pow, num, undefined = JSMath.round, JSMath.pow, JSMath.num, JSMath.undefined
+local sin, log10 = JSMath.sin, JSMath.log10
 
 function ns.Unported(what, issue)
     error("Unported reference path: " .. what .. " (issue " .. issue .. ")", 0)
@@ -45,11 +46,17 @@ Workshop.initial = {
     creativityOn = false, operations = 0, memory = 1, qFlag = 0, spaceFlag = 0,
     investmentEngineFlag = 0, swarmFlag = 0, resultsFlag = 0, autoTourneyFlag = 0,
     autoTourneyStatus = 1, endTimer6 = 0, blinkCounter = 0,
+    -- Computation (#6).
+    processors = 1, standardOps = 0, tempOps = 0, opFade = 0, opFadeTimer = 0, opFadeDelay = 800,
+    creativity = 0, creativityCounter = 0, creativitySpeed = 1, prestigeS = 0, qClock = 0,
+    swarmGifts = 0,
 }
 for key, value in pairs(Battle.initial) do Workshop.initial[key] = value end
 
 -- Array-valued globals (encoded as arrays even when empty).
-Workshop.arrays = { incomeTracker = true, ships = true, battles = true, stocks = true, activeProjects = true }
+Workshop.arrays = {
+    incomeTracker = true, ships = true, battles = true, stocks = true, activeProjects = true, qChips = true,
+}
 
 -- Project availability (manageProjects) for every project whose trigger reads only
 -- state this slice changes, in projects.js registration order. The other triggers
@@ -67,6 +74,11 @@ Workshop.projects = {
     { "project9", "projectButton9", function(S) return S.wireSupply >= 2600 end },
     { "project10", "projectButton10", function(S) return S.wireSupply >= 5000 end },
     { "project10b", "projectButton10b", function(S) return S.wireCost >= 125 end },
+    { "project13", "projectButton13", function(S) return S.creativity >= 50 end },
+    { "project14", "projectButton14", function(S) return S.creativity >= 100 end },
+    { "project15", "projectButton15", function(S) return S.creativity >= 150 end },
+    { "project17", "projectButton17", function(S) return S.creativity >= 200 end },
+    { "project19", "projectButton19", function(S) return S.creativity >= 250 end },
     { "project21", "projectButton21", function(S) return S.trust >= 8 end },
     { "project22", "projectButton22", function(S) return S.clipmakerLevel >= 75 end },
     { "project26", "projectButton26", function(S) return S.wirePurchase >= 15 end },
@@ -75,16 +87,19 @@ Workshop.projects = {
     { "project40", "projectButton40", function(S)
         return S.humanFlag == 1 and S.trust >= 85 and S.trust < 100 and S.clips >= 101000000
     end },
+    { "project50", "projectButton50", function(S) return S.processors >= 5 end },
     { "project121", "projectButton121", function(S) return S.probesLostCombat >= 10000000 end },
     { "project131", "projectButton131", function(S) return S.probesLostCombat >= 1 end },
     { "project217", "projectButton217", function(S) return S.operations <= -10000 end },
+    { "project218", "projectButton218", function(S) return S.creativity >= 1000000 end },
+    { "project219", "projectButton219", function(S) return S.humanFlag == 1 and S.creativity >= 100000 end },
 }
 
 -- Buttons whose disabled state buttonUpdate maintains; clicks on a disabled
 -- control do nothing, as in the browser.
 Workshop.buttons = {
     "btnMakePaperclip", "btnBuyWire", "btnMakeClipper", "btnExpandMarketing",
-    "btnLowerPrice", "btnRaisePrice", "btnMakeMegaClipper",
+    "btnLowerPrice", "btnRaisePrice", "btnMakeMegaClipper", "btnAddProc", "btnAddMem", "btnQcompute",
 }
 
 local Game = {}
@@ -105,6 +120,11 @@ function Workshop.new(random, log)
     local S = copy(Workshop.initial)
     S.incomeTracker = { 0 }
     S.battles, S.stocks, S.activeProjects = {}, {}, {}
+    -- qChip0..qChip9 (main.js): wave seeds .1 to 1, inactive until projects (#8).
+    S.qChips = {}
+    for i, seed in ipairs({ .1, .2, .3, .4, .5, .6, .7, .8, .9, 1 }) do
+        S.qChips[i] = { waveSeed = seed, value = 0, active = 0 }
+    end
     for _, project in ipairs(Workshop.projects) do
         S[project[1]] = { id = project[2], flag = 0, uses = 1 }
     end
@@ -190,7 +210,7 @@ function Game:adjustWirePrice()
     end
     if self.draw("main.js:704:14") < .015 then
         S.wirePriceCounter = S.wirePriceCounter + 1
-        local wireAdjust = 6 * (math.sin(S.wirePriceCounter))
+        local wireAdjust = 6 * (JSMath.sin(S.wirePriceCounter))
         S.wireCost = ceil(S.wireBasePrice + wireAdjust)
     end
 end
@@ -370,9 +390,115 @@ function Game:buttonUpdate()
     disabled.btnMakeClipper = S.funds < S.clipperCost
     disabled.btnExpandMarketing = S.funds < S.adCost
     disabled.btnLowerPrice = S.margin <= .01
+    disabled.btnAddProc = S.trust <= S.processors + S.memory and S.swarmGifts <= 0
+    disabled.btnAddMem = disabled.btnAddProc
     disabled.btnMakeMegaClipper = S.funds < S.megaClipperCost
     if S.funds >= 5 then S.autoClipperFlag = 1 end
     S.probeUsedTrust = (S.probeSpeed + S.probeNav + S.probeRep + S.probeHaz + S.probeFac + S.probeHarv + S.probeWire + S.probeCombat)
+end
+
+-- Computation ------------------------------------------------------------
+
+-- JavaScript `value == 1`: true also equals 1.
+local function looseOne(v) return v == 1 or v == true end
+
+-- Math.pow(processors, 1.1) matches V8 for every count up to this bound
+-- (tests/reference/jsmath.test.cjs); the first known difference is at 3,425.
+Workshop.VERIFIED_PROCESSORS = 3424
+
+function Game:addProc()
+    local S = self.S
+    if S.trust > 0 or S.swarmGifts > 0 then
+        S.processors = S.processors + 1
+        if S.processors > Workshop.VERIFIED_PROCESSORS then
+            Unported("creativitySpeed beyond the verified processor count", "#24")
+        end
+        S.creativitySpeed = log10(S.processors) * pow(S.processors, 1.1) + S.processors - 1
+        if looseOne(S.creativityOn) then
+            self:displayMessage("Processor added, operations (or creativity) per sec increased")
+        else
+            self:displayMessage("Processor added, operations per sec increased")
+        end
+        if S.humanFlag == 0 then S.swarmGifts = S.swarmGifts - 1 end
+    end
+end
+
+function Game:addMem()
+    local S = self.S
+    if S.trust > 0 or S.swarmGifts > 0 then
+        self:displayMessage("Memory added, max operations increased")
+        S.memory = S.memory + 1
+        if S.humanFlag == 0 then S.swarmGifts = S.swarmGifts - 1 end
+    end
+end
+
+function Game:calculateOperations()
+    local S = self.S
+    if S.tempOps > 0 then S.opFadeTimer = S.opFadeTimer + 1 end
+    if S.opFadeTimer > S.opFadeDelay and S.tempOps > 0 then
+        S.opFade = S.opFade + pow(3, 3.5) / 1000
+    end
+    if S.tempOps > 0 then
+        S.tempOps = round(S.tempOps - S.opFade)
+    else
+        S.tempOps = 0
+    end
+    if S.tempOps + S.standardOps < S.memory * 1000 then
+        S.standardOps = S.standardOps + S.tempOps
+        S.tempOps = 0
+    end
+    S.operations = floor(S.standardOps + floor(S.tempOps))
+    if S.operations < S.memory * 1000 then
+        local opCycle = S.processors / 10
+        local opBuf = (S.memory * 1000) - S.operations
+        if opCycle > opBuf then opCycle = opBuf end
+        S.standardOps = S.standardOps + opCycle
+    end
+    if S.standardOps > S.memory * 1000 then S.standardOps = S.memory * 1000 end
+end
+
+function Game:calculateCreativity()
+    local S = self.S
+    S.creativityCounter = S.creativityCounter + 1
+    local creativityThreshold = 400
+    local s = S.prestigeS / 10
+    local ss = S.creativitySpeed + (S.creativitySpeed * s)
+    local creativityCheck = creativityThreshold / ss
+    if S.creativityCounter >= creativityCheck then
+        if creativityCheck >= 1 then S.creativity = S.creativity + 1 end
+        if creativityCheck < 1 then S.creativity = (S.creativity + ss / creativityThreshold) end
+        S.creativityCounter = 0
+    end
+end
+
+-- Chip opacity is presentation; each value is Math.sin of the shared clock.
+function Game:quantumCompute()
+    local S = self.S
+    S.qClock = S.qClock + .01
+    for _, chip in ipairs(S.qChips) do
+        chip.value = sin(S.qClock * chip.waveSeed * chip.active)
+    end
+end
+
+-- qComp: a negative chip sum subtracts Operations; overflow above memory becomes
+-- fading temporary Operations.
+function Game:qComp()
+    local S = self.S
+    S.qFade = 1
+    local q = 0
+    if S.qChips[1].active ~= 0 then
+        for _, chip in ipairs(S.qChips) do q = q + chip.value end
+        local qq = ceil(q * 360)
+        local buffer = (S.memory * 1000) - S.standardOps
+        local damper = (S.tempOps / 100) + 5
+        if qq > buffer then
+            S.tempOps = S.tempOps + ceil(qq / damper) - buffer
+            qq = buffer
+            S.opFade = .01
+            S.opFadeTimer = 0
+        end
+        S.standardOps = S.standardOps + qq
+    end
 end
 
 -- Intervals --------------------------------------------------------------
@@ -427,9 +553,9 @@ function Game:mainLoop()
     S.ticks = S.ticks + 1
     self:milestoneCheck()
     self:buttonUpdate()
-    if S.compFlag == 1 then Unported("calculateOperations", "#6") end
+    if S.compFlag == 1 then self:calculateOperations() end
     if S.humanFlag == 1 then self:calculateTrust() end
-    if S.qFlag == 1 then Unported("quantumCompute", "#6") end
+    if S.qFlag == 1 then self:quantumCompute() end
     -- updateStats only writes presentation.
     self:manageProjects()
     self:milestoneCheck()
@@ -471,7 +597,7 @@ function Game:mainLoop()
     end
 
     if truthy(S.creativityOn) and S.operations >= (S.memory * 1000) then
-        Unported("calculateCreativity", "#6")
+        self:calculateCreativity()
     end
     if S.dismantle >= 1 then Unported("ending sequence", "#17") end
     -- End timers advance only after ending projects (#17); endTimer6 stays 0.
@@ -505,6 +631,9 @@ local clicks = {
     btnLowerPrice = Game.lowerPrice,
     btnRaisePrice = Game.raisePrice,
     btnMakeMegaClipper = Game.makeMegaClipper,
+    btnAddProc = function(game) game:addProc() end,
+    btnAddMem = function(game) game:addMem() end,
+    btnQcompute = function(game) game:qComp() end,
 }
 
 -- A click on a disabled control has no effect, matching the browser host.

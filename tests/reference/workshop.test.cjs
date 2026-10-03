@@ -15,7 +15,7 @@ for (const name of Workshop.names) test("workshop "+name+" trace agrees with the
     assert.equal(divergence,null,JSON.stringify(divergence && {kind:divergence.kind,event:divergence.event,
         field:divergence.field,difference:divergence.difference,left:divergence.left,right:divergence.right}));
     assert.deepEqual(port.source_sha256,source.index.source_sha256);
-    if (name!=="computationBoundary") assert.equal(port.error,null);
+    assert.equal(port.error,null);
 });
 
 test("exact costs buy at equal funds; unaffordable clicks run no-op branches, then controls disable",()=>{
@@ -84,12 +84,6 @@ test("MegaClipper purchases and recomputed costs match",()=>{
     assert.equal(command(port,0,"btnMakeMegaClipper",1).state.megaClipperLevel,1);
     assert.equal(command(port,100,"btnMakeMegaClipper").dom.btnMakeMegaClipper.disabled,true);
 });
-test("the slice stops explicitly where Operations begins (#6)",()=>{
-    const {port,reference}=run("computationBoundary");
-    assert.match(port.error,/Unported reference path: calculateOperations \(issue #6\)/);
-    // The reference continues; the agreed prefix ends at the Lua stop.
-    assert.ok(reference.events.length>port.events.length);
-});
 test("the battle core is exercised beyond its first combat roll",()=>{
     const {port}=run("manual");
     const combat=port.events.filter(e=>e.action==="draw" && /^combat\.js:51[05]:/.test(e.site));
@@ -108,4 +102,65 @@ test("reachable prices use only the declared display-field exception, never else
     const reference=Runner.report(Runner.run(trace,source).result,source,true);
     const exact=Runner.compare(Runner.project(reference,port.projection),port,source);
     assert.deepEqual([exact.kind,exact.difference.path,exact.difference.ulps],["state","$.state.avgRev",1]);
+});
+
+// Issue #6 boundaries: allocation and capacity, unlocks, creativity, quantum chips
+// and negative Operations, all inside the exact comparisons above.
+const states=port=>points(port).map(p=>p.state);
+test("running out of input, money and stock unlocks Operations and two projects in one tick",()=>{
+    const {port}=run("computationUnlock");
+    const unlocked=points(port).find(p=>p.state.compFlag===1);
+    assert.equal(unlocked.dom.readout1.html,"Trust-Constrained Self-Modification enabled");
+    assert.deepEqual(unlocked.state.activeProjects.map(p=>p.id),["projectButton2","projectButton42"]);
+    assert.ok(final(port).state.operations>0);
+});
+test("trust allocation can exceed trust before the next tick; then controls disable and memory caps Operations",()=>{
+    const {port}=run("allocation");
+    const memory=command(port,0,"btnAddMem",1).state;
+    assert.deepEqual([memory.processors,memory.memory,memory.trust],[5,3,7],"8 allocated against 7 trust");
+    assert.equal(command(port,0,"btnAddProc").state.creativitySpeed,1.6452719215601408);
+    const late=command(port,30,"btnAddMem");
+    assert.deepEqual([late.state.memory,late.dom.btnAddMem.disabled,late.dom.btnAddProc.disabled],[3,true,true]);
+    const noChips=command(port,40,"btnQcompute").state;
+    assert.equal(noChips.qFade,1,"qComp without photonic chips only resets the fade");
+    const end=final(port).state;
+    assert.ok(end.standardOps<=end.memory*1000);
+    assert.ok(end.activeProjects.some(p=>p.id==="projectButton50"),"processors >= 5");
+});
+test("creativity accrues whole points, then fractional points, and unlocks the creativity projects",()=>{
+    const slow=run("creativity").port, fast=run("creativityFast").port;
+    const slowEnd=final(slow).state, fastEnd=final(fast).state;
+    assert.equal(command(slow,0,"btnAddProc").state.creativitySpeed,91.26579357925937);
+    assert.ok(Number.isInteger(slowEnd.creativity) && slowEnd.creativity>=50);
+    assert.ok(slowEnd.activeProjects.some(p=>p.id==="projectButton13"));
+    assert.equal(command(fast,0,"btnAddProc").state.creativitySpeed,2293.8869097352176);
+    assert.ok(!Number.isInteger(fastEnd.creativity) && fastEnd.creativity>250);
+    const ids=fastEnd.activeProjects.map(p=>p.id);
+    for (const id of ["13","14","15","17","19"]) assert.ok(ids.includes("projectButton"+id),id);
+    assert.match(command(fast,0,"btnAddProc").dom.readout1.html,/operations \(or creativity\)/);
+});
+test("temporary Operations fade once opFadeTimer passes its delay",()=>{
+    const all=states(run("opFade").port).slice(1); // from the fixture onward
+    assert.ok(all.some(s=>s.opFade>1),"fade accelerates past opFadeDelay");
+    assert.ok(all.at(-1).tempOps<900 && all.at(-1).tempOps>0);
+    for (let i=1;i<all.length;i++) assert.ok(all[i].tempOps<=all[i-1].tempOps);
+});
+test("quantum chips oscillate with the clock and qComp overflows into temporary Operations",()=>{
+    const {port}=run("quantumOverflow");
+    const all=states(port);
+    const values=new Set(all.map(s=>s.qChips[0].value));
+    assert.ok(values.size>100,"chip values change every tick");
+    assert.ok(all.every(s=>s.qChips[9].value===0),"inactive chips stay 0");
+    const overflow=command(port,200,"btnQcompute").state;
+    assert.equal(overflow.standardOps,1000);
+    assert.ok(overflow.tempOps<0,"the reference can make tempOps negative on overflow");
+    assert.ok(final(port).state.tempOps>0);
+});
+test("a negative chip sum drives Operations below -10,000 and unlocks the recovery project",()=>{
+    const {port}=run("quantumNegative");
+    assert.equal(command(port,0,"btnQcompute").state.standardOps,500,"no chip values before the first tick");
+    const end=final(port).state;
+    assert.ok(end.operations<=-10000,String(end.operations));
+    assert.ok(end.activeProjects.some(p=>p.id==="projectButton217"));
+    assert.ok(Math.min(...states(port).map(s=>s.standardOps))<-12000);
 });

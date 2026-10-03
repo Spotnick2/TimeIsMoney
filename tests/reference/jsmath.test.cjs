@@ -1,7 +1,9 @@
 "use strict";
-// Measures the pure-Lua Math.pow (Sim/JSMath.lua) against V8 in this Node profile.
-// Integer exponents (costs, marketing) must match exactly; fractional exponents may
-// differ by one binary64 step only where V8 itself is not correctly rounded.
+// Measures Sim/JSMath.lua against V8 in this Node profile. Math.sin and Math.log10
+// (fdlibm ports) must match exactly. Math.pow integer exponents (costs, marketing)
+// and processor counts up to the verified bound must match exactly; other
+// fractional exponents may differ by one binary64 step only where V8 itself is not
+// correctly rounded.
 const test=require("node:test"), assert=require("node:assert/strict");
 const fs=require("node:fs"), path=require("node:path"), os=require("node:os");
 const {spawnSync}=require("node:child_process");
@@ -22,6 +24,20 @@ function parse(s) {
     return mantissa*2**exponent;
 }
 
+// Evaluates [name, x, y?] cases with Sim/JSMath.lua and returns the results.
+function luaMath(cases) {
+    const dir=fs.mkdtempSync(path.join(os.tmpdir(),"tim-math-"));
+    try {
+        const input=path.join(dir,"cases.txt"), output=path.join(dir,"results.txt");
+        fs.writeFileSync(input,cases.map(([name,x,y])=>name+" "+text(x)+(y===undefined ? "" : " "+text(y))).join("\n")+"\n");
+        const run=spawnSync(LUA,[path.join(__dirname,"lua_math_probe.lua"),input,output],{encoding:"utf8"});
+        assert.equal(run.status,0,run.stderr);
+        const results=fs.readFileSync(output,"utf8").trim().split("\n").map(parse);
+        assert.equal(results.length,cases.length);
+        return results;
+    } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+}
+
 function cases() {
     let seed=12345;
     const rnd=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648;};
@@ -39,14 +55,8 @@ function cases() {
 }
 
 test("pure-Lua Math.pow matches V8 for integer exponents and specials, within V8's own rounding elsewhere",t=>{
-    const list=cases(), dir=fs.mkdtempSync(path.join(os.tmpdir(),"tim-pow-"));
-    try {
-        const input=path.join(dir,"pairs.txt"), output=path.join(dir,"results.txt");
-        fs.writeFileSync(input,list.map(([x,y])=>text(x)+" "+text(y)).join("\n")+"\n");
-        const run=spawnSync(LUA,[path.join(__dirname,"lua_pow_probe.lua"),input,output],{encoding:"utf8"});
-        assert.equal(run.status,0,run.stderr);
-        const results=fs.readFileSync(output,"utf8").trim().split("\n").map(parse);
-        assert.equal(results.length,list.length);
+    const list=cases(), results=luaMath(list.map(([x,y])=>["pow",x,y]));
+    {
         const counts={integer:[0,0],fraction:[0,0],special:[0,0]};
         for (const [i,[x,y,kind]] of list.entries()) {
             const expected=Math.pow(x,y), actual=results[i];
@@ -62,7 +72,42 @@ test("pure-Lua Math.pow matches V8 for integer exponents and specials, within V8
         // Measured 2026-10-03 on Node v24.15.0 / Windows: 18 of 45,415 fractional cases.
         assert.ok(counts.fraction[1]<=counts.fraction[0]*0.001,JSON.stringify(counts));
         t.diagnostic("cases and one-step differences: "+JSON.stringify(counts));
-    } finally { fs.rmSync(dir,{recursive:true,force:true}); }
+    }
+});
+
+test("fdlibm Math.sin and Math.log10 match V8 exactly, including the quantum clock and wire price",t=>{
+    let seed=777;
+    const rnd=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648;};
+    const list=[], seeds=[.1,.2,.3,.4,.5,.6,.7,.8,.9,1];
+    // qClock accumulates .01 per tick; chips evaluate qClock * waveSeed * active.
+    let q=0;
+    for (let k=0;k<100000;k++) { q=q+.01; if (k%23===0) for (const s of seeds) list.push(["sin",q*s*1]); }
+    for (let n=1;n<=5000;n++) list.push(["sin",n],["sin",-n]); // wirePriceCounter
+    for (let n=1;n<=2000;n++) for (const d of [-1,0,1]) list.push(["sin",n*Math.PI/2+d*1e-9]);
+    for (let i=0;i<20000;i++) list.push(["sin",(rnd()-0.5)*2*Math.pow(10,Math.floor(rnd()*11-5))]);
+    for (const x of [0,-0,1e-300,-1e-300,5e-324,Math.PI/4,Math.PI/2,3*Math.PI/4,Infinity,-Infinity,NaN,823549,-823549])
+        list.push(["sin",x]);
+    for (let n=1;n<=20000;n++) list.push(["log10",n]);
+    for (let i=0;i<20000;i++) list.push(["log10",rnd()*Math.pow(10,Math.floor(rnd()*600-300))]);
+    for (const x of [0,-0,-1,1,10,0.1,5e-324,2.2250738585072014e-308,1e308,Infinity,-Infinity,NaN]) list.push(["log10",x]);
+    const results=luaMath(list);
+    for (const [i,[name,x]] of list.entries()) {
+        const expected=Math[name](x);
+        assert.ok(Object.is(expected,results[i]),name+"("+x+") V8 "+expected+" Lua "+results[i]);
+    }
+    t.diagnostic("exact cases: "+list.length);
+});
+
+test("Math.pow(processors, 1.1) matches V8 for every count up to the verified bound",()=>{
+    const bound=3424, list=[];
+    for (let n=1;n<=bound+1;n++) list.push(["pow",n,1.1],["log10",n]);
+    const results=luaMath(list);
+    for (let n=1;n<=bound;n++) {
+        assert.ok(Object.is(results[2*n-2],Math.pow(n,1.1)),"pow("+n+", 1.1)");
+        assert.ok(Object.is(results[2*n-1],Math.log10(n)),"log10("+n+")");
+    }
+    // The first known difference, which Sim/Workshop.lua refuses to cross.
+    assert.equal(ulps(results[2*bound],Math.pow(bound+1,1.1)),1);
 });
 
 // Threshold evidence for the workshop's numeric exception: over every reachable

@@ -23,6 +23,8 @@ function stream(length=60000) {
     return Array.from({length},(_,i)=>(i*0.6180339887498949)%1);
 }
 const click=(at,id)=>({at,type:"click",id});
+// qChip0..qChip9 with the first `active` chips switched on (project effects, #8).
+const chips=active=>[.1,.2,.3,.4,.5,.6,.7,.8,.9,1].map((waveSeed,i)=>({waveSeed,value:0,active:i<active ? 1 : 0}));
 const clicks=(from,count,step,id)=>Array.from({length:count},(_,i)=>click(from+i*step,id));
 const traces={
     // Manual production, sales, revenue seconds, price changes and the battle core
@@ -57,14 +59,38 @@ const traces={
     // MegaClipper purchase (the hidden button still clicks, as in the browser host).
     mega:{until:800,fixture:{globals:{funds:1200,megaClipperFlag:1}},commands:[
         click(0,"btnMakeMegaClipper"),click(0,"btnMakeMegaClipper"),click(100,"btnMakeMegaClipper")]},
-    // No input, money or stock: Beg for More Wire appears and Operations (#6) is
-    // enabled; the Lua slice stops with an explicit unported error at that point.
     // Reachable cent prices where the pow step reaches the display fields
     // (found by the #32 review): margin 10.06 and margin 1.50 with marketing level 4.
     highPrice:{until:1000,fixture:{globals:{margin:10.06,marketingLvl:1,unsoldClips:10}},commands:[]},
     pricedMarketing:{until:2000,fixture:{globals:{margin:1.5,marketingLvl:4,unsoldClips:200}},commands:[]},
-    computationBoundary:{until:600,fixture:{globals:{wire:0.5,funds:1,unsoldClips:0}},commands:[
+    // No input, money or stock enables Operations: Beg for More Wire and the
+    // projects list appear in the same tick, then Operations accumulate.
+    computationUnlock:{until:1500,fixture:{globals:{wire:0.5,funds:1,unsoldClips:0}},commands:[
         click(0,"btnMakePaperclip")]},
+    // Trust allocation: clicks before the next tick can exceed trust (the control
+    // disables only at buttonUpdate); then the memory cap and "Need Photonic Chips".
+    allocation:{until:1500,fixture:{globals:{compFlag:1,trust:7,standardOps:1980}},commands:[
+        ...clicks(0,4,0,"btnAddProc"),click(0,"btnAddMem"),click(0,"btnAddMem"),
+        click(30,"btnAddMem"),click(40,"btnQcompute")]},
+    // Creativity at full Operations: whole increments (check >= 1), then the
+    // creativity projects; and fractional increments (check < 1) at high speed.
+    creativity:{until:3200,fixture:{globals:{compFlag:1,creativityOn:1,trust:100,processors:29,standardOps:1000}},
+        commands:[click(0,"btnAddProc")]},
+    creativityFast:{until:1000,fixture:{globals:{compFlag:1,creativityOn:1,trust:500,processors:399,standardOps:1000}},
+        commands:[click(0,"btnAddProc")]},
+    // Temporary Operations above memory fade once opFadeTimer passes its delay.
+    opFade:{until:1200,fixture:{globals:{compFlag:1,standardOps:600,tempOps:900,opFade:.01,opFadeTimer:790}},
+        commands:[]},
+    // Quantum chips oscillate with the shared clock; qComp adds positive sums and
+    // overflows into temporary Operations.
+    quantumOverflow:{until:1500,fixture:{globals:{compFlag:1,qFlag:1,qClock:1.2,standardOps:700,
+        qChips:chips(7)}},commands:[click(0,"btnQcompute"),click(200,"btnQcompute"),click(210,"btnQcompute"),
+        click(900,"btnQcompute")]},
+    // A negative chip sum drains Operations below zero; at -10,000 the Operations
+    // recovery project appears, and processors slowly refill.
+    // Clicks at t=0 come before the first quantum tick, so every chip value is still 0.
+    quantumNegative:{until:1200,fixture:{globals:{compFlag:1,qFlag:1,qClock:60,standardOps:500,
+        qChips:chips(10)}},commands:[click(0,"btnQcompute"),...clicks(50,4,10,"btnQcompute"),click(500,"btnQcompute")]},
 };
 function make(name) {
     if (!Object.hasOwn(traces,name)) throw new Error("Unknown workshop trace: "+name);
@@ -113,7 +139,8 @@ function lua(trace) {
 // Runs both sides; returns the documents and the first divergence (or null).
 function compare(name, source=Runner.inputs()) {
     const trace=make(name);
-    const reference=Runner.report(Runner.run(trace,source).result,source,true);
+    // The reference VM mutates fixture objects (for example qChips), so it gets a copy.
+    const reference=Runner.report(Runner.run(JSON.parse(JSON.stringify(trace)),source).result,source,true);
     const port=lua(trace);
     let left=Runner.project(reference,port.projection);
     if (port.error) {
