@@ -145,7 +145,9 @@ const traces={
     // The strategy engine and all seven strategy purchases; the picker gains options.
     // AutoTourney then shows but is unaffordable, so its click is ignored.
     projectsStrategy:{until:500,fixture:{globals:rich(200,{creativity:60000,trust:95})},
-        commands:[...buy(20,"19","20","60","61","62","63","64","65","66","119","118"),
+        // An unmatched picker value empties the select; the first strategy option
+        // added then selects "Pick a Strat" (native_select_probe).
+        commands:[value(10,"stratPicker","3"),...buy(20,"19","20","60","61","62","63","64","65","66","119","118"),
             value(260,"stratPicker","7")]},
     // Investment unlock, takeover, monopoly and the repeating goodwill gifts.
     projectsBusiness:{until:600,fixture:{globals:rich(20,{trust:89,bankroll:20000,funds:30000000,yomi:5000,

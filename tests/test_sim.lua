@@ -133,7 +133,9 @@ assert(game.S.processors == Workshop.VERIFIED_PROCESSORS and game.S.creativitySp
 -- Project purchases: a button must be in the document; restart is refused (#23).
 local projects = Workshop.new(stub, {})
 local ok, message = pcall(projects.click, projects, "projectButton1")
-assert(not ok and message:find("Unknown clickable ID: projectButton1"), tostring(message))
+assert(not ok and message == "Unknown clickable ID", tostring(message))
+ok, message = pcall(projects.click, projects, "projectButton18")
+assert(not ok and message == "Unknown clickable ID", tostring(message))
 projects.projectElements.projectButton217 = true
 fails("Quantum Temporal Reversion restart .*%(issue #23%)", projects.click, projects, "projectButton217")
 

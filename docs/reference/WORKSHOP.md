@@ -82,7 +82,8 @@ State uses the reference global names, formulas and statement order: `clips`
   - All 52 phase-one effects are ported, including the repeatable ones: emergency
     wire, the doubling goodwill gift, up to ten photonic chips and Xavier
     re-initialization.
-  - Strategy purchases extend the picker's options.
+  - Strategy purchases extend the picker's options. If nothing is selected, the
+    first option becomes selected, as native Chrome does (native_select_probe).
   - Wire-extrusion messages use en-US toLocaleString grouping.
   - Removal follows `activeProjects.splice(indexOf(...), 1)`.
 - **First transition:** Release the HypnoDrones sets trust and both clipper levels

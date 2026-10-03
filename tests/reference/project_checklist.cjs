@@ -29,8 +29,6 @@ function generate() {
         if (ported.has(name)) {
             const stop=ported.get(name);
             status=stop ? `trigger and eligibility; purchase stops (${stop})` : "trigger, eligibility and purchase effect";
-        } else if (name==="project128") {
-            status="flag read by tournament scoring; later phase (#14)";
         } else {
             status="later phase: its trigger cannot hold in phase one";
         }

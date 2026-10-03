@@ -43,9 +43,6 @@ Workshop.setups[#Workshop.setups + 1] = function(game, S)
     S.strats = { S.allStrats[1] }
     S.results = {}
     S.hStrat, S.vStrat = S.strats[1], S.strats[1]
-    -- Read by declareWinner; the project itself is a later-phase purchase (#14),
-    -- so keep a managed project object if one exists.
-    S.project128 = S.project128 or { id = "projectButton128", flag = 0, uses = 1 }
     game.disabled.btnRunTournament = true -- main.js load
     game.resultsTableDisplay = ""
 end

@@ -25,6 +25,7 @@ local function truthy(v)
 end
 
 local Workshop = {}
+Workshop.truthy = truthy
 -- Per-game initializers registered by later simulation files (setup(game, S)).
 Workshop.setups = {}
 
@@ -65,6 +66,7 @@ Workshop.arrays = {
 -- Projects in projects.js registration order: {name, id, trigger, cost, effect},
 -- defined by Sim/Projects.lua.
 Workshop.projects = {}
+Workshop.projectById = {}
 
 -- Controls the slice ports, with their disabled state in every checkpoint. A click
 -- on a disabled control does nothing, as in the browser. buttonUpdate maintains
@@ -701,6 +703,14 @@ local clicks = {
 
 Workshop.clicks = clicks
 
+-- Adds an option; with no option selected, the first one becomes selected (HTML
+-- selectedness setting, measured as native_select_probe).
+function Game:addOption(id, value)
+    local select = self.selects[id]
+    select.options[#select.options + 1] = value
+    if select.value == "" then select.value = select.options[1] end
+end
+
 -- Setting a select to a value without a matching option leaves it empty, as in
 -- the browser.
 function Game:setValue(id, value)
@@ -718,8 +728,9 @@ end
 function Game:click(id)
     local handler = clicks[id]
     local entry = Workshop.projectById[id]
-    if entry then
-        if not self.projectElements[id] then error("Unknown clickable ID: " .. id, 0) end
+    if entry or (not handler and tostring(id):match("^projectButton")) then
+        -- The host's error for a project button that is not in the document.
+        if not (entry and self.projectElements[id]) then error("Unknown clickable ID", 0) end
         handler = entry.effect
     end
     if not handler then Unported("control " .. tostring(id), "a later slice") end

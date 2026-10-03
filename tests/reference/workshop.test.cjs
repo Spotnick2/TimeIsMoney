@@ -275,6 +275,8 @@ test("project effects: boosts, wire extrusion text, marketing, strategies and th
     assert.equal(strategyEnd.state.tourneyCost,16000,"Theory of Mind fixes the tournament cost");
     assert.equal(strategyEnd.state.yomiBoost,2);
     assert.equal(strategyEnd.dom.stratPicker.value,"7","the picker gained the strategy options");
+    assert.equal(command(strategy,10,"stratPicker").dom.stratPicker.value,"");
+    assert.equal(command(strategy,60,"projectButton60").dom.stratPicker.value,"10","option insertion selects the first");
     assert.equal(strategyEnd.state.project118.flag,0,"AutoTourney was shown but unaffordable");
     assert.equal(strategyEnd.dom.projectButton118.disabled,true);
 });
