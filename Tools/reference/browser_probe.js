@@ -29,7 +29,18 @@
             timers.setTimeout(()=>seen.push("second"),0);
             timers.setTimeout(()=>resolve(seen),20);
         });
+        // Native selectedness: an unmatched value empties a select; inserting an
+        // option then selects the first option.
+        const select=document.createElement("select");
+        for (const value of ["10","0"]) { const o=document.createElement("option"); o.value=value; select.appendChild(o); }
+        document.body.appendChild(select);
+        select.value="3";
+        const emptied=select.value, inserted=document.createElement("option");
+        inserted.value=1; select.appendChild(inserted);
+        const native_select_probe=[emptied,select.value];
+        select.remove();
         const body={browser:navigator.userAgent,checkpoints,events:TIM_RESULT.events,errors:TIM_ERRORS,native_timer_probe,
+            native_select_probe,
             final_sha256:await sha(JSON.stringify(TIMHarness.encode(TIM_RESULT.final)))};
         const result=await (await fetch("/evidence"+location.search,{
             method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)

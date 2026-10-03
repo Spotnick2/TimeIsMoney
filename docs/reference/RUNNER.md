@@ -219,8 +219,10 @@ the same event and ordinal. That probe is not committed.
 
 [browser-evidence.json](browser-evidence.json) records source/tool/input hashes,
 runtime versions, checkpoint and event totals, draw consumption, the event-log
-hash (timer events plus labeled draws), final hashes and native timer-order
-results. The automated probe serves verified bytes on loopback,
+hash (timer events plus labeled draws), final hashes, native timer-order
+results and a native select probe. In the select probe, an unmatched value empties
+the select, and inserting an option then selects the first option. The VM DOM and
+the Lua picker follow the same rule. The automated probe serves verified bytes on loopback,
 removes analytics/style/art requests, injects the logical host before gameplay,
 and executes all four gameplay scripts unchanged with a **native DOM**.
 It uses the same clock/random fixture so the comparison isolates host/VM

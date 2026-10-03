@@ -1,8 +1,9 @@
 # Pure-Lua workshop slice
 
 Issues [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5),
-[#6](https://github.com/Spotnick2/TimeIsMoney/issues/6) and
-[#7](https://github.com/Spotnick2/TimeIsMoney/issues/7). This is the first port of
+[#6](https://github.com/Spotnick2/TimeIsMoney/issues/6),
+[#7](https://github.com/Spotnick2/TimeIsMoney/issues/7) and
+[#8](https://github.com/Spotnick2/TimeIsMoney/issues/8). This is the first port of
 the [pinned reference](README.md) into the pure-Lua simulation layer (`Sim/`). The simulation has no WoW globals, frames, clocks, I/O or native
 randomness. It is parity-tested outside the game and is **not yet in the TOC or
 the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
@@ -18,6 +19,7 @@ the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
 | Sim/Workshop.lua | The phase-one workshop and computation, the seven reference intervals, formatWithCommas and the click and select commands |
 | Sim/Investments.lua | The investment engine (#7) |
 | Sim/Strategy.lua | Strategic modeling and tournaments (#7) |
+| Sim/Projects.lua | Phase-one projects, their purchases and the first transition (#8) |
 
 State uses the reference global names, formulas and statement order: `clips`
 (lifetime production), `unusedClips` (spendable stock) and `unsoldClips`
@@ -65,12 +67,31 @@ State uses the reference global names, formulas and statement order: `clips`
   - Yomi for the picked strategy, with the reference's message text;
   - the strategy picker (a string value) and automatic tournaments while results
     are shown.
-  - Strategy purchases are project effects (#8). Traces use the host's strategies
-    fixture.
-- **Projects:** project availability (manageProjects) for every trigger that reads
-  state this slice changes, in projects.js registration order. This includes the
-  shared blinkCounter and the 30 ms blink intervals. Project purchases and
-  per-project eligibility remain #8.
+  - Strategy purchases are project effects (below). The #7 traces use the host's
+    strategies fixture.
+- **Projects (#8):**
+  - Sim/Projects.lua holds every project that phase one can show, in projects.js
+    registration order, each with the reference trigger and cost.
+  - manageProjects shows newly triggered projects, with the shared blinkCounter
+    and 30 ms blink intervals, then enables each shown button exactly when its
+    cost is met. Each button's state is compared in every checkpoint (null when
+    not shown).
+  - A purchase is a click on the shown button and runs the reference effect. A
+    disabled button ignores the click. The host refuses a click on a button that
+    is not shown.
+  - All 52 phase-one effects are ported, including the repeatable ones: emergency
+    wire, the doubling goodwill gift, up to ten photonic chips and Xavier
+    re-initialization.
+  - Strategy purchases extend the picker's options. If nothing is selected, the
+    first option becomes selected, as native Chrome does (native_select_probe).
+  - Wire-extrusion messages use en-US toLocaleString grouping.
+  - Removal follows `activeProjects.splice(indexOf(...), 1)`.
+- **First transition:** Release the HypnoDrones sets trust and both clipper levels
+  to 0, copies wire to nanoWire, sets humanFlag 0, removes the shown Xavier and
+  goodwill buttons, and starts the 32 ms hypnodrone blink. The next tick reaches
+  phase-two code, where the slice stops with the #11 error. The business economy
+  ends exactly there.
+- [PROJECTS.md](PROJECTS.md) is the generated 96-project traceability checklist.
 - **Load sequence:** combat.js loading (two ship resets, 3,200 draws), then all
   seven intervals in source order.
 
@@ -89,9 +110,13 @@ Reference paths outside the slice raise
 
 | Path | Issue |
 | --- | --- |
-| Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #8 |
+| Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #20 |
 | Tournament placing bonuses (project128) | #14 |
-| Project purchases and project-dependent milestones | #8 |
+| Phase two after Release the HypnoDrones (the next tick) | #11 |
+| Purchases of the shown later-phase projects Name the battles and Combat | #15 |
+| Quantum Temporal Reversion (confirm() then reset) | #23 |
+| Milestones 13 (space) and 14 (universal paperclips) | #14, #17 |
+| toLocaleString of negative, fractional or unsafe-integer values | #21 |
 | Planetary production and phase-two controls (`humanFlag == 0`) | #11 |
 | exploreUniverse and probe functions | #14 |
 | checkForBattleEnd with an active battle | #15 |
@@ -190,7 +215,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines twenty-seven traces with an explicit equidistributed
+tests/reference/workshop.cjs defines thirty-six traces with an explicit equidistributed
 stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
 the trace. Longer traces use longer streams. A few investment traces use an
 offset so the 25 % purchase rolls succeed within seconds.
@@ -229,6 +254,15 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | tourneyGreedy, tourneyMinimax, tourneyBeatLast, tourneyFixed | Two-strategy tournaments covering all eight moves. Each runs 4 rounds × 10 moves on the timer chain and awards Yomi with the message; Run stays disabled while running | match |
 | autoTourney | A finished tournament with shown results starts the next after 300 ticks | match |
 | noPick | Without a picked strategy, the tournament finishes with no Yomi and no results flag | match |
+| projectsProduction | AutoClipper boosts 1, 4 and 5; wire extrusion 7 through 10b ("1,500" … "173,250" supply); RevTracker | match |
+| projectsCreativity | Creativity, Limerick, the four insights with trust, slogan and jingle, Hadwiger diagrams, Donkey Space and Strategic Modeling | match |
+| projectsStrategy | All seven strategy purchases and Theory of Mind; the picker gains options; AutoTourney shows but stays unaffordable | match |
+| projectsBusiness | Investment engine, takeover, monopoly, the gift and two repeated goodwill gifts (the bribe doubles to 8,000,000) | match |
+| projectsVolition | Coherent extrapolated volition and its four follow-ups | match |
+| projectsMachines | MegaClippers and their boosts, WireBuyer, quantum computing and three photonic chips | match |
+| projectsRecovery | Emergency wire twice, the second time after the stock sells out; Xavier re-initialization | match |
+| projectsLate | Limerick (cont.) and AutoTourney | match |
+| transition | Hypno Harmonics, HypnoDrones and the release; Xavier's button is removed; the slice stops at phase two | match up to the stop |
 
 The reference VM mutates fixture objects such as qChips. The host therefore
 clones fixture values, so the report records the fixture as injected and the Lua

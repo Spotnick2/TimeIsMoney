@@ -25,6 +25,7 @@ local function truthy(v)
 end
 
 local Workshop = {}
+Workshop.truthy = truthy
 -- Per-game initializers registered by later simulation files (setup(game, S)).
 Workshop.setups = {}
 
@@ -62,45 +63,10 @@ Workshop.arrays = {
     incomeTracker = true, ships = true, battles = true, stocks = true, activeProjects = true, qChips = true,
 }
 
--- Project availability (manageProjects) for every project whose trigger reads only
--- state this slice changes, in projects.js registration order. The other triggers
--- read project flags (purchases are #8) or later-phase values that keep their
--- initial, non-triggering values here.
-Workshop.projects = {
-    { "project1", "projectButton1", function(S) return S.clipmakerLevel >= 1 end },
-    { "project2", "projectButton2", function(S)
-        return S.portTotal < S.wireCost and S.funds < S.wireCost and S.wire < 1 and S.unsoldClips < 1
-    end },
-    { "project3", "projectButton3", function(S) return S.operations >= (S.memory * 1000) end },
-    { "project6", "projectButton6", function(S) return truthy(S.creativityOn) end },
-    { "project7", "projectButton7", function(S) return S.wirePurchase >= 1 end },
-    { "project8", "projectButton8", function(S) return S.wireSupply >= 1500 end },
-    { "project9", "projectButton9", function(S) return S.wireSupply >= 2600 end },
-    { "project10", "projectButton10", function(S) return S.wireSupply >= 5000 end },
-    { "project10b", "projectButton10b", function(S) return S.wireCost >= 125 end },
-    { "project13", "projectButton13", function(S) return S.creativity >= 50 end },
-    { "project14", "projectButton14", function(S) return S.creativity >= 100 end },
-    { "project15", "projectButton15", function(S) return S.creativity >= 150 end },
-    { "project17", "projectButton17", function(S) return S.creativity >= 200 end },
-    { "project19", "projectButton19", function(S) return S.creativity >= 250 end },
-    { "project21", "projectButton21", function(S) return S.trust >= 8 end },
-    { "project22", "projectButton22", function(S) return S.clipmakerLevel >= 75 end },
-    { "project26", "projectButton26", function(S) return S.wirePurchase >= 15 end },
-    { "project27", "projectButton27", function(S) return S.yomi >= 1 end },
-    { "project37", "projectButton37", function(S) return S.portTotal >= 10000 end },
-    { "project42", "projectButton42", function(S) return S.projectsFlag == 1 end },
-    { "project40", "projectButton40", function(S)
-        return S.humanFlag == 1 and S.trust >= 85 and S.trust < 100 and S.clips >= 101000000
-    end },
-    { "project50", "projectButton50", function(S) return S.processors >= 5 end },
-    { "project118", "projectButton118", function(S) return S.strategyEngineFlag == 1 and S.trust >= 90 end },
-    { "project119", "projectButton119", function(S) return #S.strats >= 8 end },
-    { "project121", "projectButton121", function(S) return S.probesLostCombat >= 10000000 end },
-    { "project131", "projectButton131", function(S) return S.probesLostCombat >= 1 end },
-    { "project217", "projectButton217", function(S) return S.operations <= -10000 end },
-    { "project218", "projectButton218", function(S) return S.creativity >= 1000000 end },
-    { "project219", "projectButton219", function(S) return S.humanFlag == 1 and S.creativity >= 100000 end },
-}
+-- Projects in projects.js registration order: {name, id, trigger, cost, effect},
+-- defined by Sim/Projects.lua.
+Workshop.projects = {}
+Workshop.projectById = {}
 
 -- Controls the slice ports, with their disabled state in every checkpoint. A click
 -- on a disabled control does nothing, as in the browser. buttonUpdate maintains
@@ -130,16 +96,17 @@ function Workshop.new(random, log)
     local S = copy(Workshop.initial)
     S.incomeTracker = { 0 }
     S.battles, S.stocks, S.activeProjects = {}, {}, {}
-    -- qChip0..qChip9 (main.js): wave seeds .1 to 1, inactive until projects (#8).
+    -- qChip0..qChip9 (main.js): wave seeds .1 to 1, activated by photonic chip purchases.
     S.qChips = {}
     for i, seed in ipairs({ .1, .2, .3, .4, .5, .6, .7, .8, .9, 1 }) do
         S.qChips[i] = { waveSeed = seed, value = 0, active = 0 }
     end
     for _, project in ipairs(Workshop.projects) do
-        S[project[1]] = { id = project[2], flag = 0, uses = 1 }
+        S[project.name] = { id = project.id, flag = 0, uses = 1 }
     end
     game.S = S
     game.disabled = {}
+    game.projectElements = {} -- project buttons currently in the document
     for _, id in ipairs(Workshop.buttons) do game.disabled[id] = false end
     game.readouts = { "Welcome to Universal Paperclips", "", "", "", "" }
     -- Select controls the slice reads: options in document order and the value.
@@ -199,17 +166,23 @@ function Game:blink()
     end, 30, true)
 end
 
--- manageProjects: newly triggered projects become active and blink. The
--- per-project button eligibility (cost) is presentation in this slice.
+-- manageProjects: newly triggered projects get a button (displayProjects, which
+-- blinks it) and become active; then every active button is enabled exactly when
+-- its cost is met.
 function Game:manageProjects()
     local S = self.S
     for _, entry in ipairs(Workshop.projects) do
-        local project = S[entry[1]]
-        if entry[3](S) and project.uses > 0 then
+        local project = S[entry.name]
+        if entry.trigger(S) and project.uses > 0 then
+            self.projectElements[entry.id] = true
+            self.disabled[entry.id] = false
             self:blink()
             project.uses = project.uses - 1
             S.activeProjects[#S.activeProjects + 1] = project
         end
+    end
+    for _, project in ipairs(S.activeProjects) do
+        self.disabled[project.id] = not Workshop.projectById[project.id].cost(S)
     end
 end
 
@@ -361,6 +334,17 @@ local clipMilestones = {
     [5] = { 1000000, "1,000,000 clips created in " },
 }
 
+-- Thresholds are the doubles nearest 10^12 ... 10^27 (the reference literals),
+-- built with the correctly rounded pow rather than C decimal parsing.
+local lateMilestones = {
+    [7] = { pow(10, 12), "One Trillion Clips Created in " },
+    [8] = { pow(10, 15), "One Quadrillion Clips Created in " },
+    [9] = { pow(10, 18), "One Quintillion Clips Created in " },
+    [10] = { pow(10, 21), "One Sextillion Clips Created in " },
+    [11] = { pow(10, 24), "One Septillion Clips Created in " },
+    [12] = { pow(10, 27), "One Octillion Clips Created in " },
+}
+
 function Game:milestoneCheck()
     local S = self.S
     if S.milestoneFlag == 0 and S.funds >= 5 then
@@ -391,7 +375,20 @@ function Game:milestoneCheck()
             self:displayMessage(m[2] .. timeCruncher(S.ticks))
         end
     end
-    -- Milestone 6 needs project35 (#8); later milestones cannot be reached first.
+    if S.milestoneFlag == 6 and S.project35.flag == 1 then
+        S.milestoneFlag = S.milestoneFlag + 1
+        self:displayMessage("Full autonomy attained in " .. timeCruncher(S.ticks))
+    end
+    for flag = 7, 12 do
+        local m = lateMilestones[flag]
+        if S.milestoneFlag == flag and ceil(S.clips) >= m[1] then
+            S.milestoneFlag = S.milestoneFlag + 1
+            self:displayMessage(m[2] .. timeCruncher(S.ticks))
+        end
+    end
+    -- 13 needs spaceFlag and 14 needs the universe's matter (later phases).
+    if S.milestoneFlag == 13 and S.spaceFlag == 1 then Unported("space milestone", "#14") end
+    if S.milestoneFlag == 14 then Unported("universal paperclips milestones", "#17") end
 end
 
 -- buttonUpdate: the state it changes and the slice's control eligibility.
@@ -706,6 +703,14 @@ local clicks = {
 
 Workshop.clicks = clicks
 
+-- Adds an option; with no option selected, the first one becomes selected (HTML
+-- selectedness setting, measured as native_select_probe).
+function Game:addOption(id, value)
+    local select = self.selects[id]
+    select.options[#select.options + 1] = value
+    if select.value == "" then select.value = select.options[1] end
+end
+
 -- Setting a select to a value without a matching option leaves it empty, as in
 -- the browser.
 function Game:setValue(id, value)
@@ -717,9 +722,17 @@ function Game:setValue(id, value)
     end
 end
 
--- A click on a disabled control has no effect, matching the browser host.
+-- A click on a disabled control has no effect, matching the browser host. A
+-- project button runs the project's effect; the host refuses a click on a project
+-- button that is not in the document.
 function Game:click(id)
     local handler = clicks[id]
+    local entry = Workshop.projectById[id]
+    if entry or (not handler and tostring(id):match("^projectButton")) then
+        -- The host's error for a project button that is not in the document.
+        if not (entry and self.projectElements[id]) then error("Unknown clickable ID", 0) end
+        handler = entry.effect
+    end
     if not handler then Unported("control " .. tostring(id), "a later slice") end
     if self.disabled[id] then return end
     handler(self)

@@ -130,6 +130,23 @@ game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000
 local speed = game.S.creativitySpeed
 fails("verified processor count %(issue #24%)", game.addProc, game)
 assert(game.S.processors == Workshop.VERIFIED_PROCESSORS and game.S.creativitySpeed == speed)
+-- Project purchases: a button must be in the document; restart is refused (#23).
+local projects = Workshop.new(stub, {})
+local ok, message = pcall(projects.click, projects, "projectButton1")
+assert(not ok and message == "Unknown clickable ID", tostring(message))
+ok, message = pcall(projects.click, projects, "projectButton18")
+assert(not ok and message == "Unknown clickable ID", tostring(message))
+projects.projectElements.projectButton217 = true
+fails("Quantum Temporal Reversion restart .*%(issue #23%)", projects.click, projects, "projectButton217")
+
+-- Milestones after the transition: full autonomy, then clip-count milestones.
+local later = Workshop.new(stub, {})
+later.S.milestoneFlag, later.S.project35.flag, later.S.clips, later.S.ticks = 6, 1, 2e12, 360000
+later:milestoneCheck()
+assert(later.S.milestoneFlag == 8, tostring(later.S.milestoneFlag))
+assert(later.readouts[2] == "Full autonomy attained in 1 hour " and later.readouts[1] == "One Trillion Clips Created in 1 hour ")
+assert(JSMath.pow(10, 24) == 1e24 and JSMath.pow(10, 27) == 1e27)
+
 -- The placing-bonus stop refuses before awarding Yomi.
 local tourney = Workshop.new(stub, {})
 tourney.S.pick, tourney.S.project128.flag = "0", 1

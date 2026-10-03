@@ -57,7 +57,8 @@ const server=http.createServer(async (request,response) => {
             const divergence=Runner.compare(node,{schema:node.schema,source_sha256:node.source_sha256,input:node.input,
                 events:data.events,checkpoints:data.checkpoints},source);
             if (divergence || node.final_sha256!==data.final_sha256 || data.errors?.length ||
-                JSON.stringify(data.native_timer_probe)!==JSON.stringify(["first","second"]))
+                JSON.stringify(data.native_timer_probe)!==JSON.stringify(["first","second"]) ||
+                JSON.stringify(data.native_select_probe)!==JSON.stringify(["","10"]))
                 return send(response,{ok:false,divergence,final_matches:node.final_sha256===data.final_sha256,errors:data.errors});
             const codeFiles=["host.js","dom.cjs","runner.cjs","parse_html.py","browser_server.cjs","browser_probe.js","check_browser.cjs"];
             const hashes=Object.fromEntries(codeFiles.map(n=>[n,Runner.sha256(fs.readFileSync(path.join(__dirname,n)))]));
@@ -67,7 +68,8 @@ const server=http.createServer(async (request,response) => {
                 checkpoints:node.checkpoints.length,draws:node.draws,events:node.events.length,
                 events_sha256:Runner.sha256(JSON.stringify(data.events)),draw_sites:Object.keys(node.draw_sites).length,
                 final_sha256:node.final_sha256,
-                matched_all_checkpoints:true,native_timer_probe:data.native_timer_probe};
+                matched_all_checkpoints:true,native_timer_probe:data.native_timer_probe,
+                native_select_probe:data.native_select_probe};
             fs.writeFileSync(path.join(source.cache,"browser-"+name+".json"),JSON.stringify(evidence,null,2)+"\n");
             return send(response,{ok:true,evidence});
         }

@@ -106,13 +106,20 @@ class Node {
     _replaceChildren() { for (const n of this.childNodes) n.parentNode = null; this.childNodes = []; }
     appendChild(node) {
         if (node.parentNode) node.parentNode.removeChild(node);
-        node.parentNode = this; this.childNodes.push(node); return node;
+        node.parentNode = this; this.childNodes.push(node); this._optionInserted(node); return node;
+    }
+    // HTML selectedness setting: inserting an option into a single-selection select
+    // with no selected option selects the first option.
+    _optionInserted(node) {
+        if (this.tag === "select" && node.tag === "option" && this._selectedValue === "")
+            this._selectedValue = this.options[0].value;
     }
     insertBefore(node, reference) {
         if (reference == null) return this.appendChild(node);
         if (!this.childNodes.includes(reference)) throw new Error("NotFoundError: insertBefore");
         if (node.parentNode) node.parentNode.removeChild(node);
-        node.parentNode = this; this.childNodes.splice(this.childNodes.indexOf(reference),0,node); return node;
+        node.parentNode = this; this.childNodes.splice(this.childNodes.indexOf(reference),0,node);
+        this._optionInserted(node); return node;
     }
     removeChild(node) {
         const index = this.childNodes.indexOf(node);

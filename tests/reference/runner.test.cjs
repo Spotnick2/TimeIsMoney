@@ -49,6 +49,10 @@ test("storage string semantics, stable node identity, selection and disabled cli
     button.disabled=true;button.click();assert.equal(count,0);
     button.disabled=false;button.click();assert.equal(count,1);
     parent.removeChild(button);assert.equal(doc.getElementById("button"),null);
+    // Selectedness (matches native_select_probe): an unmatched value empties the
+    // select, and an inserted option then selects the first option.
+    select.value="missing"; const extra=doc.createElement("option"); extra.value="high";
+    select.appendChild(extra); assert.equal(select.value,"low");
     assert.throws(()=>parent.removeChild(button),/NotFound/);
 });
 test("snapshots retain nonfinite values, negative zero and array holes",()=>{
@@ -141,6 +145,7 @@ test("recorded native browser evidence pins current implementation and inputs",(
     for (const record of evidence.cases) {
         assert.deepEqual(record.source_sha256,source.index.source_sha256);
         assert.deepEqual(record.native_timer_probe,["first","second"]);
+        assert.deepEqual(record.native_select_probe,["","10"]);
         assert.equal(record.matched_all_checkpoints,true);
         const name=record.case.replace(/-nodraw$/,"");
         const trace=Traces.make(name,!record.case.endsWith("-nodraw"));

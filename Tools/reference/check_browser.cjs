@@ -52,6 +52,8 @@ async function main() {
             if (!result.ok) throw new Error(name+": "+JSON.stringify(result));
             if (JSON.stringify(result.evidence.native_timer_probe)!=='["first","second"]')
                 throw new Error("Native timer order/cancellation mismatch: "+name);
+            if (JSON.stringify(result.evidence.native_select_probe)!=='["","10"]')
+                throw new Error("Native select selectedness mismatch: "+name);
             evidence.push(result.evidence);
             console.log(name+": "+result.evidence.checkpoints+" checkpoints and "+result.evidence.events+
                 " events match native DOM; "+result.evidence.draws+" labeled draws");

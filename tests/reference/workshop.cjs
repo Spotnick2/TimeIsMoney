@@ -26,6 +26,11 @@ const click=(at,id)=>({at,type:"click",id});
 // qChip0..qChip9 with the first `active` chips switched on (project effects, #8).
 const value=(at,id,v)=>({at,type:"value",id,value:v});
 // Operations to afford tournaments: Operations run and refill toward memory.
+// A purchase chain: each project button is clicked 20 ms after the previous one,
+// which leaves a tick for the next project to appear and its button to update.
+const buy=(from,...names)=>names.map((n,i)=>click(from+i*20,"projectButton"+n));
+// Plenty of Operations for project costs (memory caps standardOps).
+const rich=(memory,extra={})=>({compFlag:1,projectsFlag:1,memory,standardOps:memory*1000,...extra});
 const tourney=()=>({compFlag:1,strategyEngineFlag:1,memory:20,standardOps:15000});
 const chips=active=>[.1,.2,.3,.4,.5,.6,.7,.8,.9,1].map((waveSeed,i)=>({waveSeed,value:0,active:i<active ? 1 : 0}));
 const clicks=(from,count,step,id)=>Array.from({length:count},(_,i)=>click(from+i*step,id));
@@ -130,6 +135,44 @@ const traces={
         commands:[value(0,"stratPicker","0"),click(20,"btnNewTournament"),click(30,"btnRunTournament")]},
     noPick:{until:1500,fixture:{globals:tourney()},
         commands:[click(20,"btnNewTournament"),click(30,"btnRunTournament")]},
+    // Projects (#8). AutoClipper and wire-extrusion chains, with toLocaleString text.
+    projectsProduction:{until:600,fixture:{globals:rich(60,{clipmakerLevel:1,wirePurchase:1,wireCost:130})},
+        commands:[...buy(20,"1","4","5"),...buy(100,"7","8","9","10","10b","42")]},
+    // Creativity projects, their marketing and AutoClipper follow-ups, then the
+    // strategy engine.
+    projectsCreativity:{until:700,fixture:{globals:rich(40,{creativityOn:1,creativity:900,trust:5})},
+        commands:[...buy(20,"3","6","13","14","15","17"),...buy(160,"19","11","12","16","20")]},
+    // The strategy engine and all seven strategy purchases; the picker gains options.
+    // AutoTourney then shows but is unaffordable, so its click is ignored.
+    projectsStrategy:{until:500,fixture:{globals:rich(200,{creativity:60000,trust:95})},
+        // An unmatched picker value empties the select; the first strategy option
+        // added then selects "Pick a Strat" (native_select_probe).
+        commands:[value(10,"stratPicker","3"),...buy(20,"19","20","60","61","62","63","64","65","66","119","118"),
+            value(260,"stratPicker","7")]},
+    // Investment unlock, takeover, monopoly and the repeating goodwill gifts.
+    projectsBusiness:{until:600,fixture:{globals:rich(20,{trust:89,bankroll:20000,funds:30000000,yomi:5000,
+        clips:101000000,nextTrust:1e12})},commands:[...buy(150,"21","37","38","40","40b"),click(260,"projectButton40b"),
+            click(300,"projectButton40b")]},
+    // Coherent extrapolated volition and its four follow-ups.
+    projectsVolition:{until:400,fixture:{globals:rich(200,{yomi:30000,creativity:600})},
+        commands:[...buy(20,"27","28","29","30","31")]},
+    // MegaClippers, their boosts, WireBuyer, quantum computing and three photonic chips.
+    projectsMachines:{until:800,fixture:{globals:rich(150,{clipmakerLevel:75,wirePurchase:15,processors:5,
+        wire:3})},commands:[...buy(20,"22","23","24","25","26","50","51"),click(180,"projectButton51"),
+            click(200,"projectButton51")]},
+    // Emergency wire (a two-inch spool at a one-cent price sells out quickly, so the
+    // repeatable project returns) and Xavier re-initialization.
+    projectsRecovery:{until:1500,fixture:{globals:rich(5,{wire:0.5,funds:0,unsoldClips:0,trust:9,wireSupply:2,
+        margin:.01,creativityOn:1,creativity:100000,processors:3,memory:4,standardOps:4000})},
+        commands:[click(20,"projectButton2"),click(30,"btnMakePaperclip"),click(40,"btnMakePaperclip"),
+            click(50,"projectButton219"),click(120,"projectButton2")]},
+    // Late phase-one creativity purchases: Limerick (cont.) and AutoTourney.
+    projectsLate:{until:300,fixture:{globals:rich(10,{strategyEngineFlag:1,trust:95,creativity:1100000})},
+        commands:[...buy(20,"218","118")]},
+    // The first transition: Hypno Harmonics, HypnoDrones and Release the HypnoDrones,
+    // which removes the shown Xavier button; the next tick reaches phase two (#11).
+    transition:{until:400,fixture:{globals:rich(120,{creativity:100500,trust:101})},
+        commands:[...buy(20,"13","14","12","34","70","35")]},
 };
 function make(name) {
     if (!Object.hasOwn(traces,name)) throw new Error("Unknown workshop trace: "+name);
