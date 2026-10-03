@@ -5,7 +5,10 @@ const test=require("node:test"), assert=require("node:assert/strict");
 const Runner=require("../../Tools/reference/runner.cjs"), Workshop=require("./workshop.cjs");
 const source=Runner.inputs();
 const results={};
-const run=name=>results[name] ??= Workshop.compare(name,source);
+// Only what the assertions read is cached: the reference documents of all traces
+// together exceed the default heap.
+const run=name=>results[name] ??= (({trace,reference,port,divergence,tolerated})=>
+    ({trace,reference:{input:reference.input},port,divergence,tolerated}))(Workshop.compare(name,source));
 const points=port=>port.checkpoints.map(point=>({...point,...JSON.parse(point.json)}));
 const command=(port,at,id,nth=0)=>points(port).filter(p=>p.kind==="command" && p.at===at && p.id===id)[nth];
 const final=port=>points(port).at(-1);
@@ -15,8 +18,7 @@ for (const name of Workshop.names) test("workshop "+name+" trace agrees with the
     assert.equal(divergence,null,JSON.stringify(divergence && {kind:divergence.kind,event:divergence.event,
         field:divergence.field,difference:divergence.difference,left:divergence.left,right:divergence.right}));
     assert.deepEqual(port.source_sha256,source.index.source_sha256);
-    // The transition trace ends with the explicit phase-two stop (asserted below).
-    if (name!=="transition") assert.equal(port.error,null);
+    assert.equal(port.error,null);
 });
 
 test("exact costs buy at equal funds; unaffordable clicks run no-op branches, then controls disable",()=>{
@@ -234,17 +236,18 @@ test("automatic tournaments restart from shown results; without a pick nothing i
 
 // Issue #8: phase-one projects and the first transition.
 const PROJECT_RUNS=["projectsProduction","projectsCreativity","projectsStrategy","projectsBusiness",
-    "projectsVolition","projectsMachines","projectsRecovery","projectsLate","transition"];
+    "projectsVolition","projectsMachines","projectsRecovery","projectsLate","transition",
+    "planetChain","planetPipeline","planetUpgrades"];
 const REPEATABLE=new Set(["project2","project40b","project51","project219"]);
-const STOPS=new Set(["project121","project128","project131","project217"]);
-test("every purchasable phase-one project is bought in a trace, with eligibility compared",()=>{
+const STOPS=new Set(["project121","project128","project131","project217","project46","project126"]);
+test("every purchasable project is bought in a trace, with eligibility compared",()=>{
     const projected=run("projectsProduction").port.projection.state.filter(k=>/^project\d/.test(k));
     const bought=new Set();
     for (const name of PROJECT_RUNS) for (const state of states(run(name).port))
         for (const key of projected) if (state[key] && state[key].flag===1) bought.add(key);
     const missing=projected.filter(key=>!STOPS.has(key) && !bought.has(key));
     assert.deepEqual(missing,[]);
-    assert.equal(bought.size,52);
+    assert.equal(bought.size,65);
     assert.ok(run("projectsProduction").port.projection.disabled.includes("projectButton1"),"project buttons compared");
 });
 test("one-use projects never return after purchase (no duplicate reward)",()=>{
@@ -297,15 +300,81 @@ test("repeatable projects: emergency wire, goodwill gifts, photonic chips and Xa
     const late=final(run("projectsLate").port).state;
     assert.deepEqual([late.project218.flag,late.autoTourneyFlag],[1,1]);
 });
-test("Release the HypnoDrones ends phase one at the reference transition",()=>{
+test("Release the HypnoDrones ends phase one at the reference transition and the planetary phase starts",()=>{
     const {port}=run("transition"), end=final(port);
-    assert.match(port.error,/Unported reference path: phase-two controls \(issue #11\)/);
     assert.deepEqual([end.state.humanFlag,end.state.trust,end.state.clipmakerLevel,end.state.megaClipperLevel],[0,0,0,0]);
+    // No buildings yet: supply 0 >= demand 0 counts as fully powered (powMod 1); the
+    // swarm sleeps until Swarm Computing.
+    assert.deepEqual([end.state.powMod,end.state.swarmStatus,end.state.investmentEngineFlag,end.state.wireBuyerFlag],[1,6,0,0]);
     assert.equal(end.state.nanoWire,end.state.wire);
     assert.ok(!end.state.activeProjects.some(p=>p.id==="projectButton219"),"the shown Xavier button is removed");
     assert.ok(end.timers.some(t=>t.delay===32),"the hypnodrone blink runs");
     assert.deepEqual([end.dom.readout1.html,end.dom.readout2.html],["All of the resources of Earth are now available for clip production ",
         "Releasing the HypnoDrones "]);
+});
+// Planetary phase (#11, #12).
+test("the phase-two project chain unlocks Toth tubules, power, wire production, drones and factories",()=>{
+    const end=final(run("planetChain").port).state;
+    assert.deepEqual([end.tothFlag,end.project127.flag,end.wireProductionFlag,end.harvesterFlag,end.wireDroneFlag,
+        end.factoryFlag],[1,1,1,1,1,1]);
+});
+test("planetary buildings buy at exactly their cost; unaffordable clicks are no-ops, then controls disable",()=>{
+    const {port}=run("planetExactCost");
+    const levels=s=>[s.unusedClips,s.harvesterLevel,s.wireDroneLevel,s.factoryLevel,s.farmLevel,s.batteryLevel];
+    assert.deepEqual(levels(command(port,0,"btnMakeHarvester").state),[112000000,1,0,0,0,0]);
+    assert.deepEqual(levels(command(port,0,"btnMakeFactory").state),[11000000,1,1,1,0,0]);
+    assert.deepEqual(levels(command(port,0,"btnMakeBattery").state),[0,1,1,1,1,1]);
+    const noop=command(port,0,"btnMakeHarvester",1).state;
+    assert.deepEqual(levels(noop),[0,1,1,1,1,1]);
+    assert.equal(noop.harvesterCost,Math.pow(2,2.25)*1000000);
+    const bulk=command(port,0,"btnFarmx10").state;
+    assert.deepEqual([bulk.farmLevel,bulk.x],[1,100],"+10 recomputes the price sums (x ends at 100)");
+    for (const id of ["btnMakeHarvester","btnMakeFactory","btnBatteryx10"]) {
+        const point=command(port,30,id);
+        assert.equal(point.dom[id].disabled,true,id);
+        assert.deepEqual(levels(point.state),[0,1,1,1,1,1],id);
+    }
+});
+test("a bulk purchase buys one at a time while affordable",()=>{
+    const {port}=run("planetPartialBulk");
+    const harvesters=command(port,0,"btnHarvesterx10").state;
+    assert.equal(harvesters.harvesterLevel,3);
+    assert.equal(harvesters.harvesterBill,1000000+Math.pow(2,2.25)*1000000+Math.pow(3,2.25)*1000000);
+    assert.equal(command(port,0,"btnWireDronex100").state.wireDroneLevel,1);
+});
+test("power shortage, storage, bulk farms and momentum drive the matter-to-clips pipeline",()=>{
+    const {port}=run("planetPipeline"), states=points(port).map(p=>p.state), end=states.at(-1);
+    // The reference quirk: when storage runs out mid-shortage, nuSupply (2*supply - demand +
+    // storedPower) can be negative, and so can powMod for that tick.
+    assert.ok(states.some(s=>s.powMod<0),"a negative powMod tick");
+    assert.ok(states.some(s=>s.powMod>0 && s.powMod<1),"a supply/demand fraction");
+    assert.deepEqual([end.farmLevel,end.batteryLevel,end.harvesterLevel,end.wireDroneLevel,end.factoryLevel,end.momentum],
+        [111,102,110,1010,4,1]);
+    assert.ok(end.powMod>1,"momentum accelerates past full power");
+    assert.ok(end.storedPower>0 && end.clips>0 && end.wire>0);
+});
+test("exhausted matter stops harvesting, empties wire and leaves the swarm bored and disorganized",()=>{
+    const end=final(run("planetExhaustion").port);
+    assert.deepEqual([end.state.availableMatter,end.state.wire,end.state.boredomFlag,end.state.disorgFlag,end.state.swarmStatus],
+        [0,0,1,1,5]);
+    assert.ok(end.state.activeProjects.some(p=>p.id==="projectButton46"),"Space Exploration appears");
+    assert.deepEqual([end.dom.readout1.html,end.dom.readout2.html],[
+        "No matter to harvest. Inactivity has caused the Swarm to become bored",
+        "Imbalance between Harvester and Wire Drone levels has disorganized the Swarm"]);
+});
+test("Disassemble All refunds every bill and resets levels, costs and storage",()=>{
+    const end=final(run("planetReboots").port).state;
+    assert.deepEqual([end.harvesterLevel,end.wireDroneLevel,end.factoryLevel,end.farmLevel,end.batteryLevel,end.storedPower],
+        [0,0,0,0,0,0]);
+    assert.deepEqual([end.harvesterBill,end.wireDroneBill,end.factoryBill,end.farmBill,end.batteryBill],[0,0,0,0,0]);
+    assert.deepEqual([end.harvesterCost,end.wireDroneCost,end.factoryCost,end.farmCost,end.batteryCost],
+        [1000000,1000000,100000000,10000000,1000000]);
+});
+test("factory and drone upgrade projects multiply rates and boosts",()=>{
+    const end=final(run("planetUpgrades").port).state;
+    assert.deepEqual([end.factoryRate,end.factoryBoost,end.harvesterRate,end.wireDroneRate,end.droneBoost,end.yomi,end.unusedClips],
+        [1e9*100*1000,1000,26180337*100*1000,16180339*100*1000,2,10000,1e21]);
+    assert.ok(end.activeProjects.some(p=>p.id==="projectButton126"),"Swarm Computing appears (its purchase is #13)");
 });
 test("the project traceability checklist is current",()=>{
     const Checklist=require("./project_checklist.cjs");

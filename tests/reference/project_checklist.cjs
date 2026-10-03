@@ -1,6 +1,6 @@
 "use strict";
 // Generates docs/reference/PROJECTS.md: all 96 reference projects in registration
-// order with their phase-one port status, from the committed inventory and the Lua
+// order with their port status, from the committed inventory and the Lua
 // project table. node tests/reference/project_checklist.cjs --write updates it.
 const fs=require("node:fs"), path=require("node:path"), {spawnSync}=require("node:child_process");
 const ROOT=path.resolve(__dirname,"../.."), OUTPUT=path.join(ROOT,"docs/reference/PROJECTS.md");
@@ -30,7 +30,7 @@ function generate() {
             const stop=ported.get(name);
             status=stop ? `trigger and eligibility; purchase stops (${stop})` : "trigger, eligibility and purchase effect";
         } else {
-            status="later phase: its trigger cannot hold in phase one";
+            status="later phase: its trigger needs space, battles or the ending";
         }
         return `| ${index+1} | ${name} | ${project.fields.id.initial} | ${project.line} | ${status} |`;
     });
@@ -42,10 +42,10 @@ function generate() {
         "[inventory.json](inventory.json) and Sim/Projects.lua; do not edit by hand.",
         "workshop.test.cjs checks that this file is current.",
         "",
-        `Phase one ports ${counted.filter(s=>!s).length} purchase effects and ${counted.filter(s=>s).length} explicit purchase`,
-        "stops. Later phases extend this table.",
+        `Phase one and the planetary slice (#11, #12) port ${counted.filter(s=>!s).length} purchase effects and`,
+        `${counted.filter(s=>s).length} explicit purchase stops. Later slices extend this table.`,
         "",
-        "| # | Project | Button | projects.js line | Phase-one port |",
+        "| # | Project | Button | projects.js line | Port |",
         "| ---: | --- | --- | ---: | --- |",
         ...rows,
         "",

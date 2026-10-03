@@ -129,7 +129,23 @@ assert(#game.clock:describe() == 7)
 game:click("btnMakePaperclip")
 game:advanceTo(2000)
 assert(game.S.clips == 1 and game.S.ticks == 200)
-fails("Unported reference path: control btnMakeFactory", game.click, game, "btnMakeFactory")
+fails("Unported reference path: control btnMakeProbe", game.click, game, "btnMakeProbe")
+
+-- Planetary costs (#11, #12): the reference profile's pow where JSMath differs, and an
+-- explicit stop, before any change, beyond the verified domain.
+local costPow = Workshop.costPow
+assert(costPow(2969, "2.25") == JSMath.fromWords(0x418F06F8, 0xB0418DE1), "pinned profile value")
+assert(costPow(2969, "2.25") ~= JSMath.pow(2969, 2.25), "JSMath alone differs there")
+assert(costPow(2, "2.25") == JSMath.pow(2, 2.25))
+fails("Math%.pow%(200001, 2%.25%) beyond the verified domain %(issue #24%)", costPow, 200001, "2.25")
+fails("beyond the verified domain", costPow, 2.5, "2.25")
+local planet = Workshop.new(stub, {})
+planet.S.harvesterLevel, planet.S.unusedClips = 199000, 1e30
+fails("Math%.pow%(200001, 2%.25%) beyond the verified domain", planet.makeHarvester, planet, 1)
+assert(planet.S.harvesterLevel == 199000 and planet.S.unusedClips == 1e30, "no partial purchase")
+planet.S.farmLevel = 29900
+fails("Math%.pow%(30001, 2%.78%) beyond the verified domain", planet.makeFarm, planet, 1)
+assert(planet.S.farmLevel == 29900 and planet.S.unusedClips == 1e30)
 
 -- addProc refuses to cross the verified processor count before changing state.
 game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000

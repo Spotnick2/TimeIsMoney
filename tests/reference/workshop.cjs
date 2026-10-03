@@ -32,6 +32,8 @@ const buy=(from,...names)=>names.map((n,i)=>click(from+i*20,"projectButton"+n));
 // Plenty of Operations for project costs (memory caps standardOps).
 const rich=(memory,extra={})=>({compFlag:1,projectsFlag:1,memory,standardOps:memory*1000,...extra});
 const tourney=()=>({compFlag:1,strategyEngineFlag:1,memory:20,standardOps:15000});
+// The planetary phase (after Release the HypnoDrones) with Operations for projects.
+const planet=(extra={})=>rich(200,{humanFlag:0,trust:0,...extra});
 const chips=active=>[.1,.2,.3,.4,.5,.6,.7,.8,.9,1].map((waveSeed,i)=>({waveSeed,value:0,active:i<active ? 1 : 0}));
 const clicks=(from,count,step,id)=>Array.from({length:count},(_,i)=>click(from+i*step,id));
 const traces={
@@ -173,6 +175,51 @@ const traces={
     // which removes the shown Xavier button; the next tick reaches phase two (#11).
     transition:{until:400,fixture:{globals:rich(120,{creativity:100500,trust:101})},
         commands:[...buy(20,"13","14","12","34","70","35")]},
+    // Planetary phase (#11, #12). The phase-two project chain: Toth Tubule Enfolding,
+    // Power Grid, Nanoscale Wire Production, both drone types and Clip Factories.
+    // Many processors refill Operations between purchases.
+    planetChain:{until:600,fixture:{globals:planet({creativity:300,processors:200000})},
+        commands:[...buy(20,"17","18","127","41","43","44"),click(160,"projectButton45")]},
+    // Exact-cost builds of all five buildings (113 million clips: two drones at
+    // 1e6, a factory at 1e8, a farm at 1e7, a battery at 1e6) leave exactly 0;
+    // then unaffordable clicks: before the next tick they run each function's own
+    // no-op branch (+10 still recomputes the price sums), afterwards the disabled
+    // controls ignore them. No wire or matter, so nothing produces clips meanwhile.
+    planetExactCost:{until:300,fixture:{globals:planet({unusedClips:113000000,wire:0,availableMatter:0})},commands:[
+        click(0,"btnMakeHarvester"),click(0,"btnMakeWireDrone"),click(0,"btnMakeFactory"),click(0,"btnMakeFarm"),
+        click(0,"btnMakeBattery"),click(0,"btnMakeHarvester"),click(0,"btnMakeFarm"),click(0,"btnFarmx10"),
+        click(30,"btnMakeHarvester"),click(30,"btnMakeFactory"),click(30,"btnBatteryx10")]},
+    // A bulk purchase buys one at a time while affordable: +10 harvesters with 20
+    // million clips buys three (1e6, then the 2.25-power costs) and stops; before
+    // any purchase the price sums are 0, so the multi-buy buttons start enabled.
+    planetPartialBulk:{until:200,fixture:{globals:planet({unusedClips:20000000})},commands:[
+        click(0,"btnHarvesterx10"),click(0,"btnWireDronex100"),click(50,"btnWireDronex10")]},
+    // Throughput under power: a shortage with stored power drains the batteries,
+    // then powMod is supply/demand; bulk farm purchases restore full power with
+    // surplus into storage; Momentum then accelerates powMod while fully powered.
+    // Harvesters, wire drones and factories run the whole matter-to-clips chain.
+    planetPipeline:{until:1500,fixture:{globals:planet({harvesterLevel:10,wireDroneLevel:10,factoryLevel:2,
+        farmLevel:1,batteryLevel:2,storedPower:3,unusedClips:5e15,creativity:30000,processors:200000})},
+        commands:[click(300,"btnFarmx10"),click(600,"btnFarmx100"),click(620,"projectButton125"),
+            click(700,"btnHarvesterx100"),click(700,"btnWireDronex1000"),click(710,"btnMakeFactory"),
+            click(710,"btnMakeFactory"),click(900,"btnBatteryx100")]},
+    // Exhausted material: the last available matter is harvested (Space Exploration
+    // appears), acquired matter becomes wire, factories use up the wire; boredom
+    // reaches its threshold and the imbalanced swarm becomes disorganized.
+    planetExhaustion:{until:1200,fixture:{globals:planet({harvesterLevel:60,wireDroneLevel:5,factoryLevel:1,
+        farmLevel:50,availableMatter:3e10,boredomLevel:29960,disorgCounter:99.99})},commands:[]},
+    // Every Disassemble All: refunds of the bills, recomputed price sums, the reset
+    // costs (farms 1e7, batteries 1e6) and the emptied battery storage.
+    planetReboots:{until:500,fixture:{globals:planet({unusedClips:5e13,farmLevel:3,storedPower:500})},commands:[
+        click(0,"btnHarvesterx10"),click(0,"btnMakeHarvester"),click(0,"btnWireDronex10"),click(0,"btnMakeFactory"),
+        click(0,"btnMakeFactory"),click(0,"btnFarmx10"),click(0,"btnBatteryx10"),
+        click(100,"btnHarvesterReboot"),click(100,"btnWireDroneReboot"),click(100,"btnFactoryReboot"),
+        click(200,"btnFarmReboot"),click(200,"btnBatteryReboot"),click(300,"btnHarvesterReboot")]},
+    // The factory and drone upgrade projects, including 10^21 clips for the
+    // self-correcting supply chain; Swarm Computing appears but is not bought (#13).
+    planetUpgrades:{until:500,fixture:{globals:planet({factoryLevel:50,harvesterLevel:25000,wireDroneLevel:25000,
+        yomi:60000,unusedClips:2e21,processors:300000})},
+        commands:[...buy(20,"100","101","102","110","111","112")]},
 };
 function make(name) {
     if (!Object.hasOwn(traces,name)) throw new Error("Unknown workshop trace: "+name);

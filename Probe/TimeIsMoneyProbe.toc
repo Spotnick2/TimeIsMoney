@@ -13,6 +13,8 @@ Sim/Workshop.lua
 Sim/Investments.lua
 Sim/Strategy.lua
 Sim/Projects.lua
+Sim/CostPow.lua
+Sim/Planet.lua
 Vectors.lua
 Checks.lua
 Probe.lua
