@@ -115,9 +115,9 @@ jobs:
           & cmd.exe /d /c $build
           if ($LASTEXITCODE -ne 0) { throw 'Lua MSVC build failed.' }
           "TIM_LUA=$(Join-Path $luaRoot 'src/lua.exe')" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Test deterministic reference runner and first-divergence comparison
+      - name: Test reference runner, first-divergence comparison and Lua workshop parity
         shell: pwsh
-        run: node --test tests/reference/runner.test.cjs tests/reference/divergence.test.cjs
+        run: node --test tests/reference/runner.test.cjs tests/reference/divergence.test.cjs tests/reference/jsmath.test.cjs tests/reference/workshop.test.cjs
       - name: Execute Windows test runner
         shell: pwsh
         run: ./tests/run.ps1 -Lua $env:TIM_LUA

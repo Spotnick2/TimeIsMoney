@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "node": "v24.15.0",
-  "checked_at_utc": "2026-10-03T04:11:28.197Z",
+  "checked_at_utc": "2026-10-03T05:22:30.067Z",
   "cases": [
     {
       "case": "initialization",
@@ -14,9 +14,9 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "65967fae65f271775511bb65e860594d9c3ed4e5b3d98a2207ea987af7fc8769",
+        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
-        "runner.cjs": "0dcd825b61855f535c0ce27251275376663b5f69cf932d64a74b9840f51669b4",
+        "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
         "browser_server.cjs": "0c70aca3011f9985aed0844b0eac73d3ce3a7f3762525820dd14ec22c57813ff",
         "browser_probe.js": "dd923dad786eb6601fb94d5dada075f0c71fdc6950d154f0235349d96cc85df2",
@@ -47,9 +47,9 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "65967fae65f271775511bb65e860594d9c3ed4e5b3d98a2207ea987af7fc8769",
+        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
-        "runner.cjs": "0dcd825b61855f535c0ce27251275376663b5f69cf932d64a74b9840f51669b4",
+        "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
         "browser_server.cjs": "0c70aca3011f9985aed0844b0eac73d3ce3a7f3762525820dd14ec22c57813ff",
         "browser_probe.js": "dd923dad786eb6601fb94d5dada075f0c71fdc6950d154f0235349d96cc85df2",
@@ -80,9 +80,9 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "65967fae65f271775511bb65e860594d9c3ed4e5b3d98a2207ea987af7fc8769",
+        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
-        "runner.cjs": "0dcd825b61855f535c0ce27251275376663b5f69cf932d64a74b9840f51669b4",
+        "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
         "browser_server.cjs": "0c70aca3011f9985aed0844b0eac73d3ce3a7f3762525820dd14ec22c57813ff",
         "browser_probe.js": "dd923dad786eb6601fb94d5dada075f0c71fdc6950d154f0235349d96cc85df2",
@@ -113,9 +113,9 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "65967fae65f271775511bb65e860594d9c3ed4e5b3d98a2207ea987af7fc8769",
+        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
-        "runner.cjs": "0dcd825b61855f535c0ce27251275376663b5f69cf932d64a74b9840f51669b4",
+        "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
         "browser_server.cjs": "0c70aca3011f9985aed0844b0eac73d3ce3a7f3762525820dd14ec22c57813ff",
         "browser_probe.js": "dd923dad786eb6601fb94d5dada075f0c71fdc6950d154f0235349d96cc85df2",
@@ -146,9 +146,9 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "65967fae65f271775511bb65e860594d9c3ed4e5b3d98a2207ea987af7fc8769",
+        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
-        "runner.cjs": "0dcd825b61855f535c0ce27251275376663b5f69cf932d64a74b9840f51669b4",
+        "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
         "browser_server.cjs": "0c70aca3011f9985aed0844b0eac73d3ce3a7f3762525820dd14ec22c57813ff",
         "browser_probe.js": "dd923dad786eb6601fb94d5dada075f0c71fdc6950d154f0235349d96cc85df2",
@@ -179,9 +179,9 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "65967fae65f271775511bb65e860594d9c3ed4e5b3d98a2207ea987af7fc8769",
+        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
-        "runner.cjs": "0dcd825b61855f535c0ce27251275376663b5f69cf932d64a74b9840f51669b4",
+        "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
         "browser_server.cjs": "0c70aca3011f9985aed0844b0eac73d3ce3a7f3762525820dd14ec22c57813ff",
         "browser_probe.js": "dd923dad786eb6601fb94d5dada075f0c71fdc6950d154f0235349d96cc85df2",
@@ -212,9 +212,9 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "65967fae65f271775511bb65e860594d9c3ed4e5b3d98a2207ea987af7fc8769",
+        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
-        "runner.cjs": "0dcd825b61855f535c0ce27251275376663b5f69cf932d64a74b9840f51669b4",
+        "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
         "browser_server.cjs": "0c70aca3011f9985aed0844b0eac73d3ce3a7f3762525820dd14ec22c57813ff",
         "browser_probe.js": "dd923dad786eb6601fb94d5dada075f0c71fdc6950d154f0235349d96cc85df2",
@@ -245,9 +245,9 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "65967fae65f271775511bb65e860594d9c3ed4e5b3d98a2207ea987af7fc8769",
+        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
-        "runner.cjs": "0dcd825b61855f535c0ce27251275376663b5f69cf932d64a74b9840f51669b4",
+        "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
         "browser_server.cjs": "0c70aca3011f9985aed0844b0eac73d3ce3a7f3762525820dd14ec22c57813ff",
         "browser_probe.js": "dd923dad786eb6601fb94d5dada075f0c71fdc6950d154f0235349d96cc85df2",

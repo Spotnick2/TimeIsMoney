@@ -158,9 +158,12 @@ The runner preserves each runtime's arithmetic rather than replacing Math.pow,
 rounding persistent state or applying a broad epsilon. Exact Windows comparisons
 remain required; these traces do not establish exact arithmetic on Linux or other
 JS engines. The comparator reports a numeric difference's distance in doubles
-(state.p10f above is 1) as evidence, but **accepts no tolerance**. Any future
-exception needs its own change with a narrow path, a documented bound and a
-threshold test showing that no decision changes.
+(state.p10f above is 1) as evidence. By default it **accepts no tolerance**. A
+caller may pass `tolerances`: exact checkpoint field paths, each with a maximum
+distance in doubles and a reason. Every accepted difference is reported through
+`onTolerated`, and later differences are still found. An exception needs a
+documented bound and a threshold test showing that no decision changes. The only
+current use is the workshop's two display fields ([WORKSHOP.md](WORKSHOP.md)).
 
 ## First-divergence comparison
 
@@ -248,5 +251,5 @@ No in-game addon behavior, Lua simulation, gameplay UI, persistence schema,
 full-campaign parity, media playback or native browser timing guarantee is
 implemented here. Upstream reuse terms remain unestablished; upstream bytes
 remain ignored local/CI developer inputs and are absent from the addon archive.
-The workshop slices (#5 onward) will emit this trace format from the Lua
-simulation and compare it with the reference.
+The Lua workshop slice ([WORKSHOP.md](WORKSHOP.md), #5) emits this trace format
+and is compared exactly against a projection of the reference document.

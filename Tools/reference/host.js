@@ -270,22 +270,26 @@
         const d = ordered(a) - ordered(b);
         return Number(d < 0n ? -d : d);
     }
-    function firstDifference(left, right, at = "$") {
+    // ignore(path, left, right) may accept a specific leaf difference (a declared
+    // numeric exception); the walk then continues to the next difference.
+    function firstDifference(left, right, at = "$", ignore = null) {
         if (Object.is(left, right)) return null;
         if (!left || !right || typeof left !== "object" || typeof right !== "object" ||
-            Array.isArray(left) !== Array.isArray(right))
+            Array.isArray(left) !== Array.isArray(right)) {
+            if (ignore && ignore(at, left, right)) return null;
             return { path: at, left, right };
+        }
         // An array and an object with the same keys differ; so do array lengths.
         if (Array.isArray(left) && left.length !== right.length)
             return { path: at + ".length", left: left.length, right: right.length };
         for (const key of [...new Set([...Object.keys(left), ...Object.keys(right)])].sort()) {
-            const diff = firstDifference(left[key], right[key], at + "." + key);
+            const diff = firstDifference(left[key], right[key], at + "." + key, ignore);
             if (diff) return diff;
         }
         return null;
     }
-    function stateDifference(left, right) {
-        const diff = firstDifference(left, right);
+    function stateDifference(left, right, ignore = null) {
+        const diff = firstDifference(left, right, "$", ignore);
         if (!diff) return null;
         const [, section, name] = diff.path.split(".");
         const value = section && name !== undefined ? left[section]?.[name] ?? right[section]?.[name] : undefined;
@@ -310,8 +314,22 @@
     // {schema, source_sha256, input, events, checkpoints[{...meta, sha256?, json?}]}.
     // Events are compared in order, so an extra draw, a different branch's draw site
     // or a reordered callback is reported where it first happens, before later state.
-    function compareTraces(left, right, context = 8) {
+    // options.tolerances lists documented numeric exceptions as {path, maxUlps}: an
+    // exact checkpoint field path whose finite values may differ by at most maxUlps.
+    // Each accepted difference is passed to options.onTolerated.
+    function compareTraces(left, right, context = 8, options = {}) {
         validateTrace(left, "left"); validateTrace(right, "right");
+        const tolerances = options.tolerances || [];
+        for (const t of tolerances)
+            if (typeof t.path !== "string" || !Number.isInteger(t.maxUlps) || t.maxUlps < 1 || !t.reason)
+                throw new Error("A numeric exception needs an exact path, a positive maxUlps and a reason");
+        let checkpointIndex = null;
+        const ignore = tolerances.length ? (path, a, b) => {
+            const t = tolerances.find(item => item.path === path), distance = ulps(a, b);
+            if (!t || distance === null || distance > t.maxUlps) return false;
+            if (options.onTolerated) options.onTolerated({ checkpoint: checkpointIndex, path, left: a, right: b, ulps: distance });
+            return true;
+        } : null;
         const base = { source_sha256: { left: left.source_sha256, right: right.source_sha256 },
                        input: { left: left.input, right: right.input } };
         if (!left.source_sha256 || firstDifference(left.source_sha256, right.source_sha256))
@@ -341,11 +359,12 @@
             if (!pa || !pb) return found("checkpoint", { field: "$.index" });
             const metaDiff = firstDifference(a, b) || firstDifference(meta(pa), meta(pb));
             if (metaDiff) return found("checkpoint", { field: metaDiff.path });
+            checkpointIndex = a.index;
             const hashed = pa.sha256 !== undefined && pb.sha256 !== undefined;
             if (hashed && pa.sha256 === pb.sha256) {
                 // Equal hashes need no parse.
             } else if (pa.json !== undefined && pb.json !== undefined) {
-                const diff = pa.json === pb.json ? null : stateDifference(JSON.parse(pa.json), JSON.parse(pb.json));
+                const diff = pa.json === pb.json ? null : stateDifference(JSON.parse(pa.json), JSON.parse(pb.json), ignore);
                 if (diff) return found("state", { checkpoint: a.index, difference: diff });
                 // Never accept differing hashes, even if the field walk finds nothing.
                 if (hashed) return found("state", { checkpoint: a.index, difference: null,
