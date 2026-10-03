@@ -1,8 +1,8 @@
 # Pure-Lua workshop slice
 
-Issue [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5). This is the first
-port of the [pinned reference](README.md) into the pure-Lua simulation layer
-(`Sim/`). The simulation has no WoW globals, frames, clocks, I/O or native
+Issues [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5) and
+[#6](https://github.com/Spotnick2/TimeIsMoney/issues/6). This is the first port of
+the [pinned reference](README.md) into the pure-Lua simulation layer (`Sim/`). The simulation has no WoW globals, frames, clocks, I/O or native
 randomness. It is parity-tested outside the game and is **not yet in the TOC or
 the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
 
@@ -11,10 +11,10 @@ the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
 | File | Contents |
 | --- | --- |
 | Sim/Reference.lua | Source pins (the five lock hashes) and simulation load order |
-| Sim/JSMath.lua | JavaScript number semantics: `undefined`, Math.round, `%`, a pure-Lua Math.pow |
+| Sim/JSMath.lua | JavaScript number semantics: `undefined`, Math.round, `%`, a pure-Lua Math.pow, and the fdlibm Math.sin and Math.log10 that V8 uses |
 | Sim/Scheduler.lua | The reference host's logical timer queue (due time, then a stable ordinal; intervals requeue after their callback) |
 | Sim/Battle.lua | The always-running battle core from combat.js |
-| Sim/Workshop.lua | The phase-one workshop, the seven reference intervals and the click commands |
+| Sim/Workshop.lua | The phase-one workshop and computation, the seven reference intervals and the click commands |
 
 State uses the reference global names, formulas and statement order: `clips`
 (lifetime production), `unusedClips` (spendable stock) and `unsoldClips`
@@ -34,6 +34,16 @@ State uses the reference global names, formulas and statement order: `clips`
 - **Controls:** button eligibility from buttonUpdate. A click on a disabled
   control does nothing, as in the browser. A hidden control still clicks, as
   `element.click()` does.
+- **Computation (#6):**
+  - processor and memory allocation from trust, and creativitySpeed from
+    Math.log10 and Math.pow;
+  - Operations: the processor cycle, the memory cap, and temporary Operations
+    with their delayed, accelerating fade;
+  - creativity, in whole steps (check ≥ 1) and fractional steps (check < 1);
+  - quantum chips evaluating Math.sin of the shared clock every tick;
+  - qComp: overflow into temporary Operations, including the reference's
+    negative tempOps on overflow, and the negative-Operations path when the chip
+    sum is negative.
 - **Projects:** project availability (manageProjects) for every trigger that reads
   state this slice changes, in projects.js registration order. This includes the
   shared blinkCounter and the 30 ms blink intervals. Project purchases and
@@ -56,7 +66,6 @@ Reference paths outside the slice raise
 
 | Path | Issue |
 | --- | --- |
-| calculateOperations, quantumCompute, calculateCreativity | #6 |
 | Stock purchases, sales and valuation, investment report, automatic tournaments, strategy selection | #7 |
 | Project purchases and project-dependent milestones | #8 |
 | Planetary production and phase-two controls (`humanFlag == 0`) | #11 |
@@ -64,9 +73,8 @@ Reference paths outside the slice raise
 | checkForBattleEnd with an active battle | #15 |
 | Ending sequence and dismantling clicks | #17 |
 | Reference auto-save (after 25 s) | #19 |
-
-Reaching 2,000 clips, or running out of wire, money and stock, sets `compFlag`.
-The next tick reaches calculateOperations, so a workshop trace stops there.
+| addProc beyond 3,424 processors, where Math.pow(n, 1.1) first differs from V8 | #24 |
+| Math.sin of arguments beyond 2²⁰·π/2 (about 1,647,099; the quantum clock reaches it after about 19 days) | #24 |
 
 ## JavaScript semantics in Lua
 
@@ -76,8 +84,9 @@ The next tick reaches calculateOperations, so a workshop trace stops there.
   sentinel keeps the key; `JSMath.num` turns it into NaN at arithmetic sites.
 - **Math.round:** rounds ties toward +∞ and keeps −0, without `x + 0.5` double
   rounding.
-- **`%` and truthiness:** JavaScript `%` is C fmod (timeCruncher). Conditions
-  such as `if (creativityOn)` use JavaScript truthiness (0 is false).
+- **`%`, truthiness and loose equality:** JavaScript `%` is C fmod
+  (timeCruncher). Conditions such as `if (creativityOn)` use JavaScript truthiness
+  (0 is false). `creativityOn == 1` is also true for `true`.
 - **Negative zero:** a literal `-0.0` can merge with the constant `0` in Lua
   5.1, so negative zero is built at run time.
 - **Math.pow:** V8's results are not correctly rounded and differ from every C
@@ -112,9 +121,29 @@ The next tick reaches calculateOperations, so a workshop trace stops there.
   become the declared bounds. Sale probability uses demand, and demand uses only
   integer exponents, which match exactly. Later slices that change effectiveness,
   boost or prestige must extend this evidence.
-- **Math.sin:** the wire price uses Lua's `math.sin`, which comes from the C
-  library. Its result passes through Math.ceil, so only a value within one step
-  of an integer could differ. This is a known dependency, not proven exact.
+- **Math.sin and Math.log10:** V8 implements both with fdlibm 5.3: the original
+  `__kernel_cos` with `qx`, and the `__ieee754_log`-based log10. The FreeBSD
+  revisions and the C library differ. JSMath ports exactly those routines,
+  building IEEE words with frexp/ldexp because Lua 5.1 has no bit library. They
+  match V8 in all 119,505 cases in jsmath.test.cjs:
+  - quantum-clock arguments;
+  - ± wire-price counters 1–5,000;
+  - points near multiples of π/2;
+  - random magnitudes and special values;
+  - log10 of 1–20,000 and of random magnitudes.
+
+  A 290,720-case probe found 2,633 differences with the FreeBSD cosine kernel
+  and 9,824 with the C library. The wire price and the quantum chips are
+  therefore exact on the measured profile (Node v24.15.0, V8 13.6). V8 has a
+  build option that swaps in glibc-derived sin/cos, so other Chromium builds are
+  not covered by this claim. The reduction includes fdlibm's npio2_hw quick
+  path, and jsmath.test.cjs covers arguments one or more high words away from
+  n·π/2.
+- **creativitySpeed:** `log10(n) * pow(n, 1.1) + n - 1` for an integer processor
+  count. log10 is exact. The correctly rounded pow matches V8 for every count up
+  to 3,424 (tested); V8 first differs at 3,425. Creativity drives project
+  unlocks, so addProc stops explicitly beyond the verified count instead of
+  accepting drift.
 
 Trace inputs reach Lua as exact `math.ldexp(mantissa, exponent)` pairs, not as
 decimal text. The older 32-bit Lua build parsed the halfway case
@@ -124,7 +153,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines ten traces with an explicit equidistributed
+tests/reference/workshop.cjs defines sixteen traces with an explicit equidistributed
 stream: the fractional part of i × 0.6180339887498949, recorded into the trace.
 The #4 repeat pattern never draws below 0.06, so it would never sell at the
 default 5 % sale probability.
@@ -146,7 +175,17 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | mega | MegaClipper purchase, the recomputed cost and the disabled control | match |
 | highPrice | Margin 10.06: `avgRev` differs by one step under the declared exception; it diverges without it | match with exception |
 | pricedMarketing | Margin 1.50, marketing level 4: `avgSales` uses the exception | match with exception |
-| computationBoundary | Out of wire, money and stock: the slice stops with the #6 error, and the agreed prefix matches | match up to the stop |
+| computationUnlock | Out of wire, money and stock: Operations unlock, and Beg for More Wire and the projects list appear in the same tick | match |
+| allocation | Four processors and two memory before the next tick exceed trust (8 against 7). Then the controls disable, memory caps Operations, processors ≥ 5 unlocks its project, and qComp without photonic chips only resets the fade | match |
+| creativity | creativitySpeed 91.27 from log10/pow: whole creativity steps and the 50-creativity project | match |
+| creativityFast | creativitySpeed 2,293.89: fractional creativity steps and the 50–250 creativity projects | match |
+| opFade | Temporary Operations fading after opFadeDelay, with the accelerating fade | match |
+| quantumOverflow | Seven chips oscillating every tick; qComp fills to the memory cap and overflows. The reference leaves a negative tempOps on the first overflow | match |
+| quantumNegative | A −7.1 chip sum drains about 2,550 Operations per click. Operations fall below −12,000, unlock the recovery project, and refill slowly | match |
+
+The reference VM mutates fixture objects such as qChips. The host therefore
+clones fixture values, so the report records the fixture as injected and the Lua
+input keeps the original values.
 
 Changing one decrement in the Lua port by a single binary64 step was caught at
 the first tick. So was changing one acceleration factor in the battle core.

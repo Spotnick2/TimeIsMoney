@@ -103,7 +103,7 @@ local function afterCallback(id) checkpoint({ kind = "callback", at = game.clock
 local ok, failure = pcall(function()
     checkpoint({ kind = "initialization", at = 0 })
     for key, value in pairs((trace.fixture or {}).globals or {}) do
-        if Workshop.initial[key] == nil then ns.Unported("fixture global " .. key, "a later slice") end
+        if Workshop.initial[key] == nil and not Workshop.arrays[key] then ns.Unported("fixture global " .. key, "a later slice") end
         S[key] = value
     end
     if (trace.fixture or {}).projectFlags or (trace.fixture or {}).strategies then

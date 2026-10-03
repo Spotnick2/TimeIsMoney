@@ -1,7 +1,7 @@
--- Developer probe: lua lua_pow_probe.lua <pairs.txt> <results.txt>
--- Each input line holds two operands as exact "mantissa:exponent" pairs (or tokens
--- for NaN, infinities and negative zero); each output line is JSMath.pow of them,
--- written the same way.
+-- Developer probe: lua lua_math_probe.lua <cases.txt> <results.txt>
+-- Each input line is "pow x y", "sin x" or "log10 x" with operands as exact
+-- "mantissa:exponent" pairs (or tokens for NaN, infinities and negative zero);
+-- each output line is the JSMath result, written the same way.
 local here = arg[0]:match("^(.*)[/\\]") or "."
 local JSMath = assert(loadfile(here .. "/../../Sim/JSMath.lua"))("TimeIsMoney", {})
 local tokens = { NaN = 0 / 0, Infinity = math.huge, ["-Infinity"] = -math.huge, ["-0"] = JSMath.NEG_ZERO }
@@ -23,7 +23,17 @@ local function write(v)
 end
 local out = assert(io.open(arg[2], "wb"))
 for line in io.lines(arg[1]) do
-    local a, b = line:match("^(%S+) (%S+)$")
-    out:write(write(JSMath.pow(read(a), read(b))), "\n")
+    local name, a, b = line:match("^(%a+%d*) (%S+) ?(%S*)$")
+    local result
+    if name == "pow" then
+        result = JSMath.pow(read(a), read(b))
+    elseif name == "sin" then
+        result = JSMath.sin(read(a))
+    elseif name == "log10" then
+        result = JSMath.log10(read(a))
+    else
+        error("Unknown function: " .. tostring(name))
+    end
+    out:write(write(result), "\n")
 end
 out:close()

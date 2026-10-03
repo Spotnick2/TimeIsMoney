@@ -200,5 +200,261 @@ function JSMath.pow(x, y)
     return result
 end
 
+-- IEEE-754 words for fdlibm ports: signed high word and unsigned low word, as in
+-- EXTRACT_WORDS. Lua 5.1 has no bit library, so this uses frexp/ldexp.
+local function toWords(x)
+    local sign = (x < 0 or (x == 0 and 1 / x < 0)) and 1 or 0
+    local a = sign == 1 and -x or x
+    local e, mantissa
+    if a ~= a then
+        e, mantissa = 2047, 2 ^ 51
+    elseif a == huge then
+        e, mantissa = 2047, 0
+    elseif a == 0 then
+        e, mantissa = 0, 0
+    else
+        local m, exponent = frexp(a)
+        e = exponent + 1022
+        if e >= 1 then mantissa = m * 2 ^ 53 - 2 ^ 52 else e, mantissa = 0, ldexp(a, 1074) end
+    end
+    local hi = sign * 2 ^ 31 + e * 2 ^ 20 + floor(mantissa / 2 ^ 32)
+    if hi >= 2 ^ 31 then hi = hi - 2 ^ 32 end
+    return hi, mantissa % 2 ^ 32
+end
+
+local function fromWords(hi, lo)
+    if hi < 0 then hi = hi + 2 ^ 32 end
+    local sign = hi >= 2 ^ 31
+    if sign then hi = hi - 2 ^ 31 end
+    local e = floor(hi / 2 ^ 20)
+    local mantissa = (hi % 2 ^ 20) * 2 ^ 32 + lo
+    local value
+    if e == 2047 then
+        value = mantissa == 0 and huge or 0 / 0
+    elseif e == 0 then
+        value = ldexp(mantissa, -1074)
+    else
+        value = ldexp(2 ^ 52 + mantissa, e - 1075)
+    end
+    if sign then return -value end
+    return value
+end
+JSMath.toWords, JSMath.fromWords = toWords, fromWords
+
+-- The signed high word alone (sign, exponent and top 20 mantissa bits).
+local function highWord(x)
+    local sign = x < 0 or (x == 0 and 1 / x < 0)
+    local a = sign and -x or x
+    local hi
+    if a ~= a or a == huge then
+        hi = 2047 * 2 ^ 20 + (a ~= a and 2 ^ 19 or 0)
+    elseif a == 0 then
+        hi = 0
+    else
+        local m, exponent = frexp(a)
+        local e = exponent + 1022
+        if e >= 1 then
+            hi = e * 2 ^ 20 + floor((m * 2 ^ 53 - 2 ^ 52) / 2 ^ 32)
+        else
+            hi = floor(ldexp(a, 1074) / 2 ^ 32)
+        end
+    end
+    if sign then return hi - 2 ^ 31 end
+    return hi
+end
+local function abs31(v) if v < 0 then return v + 2 ^ 31 end return v end
+local W = fromWords
+
+-- fdlibm 5.3 sin (the variant V8 uses): __kernel_sin, the original __kernel_cos
+-- with qx, and __ieee754_rem_pio2 for |x| <= 2^20 * pi/2 (high word 0x413921fb).
+local S1, S2, S3 = W(0xBFC55555, 0x55555549), W(0x3F811111, 0x1110F8A6), W(0xBF2A01A0, 0x19C161D5)
+local S4, S5, S6 = W(0x3EC71DE3, 0x57B1FE7D), W(0xBE5AE5E6, 0x8A2B9CEB), W(0x3DE5D93A, 0x5ACFD57C)
+local C1, C2, C3 = W(0x3FA55555, 0x5555554C), W(0xBF56C16C, 0x16C15177), W(0x3EFA01A0, 0x19CB1590)
+local C4, C5, C6 = W(0xBE927E4F, 0x809C52AD), W(0x3E21EE9E, 0xBDB4B1C4), W(0xBDA8FAE9, 0xBE8838D4)
+local pio2_1, pio2_1t = W(0x3FF921FB, 0x54400000), W(0x3DD0B461, 0x1A626331)
+local pio2_2, pio2_2t = W(0x3DD0B461, 0x1A600000), W(0x3BA3198A, 0x2E037073)
+local pio2_3, pio2_3t = W(0x3BA3198A, 0x2E000000), W(0x397B839A, 0x252049C1)
+local invpio2 = W(0x3FE45F30, 0x6DC9C883)
+-- High words of n * pi/2 for n = 1..32 (npio2_hw).
+local npio2_hw = {
+    0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C, 0x4025FDBB, 0x402921FB,
+    0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C, 0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB,
+    0x403AB41B, 0x403C463A, 0x403DD85A, 0x403F6A7A, 0x40407E4C, 0x4041475C, 0x4042106C, 0x4042D97C,
+    0x4043A28C, 0x40446B9C, 0x404534AC, 0x4045FDBB, 0x4046C6CB, 0x40478FDB, 0x404858EB, 0x404921FB,
+}
+
+local function kernelSin(x, y, iy)
+    if (x < 0 and -x or x) < 2 ^ -27 then return x end -- |x| < 2^-27 (high word < 0x3e400000)
+    local z = x * x
+    local v = z * x
+    local r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)))
+    if iy == 0 then return x + v * (S1 + z * r) end
+    return x - ((z * (0.5 * y - v * r) - y) - v * S1)
+end
+
+local function kernelCos(x, y)
+    local ix = abs31(highWord(x))
+    if ix < 0x3e400000 then return 1 end -- also the |x| < 2^-27 shortcut
+    local z = x * x
+    local r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))))
+    if ix < 0x3FD33333 then return 1 - (0.5 * z - (z * r - x * y)) end
+    local qx
+    if ix > 0x3fe90000 then qx = 0.28125 else qx = W(ix - 0x00200000, 0) end
+    local iz = 0.5 * z - qx
+    local a = 1 - qx
+    return a - (iz - (z * r - x * y))
+end
+
+-- Returns n, y0, y1 with x = n * pi/2 + (y0 + y1); hx is x's high word.
+local function remPio2(x, hx)
+    local ix = abs31(hx)
+    if ix <= 0x3fe921fb then return 0, x, 0 end
+    if ix < 0x4002d97c then
+        local z, y0, y1
+        if hx > 0 then
+            z = x - pio2_1
+            if ix ~= 0x3ff921fb then
+                y0 = z - pio2_1t
+                y1 = (z - y0) - pio2_1t
+            else
+                z = z - pio2_2
+                y0 = z - pio2_2t
+                y1 = (z - y0) - pio2_2t
+            end
+            return 1, y0, y1
+        end
+        z = x + pio2_1
+        if ix ~= 0x3ff921fb then
+            y0 = z + pio2_1t
+            y1 = (z - y0) + pio2_1t
+        else
+            z = z + pio2_2
+            y0 = z + pio2_2t
+            y1 = (z - y0) + pio2_2t
+        end
+        return -1, y0, y1
+    end
+    if ix > 0x413921fb then
+        error("Unported reference path: Math.sin beyond the ported fdlibm reduction range " ..
+            "(|x| > 2^20*pi/2, about 1,647,099) (issue #24)", 0)
+    end
+    local t = x < 0 and -x or x
+    local n = floor(t * invpio2 + 0.5)
+    local r = t - n * pio2_1
+    local w = n * pio2_1t
+    local y0
+    if n < 32 and ix ~= npio2_hw[n] then
+        y0 = r - w -- quick check: no cancellation
+    else
+        local j = floor(ix / 2 ^ 20)
+        y0 = r - w
+        local i = j - floor(abs31(highWord(y0)) / 2 ^ 20) % 2048
+        if i > 16 then
+            t = r
+            w = n * pio2_2
+            r = t - w
+            w = n * pio2_2t - ((t - r) - w)
+            y0 = r - w
+            i = j - floor(abs31(highWord(y0)) / 2 ^ 20) % 2048
+            if i > 49 then
+                t = r
+                w = n * pio2_3
+                r = t - w
+                w = n * pio2_3t - ((t - r) - w)
+                y0 = r - w
+            end
+        end
+    end
+    local y1 = (r - y0) - w
+    if hx < 0 then return -n, -y0, -y1 end
+    return n, y0, y1
+end
+
+function JSMath.sin(x)
+    local hx = highWord(x)
+    local ix = abs31(hx)
+    if ix <= 0x3fe921fb then return kernelSin(x, 0, 0) end
+    if ix >= 0x7ff00000 then return x - x end
+    local n, y0, y1 = remPio2(x, hx)
+    local q = n % 4
+    if q == 0 then return kernelSin(y0, y1, 1) end
+    if q == 1 then return kernelCos(y0, y1) end
+    if q == 2 then return -kernelSin(y0, y1, 1) end
+    return -kernelCos(y0, y1)
+end
+
+-- fdlibm 5.3 __ieee754_log and __ieee754_log10 (the variants V8 uses).
+local Lg1, Lg2, Lg3 = W(0x3FE55555, 0x55555593), W(0x3FD99999, 0x9997FA04), W(0x3FD24924, 0x94229359)
+local Lg4, Lg5, Lg6 = W(0x3FCC71C5, 0x1D8E78AF), W(0x3FC74664, 0x96CB03DE), W(0x3FC39A09, 0xD078C69F)
+local Lg7 = W(0x3FC2F112, 0xDF3E5244)
+local ln2_hi, ln2_lo = W(0x3fe62e42, 0xfee00000), W(0x3dea39ef, 0x35793c76)
+local two54 = W(0x43500000, 0)
+local ivln10 = W(0x3FDBCB7B, 0x1526E50E)
+local log10_2hi, log10_2lo = W(0x3FD34413, 0x509F6000), W(0x3D59FEF3, 0x11F12B36)
+
+local function ieeeLog(x)
+    local hx, lx = toWords(x)
+    local k = 0
+    if hx < 0x00100000 then
+        if abs31(hx) == 0 and lx == 0 then return -huge end
+        if hx < 0 then return 0 / 0 end
+        k = k - 54
+        x = x * two54
+        hx, lx = toWords(x)
+    end
+    if hx >= 0x7ff00000 then return x + x end
+    k = k + floor(hx / 2 ^ 20) - 1023
+    hx = hx % 2 ^ 20
+    local i = ((hx + 0x95f64) % 2 ^ 21 >= 2 ^ 20) and 0x100000 or 0
+    x = W(hx + (i == 0 and 0x3ff00000 or 0x3fe00000), lx) -- hx | (i ^ 0x3ff00000)
+    k = k + i / 2 ^ 20
+    local f = x - 1
+    if (2 + hx) % 2 ^ 20 < 3 then
+        if f == 0 then
+            if k == 0 then return 0 end
+            return k * ln2_hi + k * ln2_lo
+        end
+        local R = f * f * (0.5 - 0.33333333333333333 * f)
+        if k == 0 then return f - R end
+        return k * ln2_hi - ((R - k * ln2_lo) - f)
+    end
+    local s = f / (2 + f)
+    local dk = k
+    local z = s * s
+    local ii = hx - 0x6147a
+    local w = z * z
+    local j = 0x6b851 - hx
+    local t1 = w * (Lg2 + w * (Lg4 + w * Lg6))
+    local t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)))
+    local R = t2 + t1
+    if ii >= 0 and j >= 0 and (ii > 0 or j > 0) then -- (i | j) > 0
+        local hfsq = 0.5 * f * f
+        if k == 0 then return f - (hfsq - s * (hfsq + R)) end
+        return dk * ln2_hi - ((hfsq - (s * (hfsq + R) + dk * ln2_lo)) - f)
+    end
+    if k == 0 then return f - s * (f - R) end
+    return dk * ln2_hi - ((s * (f - R) - dk * ln2_lo) - f)
+end
+
+function JSMath.log10(x)
+    local hx, lx = toWords(x)
+    local k = 0
+    if hx < 0x00100000 then
+        if abs31(hx) == 0 and lx == 0 then return -huge end
+        if hx < 0 then return 0 / 0 end
+        k = k - 54
+        x = x * two54
+        hx, lx = toWords(x)
+    end
+    if hx >= 0x7ff00000 then return x + x end
+    k = k + floor(hx / 2 ^ 20) - 1023
+    local i = k < 0 and 1 or 0
+    hx = hx % 2 ^ 20 + (0x3ff - i) * 2 ^ 20
+    local y = k + i
+    x = W(hx, lx)
+    local z = y * log10_2lo + ivln10 * ieeeLog(x)
+    return z + y * log10_2hi
+end
+
 ns.JSMath = JSMath
 return JSMath

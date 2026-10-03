@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "node": "v24.15.0",
-  "checked_at_utc": "2026-10-03T05:22:30.067Z",
+  "checked_at_utc": "2026-10-03T07:02:27.673Z",
   "cases": [
     {
       "case": "initialization",
@@ -14,7 +14,7 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
+        "host.js": "55cf41e99ee7d117b3182153fa51602caf03bce517739cc8a599d43392ceb3c1",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
         "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
@@ -47,7 +47,7 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
+        "host.js": "55cf41e99ee7d117b3182153fa51602caf03bce517739cc8a599d43392ceb3c1",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
         "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
@@ -80,7 +80,7 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
+        "host.js": "55cf41e99ee7d117b3182153fa51602caf03bce517739cc8a599d43392ceb3c1",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
         "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
@@ -113,7 +113,7 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
+        "host.js": "55cf41e99ee7d117b3182153fa51602caf03bce517739cc8a599d43392ceb3c1",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
         "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
@@ -146,7 +146,7 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
+        "host.js": "55cf41e99ee7d117b3182153fa51602caf03bce517739cc8a599d43392ceb3c1",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
         "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
@@ -179,7 +179,7 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
+        "host.js": "55cf41e99ee7d117b3182153fa51602caf03bce517739cc8a599d43392ceb3c1",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
         "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
@@ -212,7 +212,7 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
+        "host.js": "55cf41e99ee7d117b3182153fa51602caf03bce517739cc8a599d43392ceb3c1",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
         "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",
@@ -245,7 +245,7 @@
         "main.js": "ee599076de868869e533490505189ddcb72dcc8748909ceeebe11e789f1b3a0a"
       },
       "tool_sha256": {
-        "host.js": "e065d5bff579d64c1ea0c8f2fe3467f0cfcdec381d92c0d6c786120b43858457",
+        "host.js": "55cf41e99ee7d117b3182153fa51602caf03bce517739cc8a599d43392ceb3c1",
         "dom.cjs": "f26703d910cb68ec03a38e29923022c4e1a4e25b5b49151347b5edc4a4f43255",
         "runner.cjs": "10f03266283fc95fbd42fc34ccb49dad187acdebbce3a90b653d9a53995cfa24",
         "parse_html.py": "08e843633621df70da6482817dcf504f85644269ca39a8a6dc8560bfcc91f8c5",

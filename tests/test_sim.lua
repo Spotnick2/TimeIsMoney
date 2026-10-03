@@ -66,6 +66,17 @@ assert(same(JSMath.pow(-math.huge, 3), -math.huge) and same(JSMath.pow(-math.hug
 assert(same(JSMath.pow(math.huge, 1.15), math.huge) and JSMath.pow(0.5, math.huge) == 0)
 assert(JSMath.pow(10, 400) == math.huge and JSMath.pow(10, -400) == 0)
 
+-- fdlibm Math.sin and Math.log10: V8 values, including the variant-sensitive
+-- cases where the C library and other fdlibm variants differ.
+assert(JSMath.sin(1) == 0.8414709848078965 and JSMath.sin(0.7360000000000005) == 0.6713286509741181)
+assert(JSMath.sin(0.8280000000000005) == 0.7365801446274045 and same(JSMath.sin(NEG_ZERO), NEG_ZERO))
+assert(same(JSMath.sin(math.huge), 0 / 0) and JSMath.sin(-3) == -0.1411200080598672)
+fails("beyond the ported fdlibm", JSMath.sin, 2e6)
+assert(JSMath.sin(1e6) == -0.34999350217129294)
+assert(JSMath.log10(11) == 1.041392685158225 and JSMath.log10(40) == 1.6020599913279625)
+assert(JSMath.log10(1000) == 3 and JSMath.log10(1) == 0 and JSMath.log10(0) == -math.huge)
+assert(same(JSMath.log10(-1), 0 / 0))
+
 -- Scheduler: due time then queue order, nested registration, shared cancellation,
 -- requeue after the callback and the runaway guard.
 local log, seen = {}, {}
@@ -103,5 +114,11 @@ assert(#game.clock:describe() == 7)
 game:click("btnMakePaperclip")
 game:advanceTo(2000)
 assert(game.S.clips == 1 and game.S.ticks == 200)
-fails("Unported reference path: control btnAddProc", game.click, game, "btnAddProc")
+fails("Unported reference path: control btnNewTournament", game.click, game, "btnNewTournament")
+
+-- addProc refuses to cross the verified processor count before changing state.
+game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000
+local speed = game.S.creativitySpeed
+fails("verified processor count %(issue #24%)", game.addProc, game)
+assert(game.S.processors == Workshop.VERIFIED_PROCESSORS and game.S.creativitySpeed == speed)
 print("simulation: JavaScript numbers, scheduler, purity and workshop smoke passed")

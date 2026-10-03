@@ -185,7 +185,9 @@
         function fixture(setup = {}) {
             for (const [key,value] of Object.entries(setup.globals || {})) {
                 if (!config.stateNames.includes(key)) throw new Error("Unknown fixture global: " + key);
-                global[key] = value;
+                // Copy object values: the reference mutates them (for example qChips),
+                // and the report must record the fixture as it was injected.
+                global[key] = structuredClone(value);
             }
             for (const [key,value] of Object.entries(setup.projectFlags || {})) {
                 if (!/^project\d+[a-z]?$/.test(key) || !global[key]) throw new Error("Unknown fixture project");
