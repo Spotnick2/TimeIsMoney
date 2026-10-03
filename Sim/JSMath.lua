@@ -254,6 +254,9 @@ end
 -- IEEE-754 words for fdlibm ports: signed high word and unsigned low word, as in
 -- EXTRACT_WORDS. Lua 5.1 has no bit library, so this uses frexp/ldexp.
 local function toWords(x)
+    -- One canonical NaN: its sign is unobservable in JavaScript, and WoW's
+    -- NaN < 0 is true.
+    if isNaN(x) then return 0x7FF80000, 0 end
     local sign = (x < 0 or isNegativeZero(x)) and 1 or 0
     local a = sign == 1 and -x or x
     local e, mantissa
@@ -294,6 +297,7 @@ JSMath.toWords, JSMath.fromWords = toWords, fromWords
 
 -- The signed high word alone (sign, exponent and top 20 mantissa bits).
 local function highWord(x)
+    if isNaN(x) then return 0x7FF80000 end
     local sign = x < 0 or isNegativeZero(x)
     local a = sign and -x or x
     local hi

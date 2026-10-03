@@ -42,9 +42,22 @@ local function Math()
     Print(string.format("math: %s (%d cases, %.0f ms)", bad == 0 and "exact" or "MISMATCHES", total, elapsed))
 end
 
+-- Prints the state fields whose digests differ from offline Lua.
+local function ReportFields(label, fields, expected)
+    local names = {}
+    for name in pairs(expected) do
+        if fields[name] ~= expected[name] then names[#names + 1] = name end
+    end
+    for name in pairs(fields) do
+        if expected[name] == nil then names[#names + 1] = name end
+    end
+    table.sort(names)
+    if #names > 0 then Print(label .. " differing fields: " .. table.concat(names, ", ", 1, math.min(#names, 20))) end
+end
+
 local function Sim()
     local started = debugprofilestop()
-    local ok, digest, draws, ticks = pcall(Checks.workshop, ns)
+    local ok, digest, draws, ticks, fields = pcall(Checks.workshop, ns)
     local elapsed = debugprofilestop() - started
     if not ok then
         Print("sim: ERROR " .. tostring(digest))
@@ -53,13 +66,15 @@ local function Sim()
     local match = digest == Expected.workshopDigest and draws == Expected.workshopDraws
     Print(string.format("sim: digest %s, %d draws, %d ticks, %.0f ms", digest, draws, ticks, elapsed))
     Print("sim: " .. (match and "matches offline Lua" or ("DIFFERS from offline Lua " .. Expected.workshopDigest)))
-    local ranFloor, floorDigest, floorDraws = pcall(Checks.workshopPriceFloor, ns)
+    ReportFields("sim", fields, Expected.workshopFields)
+    local ranFloor, floorDigest, floorDraws, floorFields = pcall(Checks.workshopPriceFloor, ns)
     if not ranFloor then
         Print("sim zero price: ERROR " .. tostring(floorDigest))
     elseif floorDigest == Expected.priceFloorDigest and floorDraws == Expected.priceFloorDraws then
         Print("sim zero price: digest " .. floorDigest .. " matches offline Lua")
     else
         Print("sim zero price: digest " .. floorDigest .. " DIFFERS from offline Lua " .. Expected.priceFloorDigest)
+        ReportFields("sim zero price", floorFields, Expected.priceFloorFields)
     end
 end
 

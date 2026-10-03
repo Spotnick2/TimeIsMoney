@@ -96,11 +96,11 @@ function Checks.environment(JSMath)
     end
     check("Lua version", function() return _VERSION == "Lua 5.1", _VERSION end)
     check("doubles: 2^53 + 1 rounds to 2^53", function() return 2 ^ 53 + 1 == 2 ^ 53, "" end)
-    check("NaN from infinity minus infinity", function() return JSMath.NAN ~= JSMath.NAN, "" end)
+    check("NaN from infinity minus infinity", function() return JSMath.isNaN(JSMath.NAN), tostring(JSMath.NAN) end)
     check("signed zero is observable", function() return JSMath.signedZeroTest ~= nil, JSMath.signedZeroTest end)
     check("JS division by zero", function()
         return JSMath.div(1, zero) == math.huge and JSMath.div(-1, zero) == -math.huge
-            and JSMath.div(1, JSMath.NEG_ZERO) == -math.huge and JSMath.div(zero, zero) ~= JSMath.div(zero, zero), ""
+            and JSMath.div(1, JSMath.NEG_ZERO) == -math.huge and JSMath.isNaN(JSMath.div(zero, zero)), ""
     end)
     check("math.frexp/ldexp/fmod exist", function()
         return type(math.frexp) == "function" and type(math.ldexp) == "function" and type(math.fmod) == "function", ""
@@ -211,12 +211,20 @@ function Checks.math(vectors, JSMath)
     return counts, failures
 end
 
+-- The overall digest plus one digest per state field (to locate a difference).
 local function digest(game, draws, JSMath)
-    local snapshot = {}
-    for k, v in pairs(game.S) do if k ~= "grid" then snapshot[k] = v end end
+    local snapshot, fields = {}, {}
+    for k, v in pairs(game.S) do
+        if k ~= "grid" then
+            snapshot[k] = v
+            fields[k] = Checks.fnv1a(Checks.serialize(v, JSMath))
+        end
+    end
+    fields["(readouts)"] = Checks.fnv1a(Checks.serialize(game.readouts, JSMath))
+    fields["(timers)"] = Checks.fnv1a(Checks.serialize(game.clock:describe(), JSMath))
     return Checks.fnv1a(Checks.serialize({
         state = snapshot, readouts = game.readouts, timers = game.clock:describe(), draws = draws,
-    }, JSMath))
+    }, JSMath)), fields
 end
 
 local function golden(JSMath)
@@ -238,7 +246,8 @@ function Checks.workshopPriceFloor(ns)
     game:click("btnLowerPrice")
     game:click("btnLowerPrice")
     game:advanceTo(1500)
-    return digest(game, random.count, ns.JSMath), random.count
+    local overall, fields = digest(game, random.count, ns.JSMath)
+    return overall, random.count, fields
 end
 
 -- Runs the workshop simulation through a fixed plan and digests its final state.
@@ -263,7 +272,8 @@ function Checks.workshop(ns)
     game:click("btnQcompute")
     game:click("projectButton1")
     game:advanceTo(2500)
-    return digest(game, draws, JSMath), draws, S.ticks
+    local overall, fields = digest(game, draws, JSMath)
+    return overall, draws, S.ticks, fields
 end
 
 ns.Checks = Checks
