@@ -19,11 +19,14 @@ const TOLERANCES=[
 
 // Explicit equidistributed fixture values (fractional parts of i times the golden
 // ratio), recorded into the trace. Not a PRNG in either runner.
-function stream(length=60000) {
-    return Array.from({length},(_,i)=>(i*0.6180339887498949)%1);
+function stream(length=60000, offset=0) {
+    return Array.from({length},(_,i)=>((i+offset)*0.6180339887498949)%1);
 }
 const click=(at,id)=>({at,type:"click",id});
 // qChip0..qChip9 with the first `active` chips switched on (project effects, #8).
+const value=(at,id,v)=>({at,type:"value",id,value:v});
+// Operations to afford tournaments: Operations run and refill toward memory.
+const tourney=()=>({compFlag:1,strategyEngineFlag:1,memory:20,standardOps:15000});
 const chips=active=>[.1,.2,.3,.4,.5,.6,.7,.8,.9,1].map((waveSeed,i)=>({waveSeed,value:0,active:i<active ? 1 : 0}));
 const clicks=(from,count,step,id)=>Array.from({length:count},(_,i)=>click(from+i*step,id));
 const traces={
@@ -91,11 +94,48 @@ const traces={
     // Clicks at t=0 come before the first quantum tick, so every chip value is still 0.
     quantumNegative:{until:1200,fixture:{globals:{compFlag:1,qFlag:1,qClock:60,standardOps:500,
         qChips:chips(10)}},commands:[click(0,"btnQcompute"),...clicks(50,4,10,"btnQcompute"),click(500,"btnQcompute")]},
+    // Investments (#7). A deposit funds stockShop purchases (generated symbols,
+    // priced by roll), price updates every 2.5 s and a sale once sellDelay reaches 5.
+    // streamOffset shifts the recorded stream so the 25 % purchase rolls succeed.
+    investments:{until:6000,streamLength:90000,streamOffset:6000,
+        fixture:{globals:{funds:20000,investmentEngineFlag:1,sellDelay:4}},
+        commands:[click(0,"btnInvest"),value(100,"investStrat","med"),click(3000,"btnInvest")]},
+    investmentSale:{until:6000,streamLength:90000,streamOffset:5000,
+        fixture:{globals:{funds:20000,investmentEngineFlag:1,sellDelay:4}},commands:[click(0,"btnInvest")]},
+    // High risk: the whole bankroll is the budget; an unknown risk value empties the
+    // select, which the reference also treats as high risk; then a withdrawal.
+    investmentRisk:{until:4200,streamLength:70000,streamOffset:1000,fixture:{globals:{funds:5000,investmentEngineFlag:1}},
+        commands:[value(0,"investStrat","hi"),click(0,"btnInvest"),value(2100,"investStrat","bogus"),
+            click(4100,"btnWithdraw")]},
+    // Engine upgrades spend Yomi without a check of their own: a second click before
+    // the next tick drives Yomi negative; then the control disables.
+    investUpgrade:{until:300,fixture:{globals:{yomi:500,investmentEngineFlag:1}},commands:[
+        click(0,"btnImproveInvestments"),click(0,"btnImproveInvestments"),click(50,"btnImproveInvestments")]},
+    // The lifetime report formats ledger + portfolio with formatWithCommas.
+    investReport:{until:300,fixture:{globals:{investmentEngineFlag:1,stockReportCounter:9990,bankroll:123456789,
+        ledger:-2500.75}},commands:[]},
+    // Tournaments (#7): two-strategy pools cover every pickMove; strategy 0 is picked.
+    tourneyGreedy:{until:4600,streamLength:60000,fixture:{globals:tourney(),strategies:[3,4]},
+        commands:[value(0,"stratPicker","0"),click(20,"btnNewTournament"),click(30,"btnRunTournament"),
+            click(40,"btnRunTournament")]},
+    tourneyMinimax:{until:4600,streamLength:60000,fixture:{globals:tourney(),strategies:[5,6]},
+        commands:[value(0,"stratPicker","0"),click(20,"btnNewTournament"),click(30,"btnRunTournament")]},
+    tourneyBeatLast:{until:4600,streamLength:60000,fixture:{globals:tourney(),strategies:[7,0]},
+        commands:[value(0,"stratPicker","0"),click(20,"btnNewTournament"),click(30,"btnRunTournament")]},
+    tourneyFixed:{until:4600,streamLength:60000,fixture:{globals:tourney(),strategies:[1,2]},
+        commands:[value(0,"stratPicker","0"),click(20,"btnNewTournament"),click(30,"btnRunTournament")]},
+    // Automatic tournaments: after a finished tournament with results shown, 300
+    // ticks start the next one; without a picked strategy no Yomi or results flag.
+    autoTourney:{until:5600,streamLength:80000,fixture:{globals:{...tourney(),autoTourneyFlag:1}},
+        commands:[value(0,"stratPicker","0"),click(20,"btnNewTournament"),click(30,"btnRunTournament")]},
+    noPick:{until:1500,fixture:{globals:tourney()},
+        commands:[click(20,"btnNewTournament"),click(30,"btnRunTournament")]},
 };
 function make(name) {
     if (!Object.hasOwn(traces,name)) throw new Error("Unknown workshop trace: "+name);
     const trace=JSON.parse(JSON.stringify(traces[name]));
-    trace.random=stream(); trace.drawing=true;
+    trace.random=stream(trace.streamLength,trace.streamOffset); delete trace.streamLength; delete trace.streamOffset;
+    trace.drawing=true;
     return trace;
 }
 // An exact integer mantissa and binary exponent for a finite double, so Lua

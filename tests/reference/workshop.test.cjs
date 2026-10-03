@@ -168,3 +168,65 @@ test("a negative chip sum drives Operations below -10,000 and unlocks the recove
     assert.ok(end.activeProjects.some(p=>p.id==="projectButton217"));
     assert.ok(Math.min(...states(port).map(s=>s.standardOps))<-12000);
 });
+
+// Issue #7 boundaries: investments and tournaments.
+test("deposits buy generated-symbol stocks whose prices gain and lose",()=>{
+    const all=states(run("investments").port), end=all.at(-1);
+    assert.equal(Math.max(...all.map(s=>s.portfolioSize)),3);
+    assert.ok(end.stocks.every(stock=>/^[A-Z]{1,4}$/.test(stock.symbol)));
+    assert.ok(end.stocks.some(stock=>stock.profit>0) && end.stocks.some(stock=>stock.profit<0));
+    assert.equal(end.riskiness,5,"med risk");
+    assert.ok(end.bankroll<20000);
+});
+test("a held stock is sold after sellDelay reaches five",()=>{
+    const all=states(run("investmentSale").port);
+    assert.equal(Math.max(...all.map(s=>s.portfolioSize)),1);
+    assert.deepEqual([all.at(-1).portfolioSize,all.at(-1).stockID],[0,1]);
+});
+test("high risk spends the whole bankroll; an unknown risk empties the select; withdrawal",()=>{
+    const {port}=run("investmentRisk"), all=points(port);
+    assert.ok(all.some(p=>p.state.riskiness===1 && p.state.portfolioSize===1 && p.state.bankroll===0));
+    const bogus=command(port,2100,"investStrat");
+    assert.equal(bogus.dom.investStrat.value,"");
+    const withdrawn=command(port,4100,"btnWithdraw").state;
+    assert.equal(withdrawn.bankroll,0);
+    assert.equal(withdrawn.riskiness,1);
+});
+test("engine upgrades can overspend Yomi before the next tick, then disable",()=>{
+    const {port}=run("investUpgrade"), end=final(port).state;
+    assert.deepEqual([end.yomi,end.investLevel,end.investUpgradeCost],[-258,2,1981]);
+    assert.equal(end.stockGainThreshold,0.52);
+    const messages=[1,2].map(i=>final(port).dom["readout"+i].html);
+    assert.deepEqual(messages,["Investment engine upgraded, expected profit/loss ratio now 0.52",
+        "Investment engine upgraded, expected profit/loss ratio now 0.51"]);
+    assert.equal(command(port,50,"btnImproveInvestments").dom.btnImproveInvestments.disabled,true);
+});
+test("the lifetime investment report formats ledger plus portfolio",()=>{
+    const {port}=run("investReport");
+    assert.ok(points(port).some(p=>p.dom.readout1.html==="Lifetime investment revenue report: $123,454,288"));
+});
+test("tournaments score every strategy pair and award Yomi to the picked strategy",()=>{
+    for (const name of ["tourneyGreedy","tourneyMinimax","tourneyBeatLast","tourneyFixed"]) {
+        const {port}=run(name), end=final(port);
+        assert.deepEqual([end.state.tourneyInProg,end.state.resultsFlag,end.state.tourneyLvl],[0,1,2],name);
+        assert.ok(end.state.yomi>0,name);
+        assert.match(end.dom.readout1.html,/ scored \d+ and beat \d+ strats?\. Yomi increased by \d+$/,name);
+        assert.equal(end.state.results.length,2,name);
+        assert.ok(end.state.activeProjects.some(p=>p.id==="projectButton27"),name+": Yomi unlocks");
+    }
+    assert.ok(states(run("tourneyMinimax").port).some(s=>s.w!==undefined),"TIT FOR TAT writes w");
+    // The implicit loop globals i and n are compared like any other state.
+    const projected=run("tourneyGreedy").port.projection.state;
+    assert.ok(projected.includes("i") && projected.includes("n"));
+    assert.equal(final(run("tourneyGreedy").port).state.n,2);
+    const greedy=run("tourneyGreedy").port;
+    assert.equal(command(greedy,40,"btnRunTournament").state.currentRound,0,"Run disables while running");
+});
+test("automatic tournaments restart from shown results; without a pick nothing is awarded",()=>{
+    const auto=final(run("autoTourney").port);
+    assert.equal(auto.state.tourneyLvl,3);
+    assert.equal(points(run("autoTourney").port).filter(p=>p.kind==="callback" && /scored/.test(p.dom.readout1.html))
+        .map(p=>p.dom.readout1.html).filter((m,i,a)=>a.indexOf(m)===i).length,2);
+    const none=final(run("noPick").port).state;
+    assert.deepEqual([none.tourneyInProg,none.resultsFlag,none.yomi],[0,0,0]);
+});

@@ -78,6 +78,10 @@ local stateKeys = {}
 for k in pairs(S) do if k ~= "grid" then stateKeys[#stateKeys + 1] = k end end
 table.sort(stateKeys)
 
+local selectIds = {}
+for id in pairs(game.selects) do selectIds[#selectIds + 1] = id end
+table.sort(selectIds)
+
 local checkpoints = {}
 local function snapshot()
     local parts = {}
@@ -88,6 +92,7 @@ local function snapshot()
     local dom = {}
     for _, id in ipairs(Workshop.buttons) do dom[#dom + 1] = quote(id) .. ':{"disabled":' .. tostring(game.disabled[id]) .. "}" end
     for i = 1, 5 do dom[#dom + 1] = quote("readout" .. i) .. ':{"html":' .. quote(game.readouts[i]) .. "}" end
+    for _, id in ipairs(selectIds) do dom[#dom + 1] = quote(id) .. ':{"value":' .. quote(game.selects[id].value) .. "}" end
     return '{"state":{' .. table.concat(parts, ",") .. '},"dom":{' .. table.concat(dom, ",") ..
         '},"timers":' .. json(game.clock:describe(), true) .. ',"draws":' .. random.cursor .. "}"
 end
@@ -106,14 +111,26 @@ local ok, failure = pcall(function()
         if Workshop.initial[key] == nil and not Workshop.arrays[key] then ns.Unported("fixture global " .. key, "a later slice") end
         S[key] = value
     end
-    if (trace.fixture or {}).projectFlags or (trace.fixture or {}).strategies then
-        ns.Unported("project or strategy fixtures", "#7/#8")
+    if (trace.fixture or {}).projectFlags then ns.Unported("project flag fixtures", "#8") end
+    if (trace.fixture or {}).strategies then
+        -- Host fixture: strats = strategies.map(i => allStrats[i]).
+        local strats = {}
+        for i, index in ipairs(trace.fixture.strategies) do
+            strats[i] = S.allStrats[index + 1]
+            if not strats[i] then error("Strategies fixture index outside allStrats: " .. tostring(index), 0) end
+        end
+        S.strats = strats
     end
     checkpoint({ kind = "fixture", at = game.clock.now })
     for _, command in ipairs(trace.commands or {}) do
         game:advanceTo(command.at, afterCallback, 2000)
-        if command.type ~= "click" then ns.Unported("command type " .. tostring(command.type), "a later slice") end
-        game:click(command.id)
+        if command.type == "click" then
+            game:click(command.id)
+        elseif command.type == "value" then
+            game:setValue(command.id, command.value)
+        else
+            ns.Unported("command type " .. tostring(command.type), "a later slice")
+        end
         checkpoint({ kind = "command", at = game.clock.now, type = command.type, id = command.id })
     end
     game:advanceTo(trace["until"], afterCallback, 2000)
@@ -124,13 +141,14 @@ local file = assert(io.open(arg[2], "wb"))
 local function write(s) file:write(s) end
 write('{"schema":2,"runner":"lua","source_sha256":' .. json(ns.Reference.source_sha256))
 write(',"error":' .. (ok and "null" or quote(tostring(failure))))
-local buttons, readouts = {}, {}
+local buttons, readouts, selects = {}, {}, {}
+for i, id in ipairs(selectIds) do selects[i] = quote(id) end
 for i, id in ipairs(Workshop.buttons) do buttons[i] = quote(id) end
 for i = 1, 5 do readouts[i] = quote("readout" .. i) end
 local keys = {}
 for i, k in ipairs(stateKeys) do keys[i] = quote(k) end
 write(',"projection":{"state":[' .. table.concat(keys, ",") .. '],"disabled":[' .. table.concat(buttons, ",") ..
-    '],"html":[' .. table.concat(readouts, ",") .. ']}')
+    '],"html":[' .. table.concat(readouts, ",") .. '],"value":[' .. table.concat(selects, ",") .. ']}')
 write(',"events":[')
 for i, event in ipairs(events) do
     if i > 1 then write(",") end

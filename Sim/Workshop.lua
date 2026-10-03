@@ -1,4 +1,6 @@
--- Phase-one workshop slice of the pinned reference (main.js/globals.js): manual
+-- Phase-one workshop slice of the pinned reference (main.js/globals.js). The game
+-- loop calls into Sim/Investments.lua and Sim/Strategy.lua, which Sim/Reference.lua
+-- always loads after this file. Manual
 -- production, wire purchases, price/demand/sales, revenue tracking, marketing,
 -- AutoClippers/MegaClippers, trust and milestones, processors/memory, Operations,
 -- creativity and quantum computing, plus the always-running battle core. Source identifiers, formulas and statement order are preserved; state
@@ -23,6 +25,8 @@ local function truthy(v)
 end
 
 local Workshop = {}
+-- Per-game initializers registered by later simulation files (setup(game, S)).
+Workshop.setups = {}
 
 -- Initial values of the ported globals (globals.js, main.js, combat.js).
 Workshop.initial = {
@@ -82,12 +86,15 @@ Workshop.projects = {
     { "project21", "projectButton21", function(S) return S.trust >= 8 end },
     { "project22", "projectButton22", function(S) return S.clipmakerLevel >= 75 end },
     { "project26", "projectButton26", function(S) return S.wirePurchase >= 15 end },
+    { "project27", "projectButton27", function(S) return S.yomi >= 1 end },
     { "project37", "projectButton37", function(S) return S.portTotal >= 10000 end },
     { "project42", "projectButton42", function(S) return S.projectsFlag == 1 end },
     { "project40", "projectButton40", function(S)
         return S.humanFlag == 1 and S.trust >= 85 and S.trust < 100 and S.clips >= 101000000
     end },
     { "project50", "projectButton50", function(S) return S.processors >= 5 end },
+    { "project118", "projectButton118", function(S) return S.strategyEngineFlag == 1 and S.trust >= 90 end },
+    { "project119", "projectButton119", function(S) return #S.strats >= 8 end },
     { "project121", "projectButton121", function(S) return S.probesLostCombat >= 10000000 end },
     { "project131", "projectButton131", function(S) return S.probesLostCombat >= 1 end },
     { "project217", "projectButton217", function(S) return S.operations <= -10000 end },
@@ -97,8 +104,9 @@ Workshop.projects = {
 
 -- Controls the slice ports, with their disabled state in every checkpoint. A click
 -- on a disabled control does nothing, as in the browser. buttonUpdate maintains
--- the state of all except btnRaisePrice and btnQcompute, which the reference never
--- disables.
+-- most of them; btnRaisePrice, btnQcompute, btnInvest, btnWithdraw and
+-- btnToggleAutoTourney are never disabled, and newTourney/runTourney set
+-- btnRunTournament.
 Workshop.buttons = {
     "btnMakePaperclip", "btnBuyWire", "btnMakeClipper", "btnExpandMarketing",
     "btnLowerPrice", "btnRaisePrice", "btnMakeMegaClipper", "btnAddProc", "btnAddMem", "btnQcompute",
@@ -134,7 +142,12 @@ function Workshop.new(random, log)
     game.disabled = {}
     for _, id in ipairs(Workshop.buttons) do game.disabled[id] = false end
     game.readouts = { "Welcome to Universal Paperclips", "", "", "", "" }
-    game.investStrat = "low"
+    -- Select controls the slice reads: options in document order and the value.
+    game.selects = {
+        investStrat = { options = { "low", "med", "hi" }, value = "low" },
+        stratPicker = { options = { "10", "0" }, value = "10" },
+    }
+    for _, setup in ipairs(Workshop.setups) do setup(game, S) end
     game.draw = function(site) return random:draw(site, game.clock.now) end
 
     -- combat.js load: new Battle() restarts, initialize() starts the 16 ms
@@ -146,8 +159,7 @@ function Workshop.new(random, log)
     game.clock:register(function() game:portfolioInterval() end, 100, true)
     game.clock:register(function() game:stockShopInterval() end, 1000, true)
     game.clock:register(function() game:stockSellInterval() end, 2500, true)
-    -- `pick = stratPickerElement.value`: strategy selection belongs to #7.
-    game.clock:register(function() end, 100, true)
+    game.clock:register(function() S.pick = game.selects.stratPicker.value end, 100, true)
     game.clock:register(function() game:mainLoop() end, 10, true)
     game.clock:register(function() game:slowLoop() end, 100, true)
     return game
@@ -314,6 +326,7 @@ function Game:calculateRev()
     for i = 1, #tracker do
         S.sum = round((S.sum + tracker[i]) * 100) / 100
     end
+    S.i = #tracker -- the loop uses the global i
     S.trueAvgRev = S.sum / #tracker
     local chanceOfPurchase = S.demand / 100
     if chanceOfPurchase > 1 then chanceOfPurchase = 1 end
@@ -385,7 +398,7 @@ end
 function Game:buttonUpdate()
     local S, disabled = self.S, self.disabled
     S.qFade = S.qFade - .001
-    if S.resultsFlag == 1 and S.autoTourneyFlag == 1 then Unported("automatic tournaments", "#7") end
+    self:autoTourney()
     if S.humanFlag == 0 then Unported("phase-two controls", "#11") end
     disabled.btnMakePaperclip = S.wire < 1
     disabled.btnBuyWire = S.funds < S.wireCost
@@ -394,6 +407,8 @@ function Game:buttonUpdate()
     disabled.btnLowerPrice = S.margin <= .01
     disabled.btnAddProc = S.trust <= S.processors + S.memory and S.swarmGifts <= 0
     disabled.btnAddMem = disabled.btnAddProc
+    disabled.btnNewTournament = not (S.operations >= S.tourneyCost and S.tourneyInProg == 0)
+    disabled.btnImproveInvestments = S.yomi < S.investUpgradeCost
     disabled.btnMakeMegaClipper = S.funds < S.megaClipperCost
     if S.funds >= 5 then S.autoClipperFlag = 1 end
     S.probeUsedTrust = (S.probeSpeed + S.probeNav + S.probeRep + S.probeHaz + S.probeFac + S.probeHarv + S.probeWire + S.probeCombat)
@@ -509,15 +524,16 @@ end
 -- main.js:1617, every 100 ms: investment risk and portfolio totals.
 function Game:portfolioInterval()
     local S = self.S
-    if self.investStrat == "low" then
+    local investStrat = self.selects.investStrat.value
+    if investStrat == "low" then
         S.riskiness = 7
-    elseif self.investStrat == "med" then
+    elseif investStrat == "med" then
         S.riskiness = 5
     else
         S.riskiness = 1
     end
     S.m = 0
-    if S.portfolioSize > 0 then Unported("portfolio valuation", "#7") end
+    for i = 1, S.portfolioSize do S.m = S.m + S.stocks[i].total end
     S.secTotal = S.m
     S.portTotal = S.bankroll + S.secTotal
     S.portfolioSize = #S.stocks
@@ -539,7 +555,7 @@ function Game:stockShopInterval()
         budget = S.bankroll - reserves
     end
     if S.portfolioSize < S.maxPort and S.bankroll >= 5 and budget >= 1 and S.bankroll - budget >= reserves then
-        Unported("stock purchases", "#7")
+        if self.draw("main.js:1490:18") < .25 then self:createStock(budget) end
     end
 end
 
@@ -547,7 +563,11 @@ end
 function Game:stockSellInterval()
     local S = self.S
     S.sellDelay = S.sellDelay + 1
-    if S.portfolioSize > 0 then Unported("stock sales and updates", "#7") end
+    if S.portfolioSize > 0 and S.sellDelay >= 5 and self.draw("main.js:1677:47") <= .3 and S.humanFlag == 1 then
+        self:sellStock()
+        S.sellDelay = 0
+    end
+    if S.portfolioSize > 0 and S.humanFlag == 1 then self:updateStocks() end
 end
 
 -- main.js:4188, every 10 ms.
@@ -574,7 +594,7 @@ function Game:mainLoop()
         S.clipRateTemp = 0
     end
 
-    if S.investmentEngineFlag == 1 then Unported("investment report", "#7") end
+    if S.investmentEngineFlag == 1 then self:stockReport() end
     if S.humanFlag == 1 and S.wireBuyerFlag == 1 and S.wireBuyerStatus == 1 and S.wire <= 1 then
         self:buyWire()
     end
@@ -624,6 +644,51 @@ function Game:slowLoop()
     if S.saveTimer >= 250 then Unported("reference auto-save", "#19") end
 end
 
+-- formatWithCommas (main.js), used in messages: Number::toString, expanded e+
+-- exponents, then a comma before every three trailing digits of each digit run
+-- (the reference regex /(\d)(?=(\d\d\d)+(?!\d))/g).
+local function commas(text)
+    return (text:gsub("%d+", function(run)
+        local out = run:sub(1, (#run - 1) % 3 + 1)
+        for i = (#run - 1) % 3 + 2, #run, 3 do out = out .. "," .. run:sub(i, i + 2) end
+        return out
+    end))
+end
+
+function Workshop.formatWithCommas(num, decimal)
+    local hasDot = false
+    local base = JSMath.toString(num)
+    local ePos = base:find("e+", 1, true)
+    if ePos then
+        local exponent, str = tonumber(base:sub(ePos + 2)), ""
+        local whole, fraction = base:sub(1, ePos - 1):match("^(.-)%.(.*)$")
+        if whole then
+            exponent = exponent - #fraction
+            base = whole .. fraction
+        end
+        while exponent > 0 do
+            str = str .. "0"
+            exponent = exponent - 1
+        end
+        -- Without a decimal point the reference keeps "1e+21" itself, so
+        -- 1e21 becomes "1e+21,000,...".
+        base = base .. str
+    end
+    local dot = base:find(".", 1, true)
+    if dot then hasDot = true end
+    if decimal == 0 and #base <= 3 and not hasDot then return base end
+    if decimal == nil then decimal = 0 end
+    local leftNum = hasDot and base:sub(1, dot - 1) or base
+    if decimal == 0 then
+        if num <= 999 then return leftNum end
+        return commas(leftNum)
+    end
+    local dec = hasDot and base:sub(dot, dot + decimal) or "."
+    while #dec < decimal + 1 do dec = dec .. "0" end
+    if num <= 999 then return leftNum .. dec end
+    return commas(leftNum) .. dec
+end
+
 -- Commands ---------------------------------------------------------------
 
 local clicks = {
@@ -638,6 +703,19 @@ local clicks = {
     btnAddMem = Game.addMem,
     btnQcompute = Game.qComp,
 }
+
+Workshop.clicks = clicks
+
+-- Setting a select to a value without a matching option leaves it empty, as in
+-- the browser.
+function Game:setValue(id, value)
+    local select = self.selects[id]
+    if not select then Unported("value control " .. tostring(id), "a later slice") end
+    select.value = ""
+    for _, option in ipairs(select.options) do
+        if option == value then select.value = value end
+    end
+end
 
 -- A click on a disabled control has no effect, matching the browser host.
 function Game:click(id)

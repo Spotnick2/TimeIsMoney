@@ -1,9 +1,13 @@
 -- Developer probe: lua lua_math_probe.lua <cases.txt> <results.txt>
--- Each input line is "pow x y", "sin x" or "log10 x" with operands as exact
+-- Each input line is "pow x y", "sin x", "log10 x", "toString x" or
+-- "formatWithCommas x [decimal]" with operands as exact
 -- "mantissa:exponent" pairs (or tokens for NaN, infinities and negative zero);
 -- each output line is the JSMath result, written the same way.
 local here = arg[0]:match("^(.*)[/\\]") or "."
-local JSMath = assert(loadfile(here .. "/../../Sim/JSMath.lua"))("TimeIsMoney", {})
+local ns = {}
+assert(loadfile(here .. "/../../Sim/Reference.lua"))("TimeIsMoney", ns)
+for _, path in ipairs(ns.Reference.files) do assert(loadfile(here .. "/../../" .. path))("TimeIsMoney", ns) end
+local JSMath, Workshop = ns.JSMath, ns.Workshop
 local tokens = { NaN = 0 / 0, Infinity = math.huge, ["-Infinity"] = -math.huge, ["-0"] = JSMath.NEG_ZERO }
 local function read(s)
     if tokens[s] then return tokens[s] end
@@ -11,6 +15,7 @@ local function read(s)
     return math.ldexp(assert(tonumber(mantissa), s), assert(tonumber(exponent), s))
 end
 local function write(v)
+    if type(v) == "string" then return v end -- "=text" results of toString
     if v ~= v then return "NaN" end
     if v == math.huge then return "Infinity" end
     if v == -math.huge then return "-Infinity" end
@@ -31,6 +36,10 @@ for line in io.lines(arg[1]) do
         result = JSMath.sin(read(a))
     elseif name == "log10" then
         result = JSMath.log10(read(a))
+    elseif name == "toString" then
+        result = "=" .. JSMath.toString(read(a))
+    elseif name == "formatWithCommas" then
+        result = "=" .. Workshop.formatWithCommas(read(a), b ~= "" and tonumber(b) or nil)
     else
         error("Unknown function: " .. tostring(name))
     end
