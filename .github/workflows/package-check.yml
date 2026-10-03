@@ -67,6 +67,28 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+      - name: Select cached Node 24 reference profile
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $nodeVersions = Get-ChildItem (Join-Path $env:RUNNER_TOOL_CACHE 'node') -Directory |
+            Where-Object { $_.Name -match '^24\.\d+\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending
+          if (!$nodeVersions) { throw 'The measured profile requires preinstalled Node 24.' }
+          $nodeDirectory = Join-Path $nodeVersions[0].FullName 'x64'
+          $nodeExecutable = Join-Path $nodeDirectory 'node.exe'
+          if (!(Test-Path -LiteralPath $nodeExecutable)) { throw 'Cached Node executable not found.' }
+          $nodeDirectory | Out-File -LiteralPath $env:GITHUB_PATH -Append -Encoding utf8
+          & $nodeExecutable --version
+      - name: Retrieve pinned reference developer inputs
+        shell: pwsh
+        run: python Tools/paperclips_reference.py fetch
+      - name: Compare reference adapter with installed Chromium
+        shell: pwsh
+        run: node Tools/reference/check_browser.cjs
+      - name: Test deterministic reference runner
+        shell: pwsh
+        run: node --test tests/reference/runner.test.cjs
       - name: Build declared Lua 5.1 toolchain
         shell: pwsh
         run: |

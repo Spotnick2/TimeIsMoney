@@ -185,3 +185,8 @@ Four commented movement draws (combat.js:650-653) are excluded. Names and initia
 ship motion consume the reference stream even when hidden/renamed.
 This PR has not executed a game, measured draw counts, built a scheduler or
 demonstrated Lua parity. Those remain issues #3/#4 and workshop slices.
+
+## Runner handoff
+
+Issue #3 adds the [deterministic Node runner](RUNNER.md) and recorded native-DOM
+comparison. Source-byte provenance and reuse limits above still apply.
