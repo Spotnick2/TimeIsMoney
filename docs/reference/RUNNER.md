@@ -16,6 +16,15 @@ The Windows CI job runs on the owner's self-hosted runner (labels self-hosted,
 Windows, tim), using its installed Node 24, Python, Chrome and MSVC. It fails if
 Node is not version 24; it does not download another runtime.
 
+The reference parity suite (the steps above, about 8 minutes) runs on every push
+to main and every manual run (Actions, Package check, Run workflow). A pull
+request runs it only when it changes Sim/, Probe/, Tools/reference/,
+Tools/paperclips_reference.py, tests/reference/, docs/reference/, docs/plan/ or
+the workflows; the job log names the files that triggered it. Other pull requests
+keep the Lua, deploy and packaging checks. Measured per trace: the reference run
+and the Lua run each take about half the time, so recording reference results
+would save only about half, which is why the suite is scoped instead.
+
 ~~~powershell
 python Tools/paperclips_reference.py fetch
 node --test tests/reference/runner.test.cjs tests/reference/divergence.test.cjs

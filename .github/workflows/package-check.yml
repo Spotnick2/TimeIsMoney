@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Manual run: always includes the full reference parity suite.
+  workflow_dispatch:
 permissions:
   contents: read
 # One run per pull request: a newer commit cancels the superseded run, so the
@@ -76,6 +78,34 @@ jobs:
     runs-on: [self-hosted, Windows, tim]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # The reference parity suite (about 8 minutes) runs the pinned JavaScript
+      # reference beside the Lua simulation. A pull request runs it only when it
+      # changes what the suite tests or how it tests; pushes to main and manual
+      # runs always run it.
+      - name: Decide whether reference parity runs
+        id: scope
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ('${{ github.event_name }}' -ne 'pull_request') {
+            "Full suite: ${{ github.event_name }} run."
+            'parity=true' | Out-File -LiteralPath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            exit 0
+          }
+          $changed = @(git diff --name-only 'origin/${{ github.base_ref }}...HEAD')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not list the pull request changes.' }
+          $pattern = '^(Sim/|Probe/|Tools/reference/|Tools/paperclips_reference\.py$|tests/reference/|docs/reference/|docs/plan/|\.github/workflows/)'
+          $relevant = @($changed | Where-Object { $_ -match $pattern })
+          if ($relevant.Count -gt 0) {
+            "Full suite: the pull request changes"
+            $relevant | ForEach-Object { "  $_" }
+            'parity=true' | Out-File -LiteralPath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          } else {
+            "Reference parity skipped: no simulation, probe, reference tooling, plan or workflow change."
+            'parity=false' | Out-File -LiteralPath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
       - name: Verify installed Node 24 reference profile
         shell: pwsh
         run: |
@@ -86,9 +116,11 @@ jobs:
           }
           "Node $version at $((Get-Command node).Source)"
       - name: Retrieve pinned reference developer inputs
+        if: steps.scope.outputs.parity == 'true'
         shell: pwsh
         run: python Tools/paperclips_reference.py fetch
       - name: Compare reference adapter with installed Chromium
+        if: steps.scope.outputs.parity == 'true'
         shell: pwsh
         run: node Tools/reference/check_browser.cjs
       - name: Build declared Lua 5.1 toolchain
@@ -121,6 +153,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Lua MSVC build failed.' }
           "TIM_LUA=$(Join-Path $luaRoot 'src/lua.exe')" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Test reference runner, first-divergence comparison and Lua workshop parity
+        if: steps.scope.outputs.parity == 'true'
         shell: pwsh
         run: node --test tests/reference/runner.test.cjs tests/reference/divergence.test.cjs tests/reference/jsmath.test.cjs tests/reference/workshop.test.cjs tests/reference/probe.test.cjs tests/reference/cost_pow.test.cjs
       - name: Execute Windows test runner
