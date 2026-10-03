@@ -28,6 +28,9 @@ local Workshop = {}
 Workshop.truthy = truthy
 -- Per-game initializers registered by later simulation files (setup(game, S)).
 Workshop.setups = {}
+-- Control states later simulation files add to buttonUpdate (fn(game, S, disabled)),
+-- run in registration order before probeUsedTrust.
+Workshop.buttonUpdates = {}
 
 -- Initial values of the ported globals (globals.js, main.js, combat.js).
 Workshop.initial = {
@@ -398,7 +401,6 @@ function Game:buttonUpdate()
     local S, disabled = self.S, self.disabled
     S.qFade = S.qFade - .001
     self:autoTourney()
-    if S.humanFlag == 0 then Unported("phase-two controls", "#11") end
     disabled.btnMakePaperclip = S.wire < 1
     disabled.btnBuyWire = S.funds < S.wireCost
     disabled.btnMakeClipper = S.funds < S.clipperCost
@@ -410,6 +412,11 @@ function Game:buttonUpdate()
     disabled.btnImproveInvestments = S.yomi < S.investUpgradeCost
     disabled.btnMakeMegaClipper = S.funds < S.megaClipperCost
     if S.funds >= 5 then S.autoClipperFlag = 1 end
+    if S.humanFlag == 0 then
+        S.investmentEngineFlag = 0
+        S.wireBuyerFlag = 0
+    end
+    for _, update in ipairs(Workshop.buttonUpdates) do update(self, S, disabled) end
     S.probeUsedTrust = (S.probeSpeed + S.probeNav + S.probeRep + S.probeHaz + S.probeFac + S.probeHarv + S.probeWire + S.probeCombat)
 end
 
@@ -598,7 +605,7 @@ function Game:mainLoop()
         self:buyWire()
     end
     if S.probeCount >= 1 then Unported("exploreUniverse", "#14") end
-    if S.humanFlag == 0 then Unported("planetary production", "#11") end
+    self:planetaryTick() -- Sim/Planet.lua
 
     local fbst = 1
     if S.factoryBoost > 1 then fbst = S.factoryBoost * S.factoryLevel end

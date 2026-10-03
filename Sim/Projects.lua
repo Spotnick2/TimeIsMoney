@@ -1,13 +1,13 @@
--- Phase-one projects (projects.js): availability, eligibility, purchase effects,
--- repeatable entries and the first transition (Release the HypnoDrones). Entries
--- follow projects.js registration order; each has the reference trigger and cost
--- and, where phase one can buy it, the effect. Projects whose triggers read only
--- later-phase state are omitted; they cannot appear in phase one (see
--- docs/reference/PROJECTS.md). Extends Sim/Workshop.lua.
+-- Projects (projects.js) through the planetary phase: availability, eligibility,
+-- purchase effects, repeatable entries and the first transition (Release the
+-- HypnoDrones). Entries follow projects.js registration order; each has the
+-- reference trigger and cost and, where the ported phases can buy it, the effect.
+-- Projects whose triggers need space, battles or the ending are omitted; they
+-- cannot appear yet (see docs/reference/PROJECTS.md). Extends Sim/Workshop.lua.
 local _, ns = ...
 ns = ns or {}
 
-local Workshop = ns.Workshop
+local JSMath, Workshop = ns.JSMath, ns.Workshop
 local Game, Unported, truthy = Workshop.Game, ns.Unported, Workshop.truthy
 
 -- Number.prototype.toLocaleString as the host pins it (en-US), for the
@@ -213,6 +213,12 @@ simple("project16", flag("project15"), ops(6000), { "AutoClipper performance imp
     S.standardOps = S.standardOps - 6000
     S.clipperBoost = S.clipperBoost + 5
 end)
+-- Planetary phase (#11, #12): building machinery out of clips.
+simple("project18", function(S) return S.project17.flag == 1 and S.humanFlag == 0 end, ops(45000),
+    { "New capability: build machinery out of clips" }, function(S)
+        S.tothFlag = 1
+        S.standardOps = S.standardOps - 45000
+    end)
 insight("project19", 250, { "Donkey Space: mapped, TRUST INCREASED",
     "Every commercial transaction has within itself an element of trust. - Kenneth Arrow" })
 add("project20", flag("project19"), ops(12000), function(game)
@@ -257,8 +263,8 @@ simple("project34", flag("project12"), function(S) return S.operations >= 7500 a
 simple("project70", flag("project34"), ops(70000), { "HypnoDrone tech now available... " }, function(S)
     S.standardOps = S.standardOps - 70000
 end)
--- The first transition: phase one ends here. The next tick reaches phase-two
--- code (#11), where the slice stops explicitly.
+-- The first transition: phase one ends here, and the next tick runs the planetary
+-- phase (Sim/Planet.lua).
 add("project35", flag("project70"), function(S) return S.trust >= 100 end, function(game)
     local S = game.S
     S.project35.flag = 1
@@ -287,6 +293,11 @@ volition("project29", 30000, 15000, 12, { "World peace achieved, +12 TRUST, glob
 volition("project30", 50000, 4500, 15, { "Global Warming solved, +15 TRUST, global stock prices trending upward" })
 volition("project31", 20000, 0, 20, { "Male pattern baldness cured, +20 TRUST, Global stock prices trending upward",
     "They are still monkeys" })
+simple("project41", flag("project127"), ops(35000),
+    { "Now capable of manipulating matter at the molecular scale to produce wire" }, function(S)
+        S.wireProductionFlag = 1
+        S.standardOps = S.standardOps - 35000
+    end)
 simple("project37", function(S) return S.portTotal >= 10000 end, function(S) return S.funds >= 1000000 end,
     { "Global Fasteners acquired, public demand increased x5" }, function(S)
         S.demandBoost = S.demandBoost * 5
@@ -308,6 +319,19 @@ add("project42", function(S) return S.projectsFlag == 1 end, ops(500), function(
     game:displayMessage("RevTracker online")
     game:removeProject("project42")
 end)
+simple("project43", flag("project41"), ops(25000), { "Harvester Drone facilities online" }, function(S)
+    S.harvesterFlag = 1
+    S.standardOps = S.standardOps - 25000
+end)
+simple("project44", flag("project41"), ops(25000), { "Wire Drone facilities online" }, function(S)
+    S.wireDroneFlag = 1
+    S.standardOps = S.standardOps - 25000
+end)
+simple("project45", function(S) return S.project43.flag == 1 and S.project44.flag == 1 end, ops(35000),
+    { "Clip factory assembly facilities online" }, function(S)
+        S.factoryFlag = 1
+        S.standardOps = S.standardOps - 35000
+    end)
 add("project40", function(S)
         return S.humanFlag == 1 and S.trust >= 85 and S.trust < 100 and S.clips >= 101000000
     end, function(S) return S.funds >= 500000 end, function(game)
@@ -329,6 +353,12 @@ add("project40b", function(S) return S.project40.flag == 1 and S.trust < 100 end
     if S.trust < 100 then S.project40b.uses = S.project40b.uses + 1 end
     game:removeProject("project40b")
 end)
+-- Space Exploration appears once the Earth's matter is gone; its purchase starts
+-- the cosmic phase (#14). Math.pow(10, 27)*5 is an integer power, exact in JSMath.
+local spaceClips = JSMath.pow(10, 27) * 5
+add("project46", function(S) return S.humanFlag == 0 and S.availableMatter == 0 end, function(S)
+    return S.operations >= 120000 and S.storedPower >= 10000000 and S.unusedClips >= spaceClips
+end, nil, "#14")
 add("project50", function(S) return S.processors >= 5 end, ops(10000), function(game)
     local S = game.S
     S.project50.flag = 1
@@ -355,6 +385,44 @@ strategy("project63", flag("project62"), 4, "GENEROUS", 22500)
 strategy("project64", flag("project63"), 5, "MINIMAX", 25000)
 strategy("project65", flag("project64"), 6, "TIT FOR TAT", 30000)
 strategy("project66", flag("project65"), 7, "BEAT LAST", 32500)
+simple("project100", function(S) return S.factoryLevel >= 10 end, ops(80000),
+    { "Factory upgrades complete. Clip creation rate now 100x faster" }, function(S)
+        S.standardOps = S.standardOps - 80000
+        S.factoryRate = S.factoryRate * 100
+    end)
+simple("project101", function(S) return S.factoryLevel >= 20 end, ops(85000),
+    { "Factories now synchronized at hyperspeed. Clip creation rate now 1000x faster" }, function(S)
+        S.standardOps = S.standardOps - 85000
+        S.factoryRate = S.factoryRate * 1000
+    end)
+-- 1000000000000000000000 is exactly 10^21 as a double (the literal and the
+-- integer power agree).
+local sextillion = JSMath.pow(10, 21)
+simple("project102", function(S) return S.factoryLevel >= 50 end, function(S) return S.unusedClips >= sextillion end,
+    { "Self-correcting factories online. Each factory added to the network increases every factory's output 1,000x." },
+    function(S)
+        S.unusedClips = S.unusedClips - sextillion
+        S.factoryBoost = 1000
+    end)
+-- Readouts hold the message element's innerHTML, which serializes "&" as "&amp;".
+simple("project110", function(S) return (S.harvesterLevel + S.wireDroneLevel) >= 500 end, ops(80000),
+    { "Drone repulsion online. Harvesting &amp; wire creation rates are now 100x faster." }, function(S)
+        S.standardOps = S.standardOps - 80000
+        S.harvesterRate = S.harvesterRate * 100
+        S.wireDroneRate = S.wireDroneRate * 100
+    end)
+simple("project111", function(S) return (S.harvesterLevel + S.wireDroneLevel) >= 5000 end, ops(100000),
+    { "Drone alignment online. Harvesting &amp; wire creation rates are now 1000x faster." }, function(S)
+        S.standardOps = S.standardOps - 100000
+        S.harvesterRate = S.harvesterRate * 1000
+        S.wireDroneRate = S.wireDroneRate * 1000
+    end)
+simple("project112", function(S) return (S.harvesterLevel + S.wireDroneLevel) >= 50000 end,
+    function(S) return S.yomi >= 50000 end,
+    { "Adversarial cohesion online. Each drone added to the flock increases every drone's output 2x." }, function(S)
+        S.yomi = S.yomi - 50000
+        S.droneBoost = 2
+    end)
 simple("project118", function(S) return S.strategyEngineFlag == 1 and S.trust >= 90 end, creat(50000),
     { "AutoTourney online." }, function(S)
         S.autoTourneyFlag = 1
@@ -370,6 +438,17 @@ add("project119", function(S) return #S.strats >= 8 end, creat(25000), function(
     game:removeProject("project119")
 end)
 add("project121", function(S) return S.probesLostCombat >= 10000000 end, creat(225000), nil, "#15")
+simple("project125", function(S) return S.farmLevel >= 30 end, creat(20000),
+    { "Activit\195\169, activit\195\169, vitesse." }, function(S)
+        S.momentum = 1
+        S.creativity = S.creativity - 20000
+    end)
+-- Swarm Computing switches on the work/think slider and gifts (#13).
+add("project126", function(S) return S.harvesterLevel + S.wireDroneLevel >= 200 end,
+    function(S) return S.yomi >= 36000 end, nil, "#13")
+simple("project127", function(S) return S.tothFlag == 1 end, ops(40000), { "Power grid online." }, function(S)
+    S.standardOps = S.standardOps - 40000
+end)
 -- Strategic Attachment: its flag is read by tournament scoring. Its trigger needs
 -- space exploration first, so phase one never shows it.
 add("project128", function(S)

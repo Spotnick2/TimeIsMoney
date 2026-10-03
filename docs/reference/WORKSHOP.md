@@ -2,8 +2,10 @@
 
 Issues [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5),
 [#6](https://github.com/Spotnick2/TimeIsMoney/issues/6),
-[#7](https://github.com/Spotnick2/TimeIsMoney/issues/7) and
-[#8](https://github.com/Spotnick2/TimeIsMoney/issues/8). This is the first port of
+[#7](https://github.com/Spotnick2/TimeIsMoney/issues/7),
+[#8](https://github.com/Spotnick2/TimeIsMoney/issues/8) and the planetary slice
+([#11](https://github.com/Spotnick2/TimeIsMoney/issues/11) with
+[#12](https://github.com/Spotnick2/TimeIsMoney/issues/12)). This is the first port of
 the [pinned reference](README.md) into the pure-Lua simulation layer (`Sim/`). The simulation has no WoW globals, frames, clocks, I/O or native
 randomness. It is parity-tested outside the game and is **not yet in the TOC or
 the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
@@ -19,7 +21,9 @@ the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
 | Sim/Workshop.lua | The phase-one workshop and computation, the seven reference intervals, formatWithCommas and the click and select commands |
 | Sim/Investments.lua | The investment engine (#7) |
 | Sim/Strategy.lua | Strategic modeling and tournaments (#7) |
-| Sim/Projects.lua | Phase-one projects, their purchases and the first transition (#8) |
+| Sim/Projects.lua | Projects through the planetary phase, their purchases and the first transition (#8, #11, #12) |
+| Sim/CostPow.lua | Generated: the reference profile's Math.pow for building costs where JSMath differs (#11, #12) |
+| Sim/Planet.lua | The planetary phase: drones, factories, matter, power and the swarm's per-tick state (#11, #12) |
 
 State uses the reference global names, formulas and statement order: `clips`
 (lifetime production), `unusedClips` (spendable stock) and `unsoldClips`
@@ -88,9 +92,37 @@ State uses the reference global names, formulas and statement order: `clips`
   - Removal follows `activeProjects.splice(indexOf(...), 1)`.
 - **First transition:** Release the HypnoDrones sets trust and both clipper levels
   to 0, copies wire to nanoWire, sets humanFlag 0, removes the shown Xavier and
-  goodwill buttons, and starts the 32 ms hypnodrone blink. The next tick reaches
-  phase-two code, where the slice stops with the #11 error. The business economy
-  ends exactly there.
+  goodwill buttons, and starts the 32 ms hypnodrone blink. The business economy
+  ends exactly there, and the next tick runs the planetary phase.
+- **Planetary phase (#11, #12; issue #12 merged into #11 because every phase-two
+  tick runs power and the swarm before any matter moves):**
+  - the main loop's section in source order: updateDroneButtons, updatePower,
+    updateSwarm, acquireMatter, processMatter, then the factories;
+  - harvester drones, wire drones and clip factories: single and +10/+100/+1k
+    purchases (one at a time while affordable, each at the recomputed cost), the
+    factory cost steps, bills, maximum levels and Disassemble All refunds;
+  - matter: available → acquired (harvesters) → wire (wire drones), each clamped to
+    what remains, with droneBoost and the work multiplier (200 − sliderPos)/100;
+  - power: solar farm supply, drone and factory demand, battery storage, shortage
+    from storage, powMod, Momentum's +0.0005 per fully powered tick, farm and
+    battery purchases and reboots (which reset to 1e7 and 1e6, not the formula);
+  - the swarm's per-tick state: boredom (30,000 ticks without matter), drone-ratio
+    disorganization, their messages, swarm status and the synch/entertain button
+    states;
+  - fifteen phase-two projects: Toth Tubule Enfolding, Power Grid, Nanoscale Wire
+    Production, Harvester and Wire Drones, Clip Factories, the factory and drone
+    upgrades, Momentum, and Space Exploration and Swarm Computing as explicit
+    purchase stops;
+  - buttonUpdate's phase-two flags (investment engine and WireBuyer off) and the
+    factory and reboot controls, which it updates in every phase;
+  - the global loop variable `x` the purchase loops leave behind.
+- **Reference quirks kept:**
+  - when storage runs out during a shortage, nuSupply = 2·supply − demand +
+    storedPower can be negative, so powMod is negative for that tick and harvesting
+    and wire production run backwards (planetPipeline reproduces it);
+  - the +10/+100/+1k buttons enable on price sums that are 0 until the first
+    purchase or reboot computes them;
+  - readouts keep innerHTML, so "&" in two drone messages reads "&amp;".
 - [PROJECTS.md](PROJECTS.md) is the generated 96-project traceability checklist.
 - **Load sequence:** combat.js loading (two ship resets, 3,200 draws), then all
   seven intervals in source order.
@@ -112,12 +144,13 @@ Reference paths outside the slice raise
 | --- | --- |
 | Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #20 |
 | Tournament placing bonuses (project128) | #14 |
-| Phase two after Release the HypnoDrones (the next tick) | #11 |
 | Purchases of the shown later-phase projects Name the battles and Combat | #15 |
 | Quantum Temporal Reversion (confirm() then reset) | #23 |
 | Milestones 13 (space) and 14 (universal paperclips) | #14, #17 |
 | toLocaleString of negative, fractional or unsafe-integer values | #21 |
-| Planetary production and phase-two controls (`humanFlag == 0`) | #11 |
+| Swarm Computing purchase, the work/think slider, gifts and the Active swarm status; synchronize and entertain clicks | #13 |
+| Space Exploration purchase and the swarm in space | #14 |
+| Building costs beyond the verified domain: Math.pow(n, 2.25) for n > 200,000 (drones, including the +1k lookahead), Math.pow(n, 2.54) and Math.pow(n, 2.78) for n > 30,000 (batteries, farms); checked before any change | #24 |
 | exploreUniverse and probe functions | #14 |
 | checkForBattleEnd with an active battle | #15 |
 | Ending sequence and dismantling clicks | #17 |
@@ -180,6 +213,27 @@ Reference paths outside the slice raise
   become the declared bounds. Sale probability uses demand, and demand uses only
   integer exponents, which match exactly. Later slices that change effectiveness,
   boost or prestige must extend this evidence.
+- **Building costs (#11, #12):** harvester and wire drone costs use
+  Math.pow(level + 1, 2.25) × 1e6, batteries 2.54 × 1e7 and farms 2.78 × 1e8, and
+  the +10/+100/+1k price sums add up to 1,000 of them. Costs are spent and
+  refunded, so a one-step difference would propagate into later balances and
+  decisions; a tolerance cannot contain it.
+  - V8 13.6 calls the **platform C library's** pow (`--use-std-math-pow` defaults
+    to true: src/numbers/ieee754.cc, src/flags/flag-definitions.h), so these
+    results belong to the platform, not to V8. Windows CPython's math.pow disagrees
+    with this Node on some of them, and a transliteration of V8's fdlibm fallback
+    disagrees in about 10 % of cases.
+  - JSMath.pow (correctly rounded) differs from this profile's Math.pow first at
+    n = 181 (2.78), 683 (2.54) and 2,969 (2.25): 107 of the 260,000 bases.
+  - Sim/CostPow.lua therefore pins the reference profile (Node v24.15.0, V8
+    13.6.233.17-node.48, win32 x64): tests/reference/cost_pow.cjs compares every
+    integer base of each domain and records the exact Math.pow value wherever
+    JSMath differs. cost_pow.test.cjs regenerates the table in CI and compares
+    every value; the profile is recorded, so a Node patch release that keeps every
+    value still passes. Beyond the domains the slice stops (#24) before any change:
+    every purchase and reboot first checks all four price lookaheads on its
+    resulting levels. Codex recommended this design over a tolerance (design consult,
+    2026-10-03).
 - **Math.sin and Math.log10:** V8 implements both with fdlibm 5.3: the original
   `__kernel_cos` with `qx`, and the `__ieee754_log`-based log10. The FreeBSD
   revisions and the C library differ. JSMath ports exactly those routines,
@@ -224,7 +278,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines thirty-six traces with an explicit equidistributed
+tests/reference/workshop.cjs defines forty-three traces with an explicit equidistributed
 stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
 the trace. Longer traces use longer streams. A few investment traces use an
 offset so the 25 % purchase rolls succeed within seconds.
@@ -271,7 +325,14 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | projectsMachines | MegaClippers and their boosts, WireBuyer, quantum computing and three photonic chips | match |
 | projectsRecovery | Emergency wire twice, the second time after the stock sells out; Xavier re-initialization | match |
 | projectsLate | Limerick (cont.) and AutoTourney | match |
-| transition | Hypno Harmonics, HypnoDrones and the release; Xavier's button is removed; the slice stops at phase two | match up to the stop |
+| transition | Hypno Harmonics, HypnoDrones and the release; Xavier's button is removed; the planetary phase starts fully powered (supply 0 ≥ demand 0 sets powMod 1) with a sleeping swarm | match |
+| planetChain | Toth Tubule Enfolding, Power Grid, Nanoscale Wire Production, Harvester and Wire Drones, Clip Factories | match |
+| planetExactCost | All five buildings bought at exactly their cost, ending at 0 clips; unaffordable clicks run no-op branches (+10 still recomputes the price sums), then the controls disable | match |
+| planetPartialBulk | +10 harvesters with 20 million clips buys three; +100 wire drones buys one | match |
+| planetPipeline | Shortage drains storage, then powMod = supply/demand, and one negative-powMod tick; +10 and +100 farms restore power with surplus into storage; Momentum; +100 harvesters, +1k wire drones, factories and +100 batteries | match |
+| planetExhaustion | The last matter is harvested (Space Exploration appears), the wire runs out, the swarm becomes bored and disorganized with both messages | match |
+| planetReboots | Every Disassemble All: refunds, recomputed price sums, reset costs and emptied storage | match |
+| planetUpgrades | Upgraded and Hyperspeed Factories, the 10²¹-clip supply chain, the three drone flocking projects; Swarm Computing appears unbought | match |
 
 The reference VM mutates fixture objects such as qChips. The host therefore
 clones fixture values, so the report records the fixture as injected and the Lua
@@ -298,7 +359,9 @@ The Node tests need Lua 5.1 (TIM_LUA, default C:\Program Files (x86)\Lua\5.1\lua
 These traces establish parity for the covered paths on the measured Windows /
 Node 24 profile. They do not establish:
 
-- full-phase coverage;
+- full-phase coverage: the swarm's slider, gifts and actions (#13) and space (#14)
+  remain;
+- building costs on other platforms: they follow the pinned profile's pow;
 - in-game behavior: Sim/ is not loaded by the addon yet;
 - WoW's embedded Lua numeric configuration;
 - presentation.
