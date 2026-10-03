@@ -113,6 +113,56 @@ After these changes, in the client:
 
 No model was tested (#10).
 
+## #10 goblin model probe
+
+`/timprobe target` (Probe/Goblin.lua) reads the targeted NPC's ID from its GUID. It
+gets the display ID from `PlayerModel:SetCreature(npc)` -> `GetDisplayInfo()` and
+records both with zone and build in TimeIsMoneyProbeDB. Then it renders three images:
+
+- a whole-body ModelScene pane (120x200);
+- a 96x72 head crop at the storyboard's Director-portrait size;
+- the client's 2D portrait (`SetPortraitTextureFromCreatureDisplayID`, 72x72).
+
+The rendering is AltStable's pet recipe: a plain ModelScene with one actor,
+SetModelByCreatureDisplayID, camera at +40 on X facing back, field of view 0.15,
+clip 0.1-100, a centred origin, particles at scale 0, a fit from the bounding box,
+a bounded 3 s poll and a stale-callback token.
+
+### Results — 2026-10-03, client 1.60.1.70205
+
+| Goblin | Source | Display | Box (l, w, h) | Model file |
+| --- | --- | --- | --- | --- |
+| Roxxik | targeted in Orgrimmar, npc 11017 | **10472** | 0.84, 1.06, 1.39 | 119376 |
+| Stormwind barber | targeted in Stormwind | **148768** | 0.84, 1.06, 1.39 | — |
+
+- **Texture:** both render **fully textured** from the display ID with the idle
+  animation running. Display IDs (not npc IDs) keep the chosen look (AltStable).
+- **2D fallback:** `SetPortraitTextureFromCreatureDisplayID` gives a textured round
+  head portrait for both. This is the verified fallback.
+- **Framing:**
+  - The box arrived at once (cached model) and is the same for both, the shared
+    goblin male body.
+  - Fitting the height alone clipped the arms in the tall body pane, so the whole
+    body fits both height and width (`box.w`, world Y across the view).
+  - **The actor's position is multiplied by its scale.** An offset computed in view
+    units pushed the head out of the strip; computed in model units (offset /
+    scale), it framed it.
+  - A crop of the **top 0.40 of the height** with a 1.15 margin gives a readable
+    head-and-shoulders portrait at 96x72.
+- **Animations:**
+  - The display has 321 animation IDs (0-1786, sparse; list in the PR).
+  - `HasAnimation(id)` **raises "bad argument" for id >= 1866**, so the scan stops
+    at the first error.
+  - Idle (0) loops.
+  - Talk, approval and reaction IDs were not identified by eye in this session; #22
+    keeps idle only until they are.
+- **Frame cost:** window shown vs hidden, mean of 120 frames each: +0.34, +0.36 and
+  +0.44 ms at about 7.7 ms per frame (Roxxik, Orgrimmar). One earlier sample at
+  about 50 fps read +2.6 ms (the barber, Stormwind). Record it as under 0.5 ms at a
+  steady frame rate.
+- **Mouse and layers:** window strata DIALOG, level 1, mouse enabled for dragging;
+  both scenes level 2 with the mouse disabled.
+
 ## Future probes
 
 Supplied API evidence: 1.60.1.70170, Interface 16001. Shared measurements from
