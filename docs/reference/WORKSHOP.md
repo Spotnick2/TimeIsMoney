@@ -139,6 +139,15 @@ Reference paths outside the slice raise
   (0 is false). `creativityOn == 1` is also true for `true`.
 - **Negative zero:** a literal `-0.0` can merge with the constant `0` in Lua
   5.1, so negative zero is built at run time.
+- **WoW's Lua (measured, see docs/forever-api-notes.md):**
+  - `x / 0`, `x % 0` and any division or modulo with a NaN operand raise errors.
+  - Every comparison involving NaN is true.
+  - The simulation therefore never divides by zero or NaN (`JSMath.div` gives
+    JavaScript's ±Infinity/NaN), tests NaN with `JSMath.isNaN`, compares
+    possibly-NaN values with `JSMath.lt`/`gt`, and encodes NaN canonically.
+  - The reference produces NaN in normal play: revenue in the first ten seconds,
+    demand at a zero price.
+  - The in-game probe (#9) reproduces the offline Lua state digests exactly.
 - **Math.pow:** V8's results are not correctly rounded and differ from every C
   library tested. Lua's `^` would also depend on the host C runtime, including
   WoW's. JSMath.pow therefore computes a correctly rounded result in pure Lua

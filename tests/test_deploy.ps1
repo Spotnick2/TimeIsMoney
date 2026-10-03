@@ -53,7 +53,26 @@ try {
     $rejected = $false
     try { & $deploy -AddOnsPath $addOns } catch { $rejected = $true }
     if (!$rejected) { throw 'A TOC input outside the source folder was accepted.' }
-    Write-Host 'deploy: exact files, nested media bytes, dev version, repeat install, source preservation and input rejection passed.'
+
+    # Developer probe (#9): exact folder from Probe/ and Sim/, nothing else touched.
+    $probeAddOns = Join-Path $testRoot 'ProbeAddOns'
+    New-Item -ItemType Directory -Path $probeAddOns | Out-Null
+    & (Join-Path $repoRoot 'Tools/deploy_probe.ps1') -AddOnsPath $probeAddOns
+    $probeDestination = Join-Path $probeAddOns 'TimeIsMoneyProbe'
+    $tocEntries = @(Get-Content -LiteralPath (Join-Path $repoRoot 'Probe/TimeIsMoneyProbe.toc') |
+        ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' -and !($_.StartsWith('#')) })
+    $probeExpected = @(@('TimeIsMoneyProbe.toc') + $tocEntries | Sort-Object)
+    $probeActual = @(Get-ChildItem -LiteralPath $probeDestination -Recurse -File |
+        ForEach-Object { [IO.Path]::GetRelativePath($probeDestination, $_.FullName).Replace('\', '/') } | Sort-Object)
+    if (($probeActual -join "`n") -ne ($probeExpected -join "`n")) { throw "Unexpected probe files: $probeActual" }
+    foreach ($entry in $tocEntries) {
+        $source = if ($entry.StartsWith('Sim/')) { Join-Path $repoRoot $entry } else { Join-Path $repoRoot ('Probe/' + $entry) }
+        if ((Get-FileHash -LiteralPath $source).Hash -ne (Get-FileHash -LiteralPath (Join-Path $probeDestination $entry)).Hash) {
+            throw "Probe bytes differ: $entry"
+        }
+    }
+    if (@(Get-ChildItem -LiteralPath $probeAddOns).Count -ne 1) { throw 'Probe deployment created other folders.' }
+    Write-Host 'deploy: exact files, nested media bytes, dev version, repeat install, source preservation and input rejection, and the probe folder passed.'
 } finally {
     $resolved = (Resolve-Path -LiteralPath $testRoot).Path
     if (!$resolved.StartsWith($tempRoot.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar,

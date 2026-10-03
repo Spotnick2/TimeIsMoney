@@ -48,6 +48,8 @@ declared but never initialized/replaced until the schema is designed.
 Sim/ holds the pure-Lua simulation (docs/reference/WORKSHOP.md): parity-tested
 against the reference, not in the TOC or package until #18. Unported reference
 paths raise explicit errors naming their issue; never let them diverge silently.
+WoW's Lua raises on x/0, x%0 and NaN division, and NaN compares true: in Sim use
+JSMath.div/isNaN/lt/gt, never x ~= x or a possibly-zero divisor (forever-api-notes).
 
 tests: Lua 5.1 loader behavior with allowlist stub and PowerShell runner.
 Tools/deploy.ps1: TOC inputs and runtime media, deployed dev version only.

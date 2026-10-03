@@ -18,7 +18,7 @@ end
 local allowed = {
     math = allowedMath, string = string, table = table, pairs = pairs, ipairs = ipairs,
     type = type, tostring = tostring, tonumber = tonumber, error = error, setmetatable = setmetatable,
-    next = next, select = select,
+    next = next, select = select, pcall = pcall,
 }
 local env = setmetatable({}, {
     __index = function(_, key)
@@ -52,6 +52,12 @@ assert(JSMath.round(0.49999999999999994) == 0, "no x + 0.5 double rounding")
 assert(same(JSMath.round(0 / 0), 0 / 0) and JSMath.round(math.huge) == math.huge)
 assert(JSMath.mod(-5, 3) == -2 and JSMath.mod(5.5, 2) == 1.5, "JavaScript % truncates")
 assert(same(JSMath.num(JSMath.undefined), 0 / 0) and JSMath.num(3) == 3)
+
+-- JavaScript division without dividing by zero (WoW's Lua raises on x/0).
+assert(JSMath.div(1, 0) == math.huge and JSMath.div(-3, 0) == -math.huge and JSMath.div(1, NEG_ZERO) == -math.huge)
+assert(JSMath.div(-1, NEG_ZERO) == math.huge and same(JSMath.div(0, 0), 0 / 0) and same(JSMath.div(0 / 0, 0), 0 / 0))
+assert(JSMath.div(6, 3) == 2 and JSMath.NAN ~= JSMath.NAN and JSMath.signedZeroTest ~= nil)
+assert(JSMath.isNegativeZero(NEG_ZERO) and not JSMath.isNegativeZero(0) and not JSMath.isNegativeZero(-1))
 
 -- Math.pow: V8 results for reference-style operands, and ECMAScript special values.
 assert(JSMath.pow(1.1, 32) == 21.113776745352606)
@@ -130,6 +136,12 @@ game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000
 local speed = game.S.creativitySpeed
 fails("verified processor count %(issue #24%)", game.addProc, game)
 assert(game.S.processors == Workshop.VERIFIED_PROCESSORS and game.S.creativitySpeed == speed)
+-- A battle with no ship alive keeps running, as in the reference (NaN centroid unused).
+local empty = Workshop.new(stub, {})
+for _, ship in ipairs(empty.S.ships) do ship.alive = false end
+empty:advanceTo(200)
+assert(empty.S.ships[1].framesDead == 10 and empty.S.i == empty.S.numShips)
+
 -- Project purchases: a button must be in the document; restart is refused (#23).
 local projects = Workshop.new(stub, {})
 local ok, message = pcall(projects.click, projects, "projectButton1")

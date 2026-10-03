@@ -96,7 +96,7 @@ function Game:createStock(dollars)
         pri = ceil(self.draw("main.js:1512:32") * 15)
     end
     if pri > dollars then pri = ceil(dollars * roll) end
-    local amt = floor(dollars / pri)
+    local amt = floor(JSMath.div(dollars, pri))
     if amt > 1000000 then amt = 1000000 end
     S.stocks[#S.stocks + 1] = {
         id = S.stockID, symbol = sym, price = pri, amount = amt, total = pri * amt, profit = 0, age = 0,

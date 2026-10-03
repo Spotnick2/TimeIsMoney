@@ -113,8 +113,11 @@ local function findCentroid(S)
             alive = alive + 1
         end
     end
-    x = x / alive
-    y = y / alive
+    -- With no ship alive the centroid is NaN (0 / 0). The reference keeps running:
+    -- UpdateGrid skips dead ships and MoveShips uses the centroid only for live
+    -- ones, so the NaN is never read.
+    x = ns.JSMath.div(x, alive)
+    y = ns.JSMath.div(y, alive)
     x = (x * 0.8) + (S.battleWIDTH / 2 * 0.2)
     y = (y * 0.8) + (S.battleHEIGHT / 2 * 0.2)
     return x, y

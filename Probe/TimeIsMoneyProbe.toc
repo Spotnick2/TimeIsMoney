@@ -1,0 +1,18 @@
+## Interface: 16001
+## Title: Time Is Money Probe
+## Notes: Developer measurements for Time Is Money (#9). Not part of the addon. /timprobe
+## Author: Spotnick
+## Version: dev
+## SavedVariables: TimeIsMoneyProbeDB
+
+Sim/Reference.lua
+Sim/JSMath.lua
+Sim/Scheduler.lua
+Sim/Battle.lua
+Sim/Workshop.lua
+Sim/Investments.lua
+Sim/Strategy.lua
+Sim/Projects.lua
+Vectors.lua
+Checks.lua
+Probe.lua
