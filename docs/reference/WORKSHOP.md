@@ -228,9 +228,11 @@ Reference paths outside the slice raise
   - Sim/CostPow.lua therefore pins the reference profile (Node v24.15.0, V8
     13.6.233.17-node.48, win32 x64): tests/reference/cost_pow.cjs compares every
     integer base of each domain and records the exact Math.pow value wherever
-    JSMath differs. cost_pow.test.cjs regenerates the table in CI and fails when
-    the profile changes. Beyond the domains the slice stops (#24), before any
-    change. Codex recommended this design over a tolerance (design consult,
+    JSMath differs. cost_pow.test.cjs regenerates the table in CI and compares
+    every value; the profile is recorded, so a Node patch release that keeps every
+    value still passes. Beyond the domains the slice stops (#24) before any change:
+    every purchase and reboot first checks all four price lookaheads on its
+    resulting levels. Codex recommended this design over a tolerance (design consult,
     2026-10-03).
 - **Math.sin and Math.log10:** V8 implements both with fdlibm 5.3: the original
   `__kernel_cos` with `qx`, and the `__ieee754_log`-based log10. The FreeBSD

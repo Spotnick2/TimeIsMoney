@@ -355,8 +355,9 @@ add("project40b", function(S) return S.project40.flag == 1 and S.trust < 100 end
 end)
 -- Space Exploration appears once the Earth's matter is gone; its purchase starts
 -- the cosmic phase (#14). Math.pow(10, 27)*5 is an integer power, exact in JSMath.
+local spaceClips = JSMath.pow(10, 27) * 5
 add("project46", function(S) return S.humanFlag == 0 and S.availableMatter == 0 end, function(S)
-    return S.operations >= 120000 and S.storedPower >= 10000000 and S.unusedClips >= JSMath.pow(10, 27) * 5
+    return S.operations >= 120000 and S.storedPower >= 10000000 and S.unusedClips >= spaceClips
 end, nil, "#14")
 add("project50", function(S) return S.processors >= 5 end, ops(10000), function(game)
     local S = game.S
@@ -396,10 +397,11 @@ simple("project101", function(S) return S.factoryLevel >= 20 end, ops(85000),
     end)
 -- 1000000000000000000000 is exactly 10^21 as a double (the literal and the
 -- integer power agree).
-simple("project102", function(S) return S.factoryLevel >= 50 end, function(S) return S.unusedClips >= JSMath.pow(10, 21) end,
+local sextillion = JSMath.pow(10, 21)
+simple("project102", function(S) return S.factoryLevel >= 50 end, function(S) return S.unusedClips >= sextillion end,
     { "Self-correcting factories online. Each factory added to the network increases every factory's output 1,000x." },
     function(S)
-        S.unusedClips = S.unusedClips - JSMath.pow(10, 21)
+        S.unusedClips = S.unusedClips - sextillion
         S.factoryBoost = 1000
     end)
 -- Readouts hold the message element's innerHTML, which serializes "&" as "&amp;".

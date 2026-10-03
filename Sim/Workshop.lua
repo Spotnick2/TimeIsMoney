@@ -28,6 +28,9 @@ local Workshop = {}
 Workshop.truthy = truthy
 -- Per-game initializers registered by later simulation files (setup(game, S)).
 Workshop.setups = {}
+-- Control states later simulation files add to buttonUpdate (fn(game, S, disabled)),
+-- run in registration order before probeUsedTrust.
+Workshop.buttonUpdates = {}
 
 -- Initial values of the ported globals (globals.js, main.js, combat.js).
 Workshop.initial = {
@@ -413,11 +416,7 @@ function Game:buttonUpdate()
         S.investmentEngineFlag = 0
         S.wireBuyerFlag = 0
     end
-    -- Updated in every phase (Sim/Planet.lua defines the levels and costs).
-    disabled.btnMakeFactory = S.unusedClips < S.factoryCost
-    disabled.btnHarvesterReboot = S.harvesterLevel == 0
-    disabled.btnWireDroneReboot = S.wireDroneLevel == 0
-    disabled.btnFactoryReboot = S.factoryLevel == 0
+    for _, update in ipairs(Workshop.buttonUpdates) do update(self, S, disabled) end
     S.probeUsedTrust = (S.probeSpeed + S.probeNav + S.probeRep + S.probeHaz + S.probeFac + S.probeHarv + S.probeWire + S.probeCombat)
 end
 

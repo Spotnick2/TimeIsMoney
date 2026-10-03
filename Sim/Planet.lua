@@ -49,22 +49,37 @@ for _, id in ipairs({
 -- Math.pow(n, e) for a cost: the reference profile's value (Sim/CostPow.lua) where
 -- it differs from JSMath.pow. Beyond the compared domain the reference value is
 -- unknown, so the slice stops.
+-- A cost is a pure function of its integer base, so computed values are kept
+-- (the pure-Lua pow is slow and the price sums revisit the same bases).
+local memo = { ["2.25"] = {}, ["2.54"] = {}, ["2.78"] = {} }
 local function costPow(n, e)
     local domain = CostPow[e]
     if n ~= floor(n) or n < 1 or n > domain.limit then
         Unported("building cost Math.pow(" .. JSMath.toString(n) .. ", " .. e .. ") beyond the verified domain", "#24")
     end
-    local fix = domain.fixes[n]
-    if fix then return JSMath.fromWords(fix[1], fix[2]) end
-    return JSMath.pow(n, tonumber(e))
+    local value = memo[e][n]
+    if value == nil then
+        local fix = domain.fixes[n]
+        value = fix and JSMath.fromWords(fix[1], fix[2]) or JSMath.pow(n, tonumber(e))
+        memo[e][n] = value
+    end
+    return value
 end
 Workshop.costPow = costPow
 
--- Stops before any change when a purchase or price update could need a cost beyond
--- the domain (the last base is level + amount, then the lookahead sums).
-local function requireDomain(e, base)
-    if base > CostPow[e].limit then
-        Unported("building cost Math.pow(" .. base .. ", " .. e .. ") beyond the verified domain", "#24")
+-- Every cost base the price updates reach from the given levels: each drone level
+-- + 1000 (purchase loops stay within that), each farm and battery level + 100.
+-- Purchases and reboots call it first with the levels after the operation, so a
+-- stop (#24) always comes before any change.
+local function requirePriceDomains(S, levels)
+    local function level(name) return levels and levels[name] or S[name] end
+    for _, check in ipairs({
+        { "2.25", level("harvesterLevel") + 1000 }, { "2.25", level("wireDroneLevel") + 1000 },
+        { "2.78", level("farmLevel") + 100 }, { "2.54", level("batteryLevel") + 100 },
+    }) do
+        if check[2] > CostPow[check[1]].limit then
+            Unported("building cost Math.pow(" .. check[2] .. ", " .. check[1] .. ") beyond the verified domain", "#24")
+        end
     end
 end
 
@@ -96,22 +111,23 @@ function Game:makeFactory()
     end
 end
 
--- Sum of `count` consecutive costs from `from`, in source order.
-local function priceSum(from, count, e, scale)
-    local p = 0
-    for i = 0, count - 1 do p = p + costPow(from + i, e) * scale end
-    return p
+-- Sums of the first 10, 100 and (count = 1000) costs from `from`, in source order.
+-- The reference recomputes each sum from 0; one running sum reaches the same
+-- partial values, because the same additions happen in the same order.
+local function priceSums(from, count, e, scale)
+    local p, p10, p100 = 0, nil, nil
+    for i = 0, count - 1 do
+        p = p + costPow(from + i, e) * scale
+        if i == 9 then p10 = p elseif i == 99 then p100 = p end
+    end
+    return p10, p100, p
 end
 
 function Game:updateDronePrices()
     local S = self.S
-    requireDomain("2.25", max(S.harvesterLevel, S.wireDroneLevel) + 1000)
-    S.p10h = priceSum(S.harvesterLevel + 1, 10, "2.25", 1000000)
-    S.p100h = priceSum(S.harvesterLevel + 1, 100, "2.25", 1000000)
-    S.p1000h = priceSum(S.harvesterLevel + 1, 1000, "2.25", 1000000)
-    S.p10w = priceSum(S.wireDroneLevel + 1, 10, "2.25", 1000000)
-    S.p100w = priceSum(S.wireDroneLevel + 1, 100, "2.25", 1000000)
-    S.p1000w = priceSum(S.wireDroneLevel + 1, 1000, "2.25", 1000000)
+    requirePriceDomains(S)
+    S.p10h, S.p100h, S.p1000h = priceSums(S.harvesterLevel + 1, 1000, "2.25", 1000000)
+    S.p10w, S.p100w, S.p1000w = priceSums(S.wireDroneLevel + 1, 1000, "2.25", 1000000)
     S.x = 1000
 end
 
@@ -119,7 +135,7 @@ end
 -- cost recomputed after the previous purchase.
 local function makeDrones(game, amount, level, cost, bill)
     local S = game.S
-    requireDomain("2.25", S[level] + amount + 1000)
+    requirePriceDomains(S, { [level] = S[level] + amount })
     for _ = 1, amount do
         if S.unusedClips >= S[cost] then
             S.unusedClips = S.unusedClips - S[cost]
@@ -157,6 +173,7 @@ end
 
 function Game:harvesterReboot()
     local S = self.S
+    requirePriceDomains(S, { harvesterLevel = 0 })
     S.harvesterLevel = 0
     S.unusedClips = S.unusedClips + S.harvesterBill
     S.harvesterBill = 0
@@ -166,6 +183,7 @@ end
 
 function Game:wireDroneReboot()
     local S = self.S
+    requirePriceDomains(S, { wireDroneLevel = 0 })
     S.wireDroneLevel = 0
     S.unusedClips = S.unusedClips + S.wireDroneBill
     S.wireDroneBill = 0
@@ -185,18 +203,16 @@ end
 
 function Game:updatePowPrices()
     local S = self.S
-    requireDomain("2.78", S.farmLevel + 100)
-    requireDomain("2.54", S.batteryLevel + 100)
-    S.p10f = priceSum(S.farmLevel + 1, 10, "2.78", 100000000)
-    S.p100f = priceSum(S.farmLevel + 1, 100, "2.78", 100000000)
-    S.p10b = priceSum(S.batteryLevel + 1, 10, "2.54", 10000000)
-    S.p100b = priceSum(S.batteryLevel + 1, 100, "2.54", 10000000)
+    requirePriceDomains(S)
+    local _
+    S.p10f, _, S.p100f = priceSums(S.farmLevel + 1, 100, "2.78", 100000000)
+    S.p10b, _, S.p100b = priceSums(S.batteryLevel + 1, 100, "2.54", 10000000)
     S.x = 100
 end
 
 local function makePower(game, amount, e, scale, level, cost, bill)
     local S = game.S
-    requireDomain(e, S[level] + amount + 100)
+    requirePriceDomains(S, { [level] = S[level] + amount })
     for _ = 1, amount do
         if S.unusedClips >= S[cost] then
             S.unusedClips = S.unusedClips - S[cost]
@@ -221,6 +237,7 @@ end
 -- formula (farms 1e7, batteries 1e6), as in the reference.
 function Game:farmReboot()
     local S = self.S
+    requirePriceDomains(S, { farmLevel = 0 })
     S.farmLevel = 0
     S.unusedClips = S.unusedClips + S.farmBill
     S.farmBill = 0
@@ -230,6 +247,7 @@ end
 
 function Game:batteryReboot()
     local S = self.S
+    requirePriceDomains(S, { batteryLevel = 0 })
     S.batteryLevel = 0
     S.unusedClips = S.unusedClips + S.batteryBill
     S.batteryBill = 0
@@ -377,6 +395,14 @@ function Game:planetaryTick()
         self:acquireMatter()
         self:processMatter()
     end
+end
+
+-- buttonUpdate's planetary controls, updated in every phase.
+Workshop.buttonUpdates[#Workshop.buttonUpdates + 1] = function(game, S, disabled)
+    disabled.btnMakeFactory = S.unusedClips < S.factoryCost
+    disabled.btnHarvesterReboot = S.harvesterLevel == 0
+    disabled.btnWireDroneReboot = S.wireDroneLevel == 0
+    disabled.btnFactoryReboot = S.factoryLevel == 0
 end
 
 -- Controls --------------------------------------------------------------------

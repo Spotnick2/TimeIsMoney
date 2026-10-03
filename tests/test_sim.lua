@@ -146,6 +146,20 @@ assert(planet.S.harvesterLevel == 199000 and planet.S.unusedClips == 1e30, "no p
 planet.S.farmLevel = 29900
 fails("Math%.pow%(30001, 2%.78%) beyond the verified domain", planet.makeFarm, planet, 1)
 assert(planet.S.farmLevel == 29900 and planet.S.unusedClips == 1e30)
+-- The other building's lookahead also counts (review of #44): no purchase or reboot
+-- commits before the stop.
+planet.S.harvesterLevel, planet.S.wireDroneLevel, planet.S.farmLevel = 10, 199500, 5
+fails("Math%.pow%(200500, 2%.25%)", planet.makeHarvester, planet, 1)
+assert(planet.S.harvesterLevel == 10 and planet.S.unusedClips == 1e30)
+planet.S.harvesterLevel, planet.S.harvesterBill, planet.S.harvesterCost = 50, 123, 456
+fails("Math%.pow%(200500, 2%.25%)", planet.harvesterReboot, planet)
+assert(planet.S.harvesterLevel == 50 and planet.S.harvesterBill == 123 and planet.S.harvesterCost == 456)
+planet.S.wireDroneLevel, planet.S.batteryLevel = 0, 29950
+fails("Math%.pow%(30050, 2%.54%)", planet.makeFarm, planet, 1)
+assert(planet.S.farmLevel == 5 and planet.S.unusedClips == 1e30)
+planet.S.farmLevel, planet.S.storedPower = 29950, 7
+fails("Math%.pow%(30050, 2%.78%)", planet.batteryReboot, planet)
+assert(planet.S.batteryLevel == 29950 and planet.S.storedPower == 7)
 
 -- addProc refuses to cross the verified processor count before changing state.
 game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000
