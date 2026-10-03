@@ -133,7 +133,14 @@
         global.setInterval = (fn,delay,...args) => clock.register(fn,delay,true,args);
         global.setTimeout = (fn,delay,...args) => clock.register(fn,delay,false,args);
         global.clearInterval = global.clearTimeout = id => clock.clear(id);
-        global.Math.random = () => random.draw(callSite(new Error().stack), clock.now);
+        global.Math.random = () => {
+            // The labeled caller is the second frame; a short stack keeps draws cheap.
+            const limit = Error.stackTraceLimit;
+            Error.stackTraceLimit = 4;
+            const stack = new Error().stack;
+            Error.stackTraceLimit = limit;
+            return random.draw(callSite(stack), clock.now);
+        };
         const realLocaleString = global.Number.prototype.toLocaleString;
         global.Number.prototype.toLocaleString = function (...args) {
             return realLocaleString.call(this, args[0] || "en-US", args[1]);
@@ -277,18 +284,33 @@
         const diff = firstDifference(left, right);
         if (!diff) return null;
         const [, section, name] = diff.path.split(".");
-        const value = section && name !== undefined ? left[section]?.[name] : undefined;
+        const value = section && name !== undefined ? left[section]?.[name] ?? right[section]?.[name] : undefined;
         return { ...diff, category: classify(diff.path, value), ulps: ulps(diff.left, diff.right) };
     }
 
+    // A comparable document has this schema and exactly one checkpoint event per
+    // checkpoint, in index order, so walking the events covers every checkpoint.
+    function validateTrace(doc, side) {
+        if (!doc || doc.schema !== TRACE_SCHEMA.version)
+            throw new Error(side + " trace schema " + doc?.schema + " is not supported (expected " + TRACE_SCHEMA.version + ")");
+        if (!Array.isArray(doc.events) || !Array.isArray(doc.checkpoints))
+            throw new Error(side + " trace needs events and checkpoints arrays");
+        let next = 0;
+        for (const event of doc.events) if (event.action === "checkpoint" && event.index !== next++)
+            throw new Error(side + " checkpoint events must cover checkpoints in index order");
+        if (next !== doc.checkpoints.length)
+            throw new Error(side + " trace has " + doc.checkpoints.length + " checkpoints but " + next + " checkpoint events");
+    }
+
     // Exact first divergence between two trace documents
-    // {source_sha256, input, events, checkpoints[{...meta, sha256?, json?}]}.
+    // {schema, source_sha256, input, events, checkpoints[{...meta, sha256?, json?}]}.
     // Events are compared in order, so an extra draw, a different branch's draw site
     // or a reordered callback is reported where it first happens, before later state.
     function compareTraces(left, right, context = 8) {
+        validateTrace(left, "left"); validateTrace(right, "right");
         const base = { source_sha256: { left: left.source_sha256, right: right.source_sha256 },
                        input: { left: left.input, right: right.input } };
-        if (JSON.stringify(left.source_sha256) !== JSON.stringify(right.source_sha256))
+        if (!left.source_sha256 || firstDifference(left.source_sha256, right.source_sha256))
             return { ...base, kind: "source", event: null, after: null };
         let after = null;
         const length = Math.max(left.events.length, right.events.length);
@@ -315,17 +337,22 @@
             if (!pa || !pb) return found("checkpoint", { field: "$.index" });
             const metaDiff = firstDifference(a, b) || firstDifference(meta(pa), meta(pb));
             if (metaDiff) return found("checkpoint", { field: metaDiff.path });
-            if (pa.json !== undefined && pb.json !== undefined) {
-                const diff = stateDifference(JSON.parse(pa.json), JSON.parse(pb.json));
+            const hashed = pa.sha256 !== undefined && pb.sha256 !== undefined;
+            if (hashed && pa.sha256 === pb.sha256) {
+                // Equal hashes need no parse.
+            } else if (pa.json !== undefined && pb.json !== undefined) {
+                const diff = pa.json === pb.json ? null : stateDifference(JSON.parse(pa.json), JSON.parse(pb.json));
                 if (diff) return found("state", { checkpoint: a.index, difference: diff });
-            } else if (pa.sha256 === undefined || pa.sha256 !== pb.sha256) {
+            } else if (hashed) {
                 return found("state", { checkpoint: a.index, difference: null,
                     sha256: { left: pa.sha256, right: pb.sha256 } });
+            } else {
+                throw new Error("Checkpoint " + a.index + " needs JSON or SHA-256 on both sides to compare");
             }
             after = { index: a.index, ...meta(pa) };
         }
         return null;
     }
     return { Clock, RandomStream, Storage, AudioHost, TRACE_SCHEMA, callSite, encode, classify, ulps,
-             firstDifference, stateDifference, compareTraces, create };
+             firstDifference, stateDifference, validateTrace, compareTraces, create };
 });

@@ -62,21 +62,22 @@ function run(trace, source = inputs(), prepare = null) {
     return {...runner,trace,result};
 }
 // Inventory scope for each observed file:line:column draw label.
-function scopes(source) {
-    const result={};
-    for (const file of ORDER) for (const call of source.index.sources[file].random_calls)
-        result[file+":"+call.line]=call.scope;
-    return result;
-}
+// The inventory records random calls by line; a label adds the column.
+const scopeCache=new WeakMap();
 function siteScope(site, source) {
+    if (!scopeCache.has(source.index)) {
+        const known={};
+        for (const file of ORDER) for (const call of source.index.sources[file].random_calls)
+            known[file+":"+call.line]=call.scope;
+        scopeCache.set(source.index,known);
+    }
     const [file,line]=site.split(":");
-    return scopes(source)[file+":"+line] || null;
+    return scopeCache.get(source.index)[file+":"+line] || null;
 }
 function drawSites(events, source) {
-    const known=scopes(source), counts={};
+    const counts={};
     for (const event of events) if (event.action==="draw") {
-        const [file,line]=event.site.split(":");
-        counts[event.site] ??= {scope:known[file+":"+line] || null,draws:0};
+        counts[event.site] ??= {scope:siteScope(event.site,source),draws:0};
         counts[event.site].draws++;
     }
     return counts;

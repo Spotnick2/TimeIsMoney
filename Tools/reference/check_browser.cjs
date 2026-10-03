@@ -1,14 +1,14 @@
 "use strict";
 /* Uses an already installed browser; no npm package or browser download. */
 const fs=require("node:fs"),path=require("node:path"),{spawn}=require("node:child_process");
-const {ROOT,CACHE}=require("./runner.cjs");
+const {ROOT,CACHE}=require("./runner.cjs"), Traces=require("../../tests/reference/traces.cjs");
 const candidates=process.platform==="win32" ? [
     "C:/Program Files/Google/Chrome/Application/chrome.exe",
     "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
 ] : ["/usr/bin/google-chrome","/usr/bin/google-chrome-stable","/usr/bin/chromium"];
 const browser=process.env.TIM_BROWSER || candidates.find(file=>fs.existsSync(file));
 if (!browser) throw new Error("Set TIM_BROWSER to an already installed Chromium browser executable.");
-const cases=["initialization","workshop","cancellation","tournament","range","investment","combat","combat-nodraw"];
+const cases=[...Traces.names,"combat-nodraw"];
 async function main() {
     fs.mkdirSync(CACHE,{recursive:true});
     const server=spawn(process.execPath,[path.join(__dirname,"browser_server.cjs")],{

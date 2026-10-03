@@ -29,4 +29,9 @@ fails("Malformed recorded value", RecordedRandom.parse, '{"schema":1,"stream":"s
 assert(RecordedRandom.encodeLog(log) ==
     '[{"action":"draw","at":0,"stream":"simulation","ordinal":0,"site":"combat.js:717:22","value":0.17000000000000001},'
     .. '{"action":"draw","at":10,"stream":"simulation","ordinal":1,"site":"main.js:704:14","value":0.42999999999999999}]')
+local large = { { action = "draw", at = 2 ^ 31 + 5, stream = "simulation", ordinal = 2 ^ 40, site = "x", value = 0.5 } }
+assert(RecordedRandom.encodeLog(large) ==
+    '[{"action":"draw","at":2147483653,"stream":"simulation","ordinal":1099511627776,"site":"x","value":0.5}]',
+    "integers beyond a 32-bit long keep their value")
+fails("nonfinite", RecordedRandom.encodeLog, { { action = "draw", at = 1 / 0 } })
 print("recorded random: labeled ordinals, separate cosmetic stream, exhaustion and stream documents passed")

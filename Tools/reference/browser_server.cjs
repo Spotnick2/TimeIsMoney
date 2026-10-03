@@ -30,7 +30,7 @@ const server=http.createServer(async (request,response) => {
         if (url.pathname==="/probe.js") return send(response,fs.readFileSync(path.join(__dirname,"browser_probe.js"),"utf8"),"application/javascript");
         if (url.pathname==="/host.js") return send(response,fs.readFileSync(path.join(__dirname,"host.js"),"utf8"),"application/javascript");
         if (url.pathname==="/boot.js") {
-            const config=Runner.config(source,trace.random);
+            const config=Runner.config(source,trace.random,trace.cosmetic);
             const boot='window.TIM_ERRORS=[];window.addEventListener("error",e=>TIM_ERRORS.push(e.message));'+
                 'window.TIM_TRACE='+JSON.stringify(trace)+';window.TIM=TIMHarness.create(window,'+JSON.stringify(config)+');'+
                 (trace.drawing ? "" : 'CanvasRenderingContext2D.prototype.fillRect=function(){};');
@@ -54,7 +54,7 @@ const server=http.createServer(async (request,response) => {
                 if (body.length>16*1024*1024) throw new Error("Evidence payload too large");
             }
             const data=JSON.parse(body), node=Runner.report(baseline(name).result,source);
-            const divergence=Runner.compare(node,{source_sha256:node.source_sha256,input:node.input,
+            const divergence=Runner.compare(node,{schema:node.schema,source_sha256:node.source_sha256,input:node.input,
                 events:data.events,checkpoints:data.checkpoints},source);
             if (divergence || node.final_sha256!==data.final_sha256 || data.errors?.length ||
                 JSON.stringify(data.native_timer_probe)!==JSON.stringify(["first","second"]))

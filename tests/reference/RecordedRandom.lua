@@ -53,7 +53,11 @@ end
 
 local function encodeValue(value)
     if type(value) == "number" then
-        if value == math.floor(value) and math.abs(value) < 2 ^ 53 then return string.format("%d", value) end
+        -- %.17g round-trips every double and prints integers without a fraction;
+        -- %d would truncate to a 32-bit long on MSVC builds.
+        if value ~= value or value == math.huge or value == -math.huge then
+            error("Trace events cannot encode a nonfinite number", 3)
+        end
         return string.format("%.17g", value)
     end
     return '"' .. tostring(value):gsub('[%c"\\]', function(c) return string.format("\\u%04x", c:byte()) end) .. '"'

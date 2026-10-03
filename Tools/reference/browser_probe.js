@@ -11,7 +11,7 @@
         for (const {json,...meta} of TIM_RESULT.checkpoints) checkpoints.push({...meta,sha256:await sha(json)});
         const expected=await (await fetch("/expected"+location.search)).json();
         // The server serves only the verified source bytes recorded in the Node report.
-        const browser={source_sha256:expected.source_sha256,input:expected.input,events:TIM_RESULT.events,checkpoints};
+        const browser={schema:expected.schema,source_sha256:expected.source_sha256,input:expected.input,events:TIM_RESULT.events,checkpoints};
         const found=TIMHarness.compareTraces(expected,browser);
         if (found) {
             if (found.kind==="state") {

@@ -137,7 +137,7 @@ test("random exhaustion and disallowed developer commands fail",()=>{
 
 test("recorded native browser evidence pins current implementation and inputs",()=>{
     const fs=require("node:fs"),path=require("node:path");
-    assert.equal(evidence.cases.length,8);
+    assert.deepEqual(evidence.cases.map(item=>item.case),[...Traces.names,"combat-nodraw"]);
     for (const record of evidence.cases) {
         assert.deepEqual(record.source_sha256,source.index.source_sha256);
         assert.deepEqual(record.native_timer_probe,["first","second"]);

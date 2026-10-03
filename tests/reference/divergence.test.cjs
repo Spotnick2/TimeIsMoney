@@ -91,6 +91,25 @@ test("hash-only checkpoints locate a state divergence; mismatched sources stop c
     assert.equal(Runner.compare(baseline,changed,source).difference.path,"$.state.funds");
     const other={...baseline,source_sha256:{...baseline.source_sha256,"main.js":"0".repeat(64)}};
     assert.equal(Harness.compareTraces(baseline,other).kind,"source");
+    // Hash key order is not significant (a Lua runner may emit another order).
+    const reordered={...baseline,source_sha256:Object.fromEntries(Object.entries(baseline.source_sha256).reverse())};
+    assert.equal(Harness.compareTraces(baseline,reordered),null);
+});
+test("checkpoints are compared from either representation and malformed documents are refused",()=>{
+    const hashOnly=({json,...meta})=>meta, jsonOnly=({sha256,...meta})=>meta;
+    const mixed=(doc,form)=>({...doc,checkpoints:doc.checkpoints.map(form)});
+    assert.equal(Harness.compareTraces(baseline,mixed(baseline,jsonOnly)),null,"identical JSON matches a hashed checkpoint");
+    assert.equal(Harness.compareTraces(mixed(baseline,hashOnly),baseline),null);
+    assert.throws(()=>Harness.compareTraces(mixed(baseline,hashOnly),mixed(baseline,jsonOnly)),/needs JSON or SHA-256 on both sides/);
+    // Every checkpoint needs its event, so a differing checkpoint cannot hide.
+    const noEvents={...baseline,events:baseline.events.filter(e=>e.action!=="checkpoint")};
+    assert.throws(()=>Harness.compareTraces(baseline,noEvents),/73 checkpoints but 0 checkpoint events/);
+    const extra={...baseline,checkpoints:[...baseline.checkpoints,baseline.checkpoints.at(-1)]};
+    assert.throws(()=>Harness.compareTraces(baseline,extra),/74 checkpoints but 73/);
+    const skipped={...baseline,events:baseline.events.map(e=>e.action==="checkpoint" && e.index===3 ? {...e,index:4} : e)};
+    assert.throws(()=>Harness.compareTraces(skipped,baseline),/left checkpoint events must cover checkpoints in index order/);
+    assert.throws(()=>Harness.compareTraces({...baseline,schema:1},baseline),/left trace schema 1 is not supported/);
+    assert.throws(()=>Harness.compareTraces(baseline,{schema:2}),/right trace needs events and checkpoints/);
 });
 test("numeric differences are exact and report their distance in doubles",()=>{
     // The recorded Linux/Windows Math.pow difference in state.p10f is one step apart.
@@ -102,6 +121,7 @@ test("numeric differences are exact and report their distance in doubles",()=>{
     assert.equal(Harness.stateDifference({state:{project1:{flag:0}}},{state:{project1:{flag:1}}}).category,"project");
     assert.equal(Harness.stateDifference({state:{ships:[1]}},{state:{ships:[2]}}).category,"array");
     assert.equal(Harness.stateDifference({draws:1},{draws:2}).category,"draw-count");
+    assert.equal(Harness.stateDifference({state:{}},{state:{stocks:[1]}}).category,"array","right-only fields keep their kind");
 });
 test("cosmetic draws use a separate stream and never shift simulation draws",()=>{
     const trace=Traces.make("workshop"); trace.cosmetic=[0.5,0.25,0.75];
@@ -157,7 +177,7 @@ test("the Lua recorded stream reads identical doubles and labels draws in the sa
         };
         const node=new Harness.RandomStream("simulation",values);
         sites.forEach((site,i)=>node.draw(site,i*10));
-        const doc=events=>({source_sha256:source.index.source_sha256,input:null,events,checkpoints:[]});
+        const doc=events=>({schema:2,source_sha256:source.index.source_sha256,input:null,events,checkpoints:[]});
         const luaEvents=lua(sites);
         luaEvents.forEach((event,i)=>assert.ok(Object.is(event.value,values[i])));
         assert.equal(Harness.compareTraces(doc(node.log),doc(luaEvents)),null);
