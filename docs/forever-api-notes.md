@@ -133,15 +133,16 @@ a bounded 3 s poll and a stale-callback token.
 | Goblin | Source | Display | Box (l, w, h) | Model file |
 | --- | --- | --- | --- | --- |
 | Roxxik | targeted in Orgrimmar, npc 11017 | **10472** | 0.84, 1.06, 1.39 | 119376 |
-| Stormwind barber | targeted in Stormwind | **148768** | 0.84, 1.06, 1.39 | — |
+| Jelinek Sharpshear (barber) | targeted in Stormwind City, npc 277024 | **148768** | 0.84, 1.06, 1.39 | — |
+| Mupsi Shacklefridd (female) | rendered by display ID next to the NPC (the target record was not saved) | **16171** | 0.79, 1.05, 1.55 | 119369 |
 
-- **Texture:** both render **fully textured** from the display ID with the idle
+- **Texture:** all three render **fully textured** from the display ID with the idle
   animation running. Display IDs (not npc IDs) keep the chosen look (AltStable).
 - **2D fallback:** `SetPortraitTextureFromCreatureDisplayID` gives a textured round
   head portrait for both. This is the verified fallback.
 - **Framing:**
-  - The box arrived at once (cached model) and is the same for both, the shared
-    goblin male body.
+  - The box arrived at once (cached models). Both males share one box (one body);
+    the female is taller (h 1.55), and the same crop still frames her head.
   - Fitting the height alone clipped the arms in the tall body pane, so the whole
     body fits both height and width (`box.w`, world Y across the view).
   - **The actor's position is multiplied by its scale.** An offset computed in view
@@ -150,7 +151,7 @@ a bounded 3 s poll and a stale-callback token.
   - A crop of the **top 0.40 of the height** with a 1.15 margin gives a readable
     head-and-shoulders portrait at 96x72.
 - **Animations:**
-  - The display has 321 animation IDs (0-1786, sparse; list in the PR).
+  - The male displays have 321 animation IDs and the female 313 (0-1786, sparse).
   - `HasAnimation(id)` **raises "bad argument" for id >= 1866**, so the scan stops
     at the first error.
   - Idle (0) loops.

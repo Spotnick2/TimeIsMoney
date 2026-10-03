@@ -36,8 +36,8 @@ Inspected local HEAD: 01708d2a4fedc941b4e9ce5aa4109c2afcde1b24.
 [#10](https://github.com/Spotnick2/TimeIsMoney/issues/10) measured two goblin displays on
 1.60.1.70205 (docs/forever-api-notes.md, "#10 goblin model probe"):
 
-- 10472 (Roxxik, npc 11017) and 148768 (Stormwind barber) render textured, with
-  idle running.
+- 10472 (Roxxik, npc 11017), 148768 (Jelinek Sharpshear, npc 277024) and 16171
+  (Mupsi Shacklefridd, female) render textured, with idle running.
 - The 2D fallback is `SetPortraitTextureFromCreatureDisplayID`.
 - The actor's position scales with the actor, so offsets are in model units.
 - A crop of the top 0.40 of the height with a 1.15 margin frames the 96x72 strip.
