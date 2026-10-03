@@ -1,5 +1,5 @@
 -- TimeIsMoneyProbe (issue #9): developer measurements in the Forever client.
--- Commands: /timprobe env | math | sim | icons | save <text> | status | all.
+-- Commands: /timprobe env | math | sim | nan | icons | save <text> | status | all.
 -- Developer-only; not part of the TimeIsMoney addon or its package. It never
 -- reads or writes TimeIsMoneyDB.
 local ADDON, ns = ...
@@ -53,6 +53,14 @@ local function Sim()
     local match = digest == Expected.workshopDigest and draws == Expected.workshopDraws
     Print(string.format("sim: digest %s, %d draws, %d ticks, %.0f ms", digest, draws, ticks, elapsed))
     Print("sim: " .. (match and "matches offline Lua" or ("DIFFERS from offline Lua " .. Expected.workshopDigest)))
+    local ranFloor, floorDigest, floorDraws = pcall(Checks.workshopPriceFloor, ns)
+    if not ranFloor then
+        Print("sim zero price: ERROR " .. tostring(floorDigest))
+    elseif floorDigest == Expected.priceFloorDigest and floorDraws == Expected.priceFloorDraws then
+        Print("sim zero price: digest " .. floorDigest .. " matches offline Lua")
+    else
+        Print("sim zero price: digest " .. floorDigest .. " DIFFERS from offline Lua " .. Expected.priceFloorDigest)
+    end
 end
 
 -- Icons ---------------------------------------------------------------------
@@ -165,12 +173,14 @@ local function Slash(message)
     if command == "env" then Env()
     elseif command == "math" then Math()
     elseif command == "sim" then Sim()
+    elseif command == "nan" then
+        for _, line in ipairs(Checks.nan()) do Print("nan: " .. line) end
     elseif command == "icons" then Icons()
     elseif command == "save" then Save(rest)
     elseif command == "status" then Status()
     elseif command == "all" then Env(); Math(); Sim(); Status()
     else
-        Print("/timprobe env | math | sim | icons | save <text> | status | all")
+        Print("/timprobe env | math | sim | nan | icons | save <text> | status | all")
     end
 end
 

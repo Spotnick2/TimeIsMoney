@@ -12,7 +12,7 @@ ns = ns or {}
 local JSMath, Scheduler, Battle = ns.JSMath, ns.Scheduler, ns.Battle
 local floor, ceil = math.floor, math.ceil
 local round, pow, num, undefined = JSMath.round, JSMath.pow, JSMath.num, JSMath.undefined
-local sin, log10, div = JSMath.sin, JSMath.log10, JSMath.div
+local sin, log10, div, lt, gt = JSMath.sin, JSMath.log10, JSMath.div, JSMath.lt, JSMath.gt
 
 function ns.Unported(what, issue)
     error("Unported reference path: " .. what .. " (issue " .. issue .. ")", 0)
@@ -291,22 +291,24 @@ function Game:calculateRev()
     local S = self.S
     S.incomeThen = S.incomeNow
     S.incomeNow = S.income
-    S.incomeLastSecond = round((num(S.incomeNow) - num(S.incomeThen)) * 100) / 100
+    -- NaN for the first second (incomeThen starts undefined), so no native division.
+    S.incomeLastSecond = div(round((num(S.incomeNow) - num(S.incomeThen)) * 100), 100)
     local tracker = S.incomeTracker
     tracker[#tracker + 1] = S.incomeLastSecond
     if #tracker > 10 then table.remove(tracker, 1) end
     S.sum = 0
     for i = 1, #tracker do
-        S.sum = round((S.sum + tracker[i]) * 100) / 100
+        S.sum = div(round((S.sum + tracker[i]) * 100), 100)
     end
     S.i = #tracker -- the loop uses the global i
-    S.trueAvgRev = S.sum / #tracker
-    local chanceOfPurchase = S.demand / 100
-    if chanceOfPurchase > 1 then chanceOfPurchase = 1 end
+    S.trueAvgRev = div(S.sum, #tracker)
+    -- demand is NaN at a zero price; comparisons follow JavaScript (NaN is false).
+    local chanceOfPurchase = div(S.demand, 100)
+    if gt(chanceOfPurchase, 1) then chanceOfPurchase = 1 end
     if S.unsoldClips < 1 then chanceOfPurchase = 0 end
     S.avgSales = chanceOfPurchase * (.7 * pow(S.demand, 1.15)) * 10
     S.avgRev = chanceOfPurchase * (.7 * pow(S.demand, 1.15)) * S.margin * 10
-    if S.demand > S.unsoldClips then
+    if gt(S.demand, S.unsoldClips) then
         S.avgRev = S.trueAvgRev
         S.avgSales = div(S.avgRev, S.margin)
     end
@@ -628,7 +630,7 @@ function Game:slowLoop()
     local S = self.S
     self:adjustWirePrice()
     if S.humanFlag == 1 then
-        if self.draw("main.js:4574:18") < (S.demand / 100) then
+        if lt(self.draw("main.js:4574:18"), div(S.demand, 100)) then
             self:sellClips(floor(.7 * pow(S.demand, 1.15)))
         end
         S.secTimer = S.secTimer + 1

@@ -31,6 +31,8 @@ end
 assert(total == #Expected.vectors and total > 1000)
 local digest, draws = Checks.workshop(ns)
 assert(digest == Expected.workshopDigest and draws == Expected.workshopDraws, digest .. " " .. draws)
+local floorDigest, floorDraws = Checks.workshopPriceFloor(ns)
+assert(floorDigest == Expected.priceFloorDigest and floorDraws == Expected.priceFloorDraws)
 for _, result in ipairs(Checks.environment(ns.JSMath)) do
     assert(type(result.name) == "string" and type(result.ok) == "boolean")
     -- Decimal parsing depends on the C runtime (the old 32-bit build misparses);
@@ -79,7 +81,8 @@ assert(env.TimeIsMoneyProbeDB.marker == "hello @12:00:00" and env.TimeIsMoneyPro
 slash("math")
 assert(last():find("math: exact", 1, true), last())
 slash("sim")
-assert(last():find("sim: matches offline Lua", 1, true), last())
+assert(messages[#messages - 1]:find("sim: matches offline Lua", 1, true), messages[#messages - 1])
+assert(last():find("sim zero price: digest .* matches offline Lua"), last())
 slash("bogus")
 assert(last():find("/timprobe env", 1, true))
 assert(rawget(env, "TimeIsMoneyDB") == nil)

@@ -6,6 +6,8 @@ ns = ns or {}
 ns.ProbeVectors = {
   workshopDigest = "e17f48a4",
   workshopDraws = 9198,
+  priceFloorDigest = "8fa831b4",
+  priceFloorDraws = 6344,
   vectors = {
     {"pow",{1072798105,2576980378},{3222536192,0},{1071898262,1694348075}},
     {"pow",{1072798105,2576980378},{3222274048,0},{1072028479,145795965}},

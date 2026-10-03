@@ -10,10 +10,25 @@ local NEG_ZERO = -tonumber("0")
 local JSMath = {}
 JSMath.NEG_ZERO = NEG_ZERO
 
--- WoW's embedded Lua raises "Division by zero" where C Lua returns infinity or
--- NaN, so nothing here divides by zero. NaN comes from infinity minus infinity.
+-- WoW's embedded Lua (measured on 1.60.1.70205) differs from C Lua for NaN and
+-- zero divisors: x / 0 and x % 0 raise "Division by zero", a NaN numerator raises
+-- "Numerator is not a number", and every comparison involving NaN is true (NaN ==
+-- 1, NaN < 1 and NaN > 1 all hold). Nothing here divides by zero or by NaN, and
+-- NaN is tested without relying on IEEE comparisons.
 local NAN = huge - huge
 JSMath.NAN = NAN
+
+-- NaN on either host: IEEE NaN is unequal to itself; WoW's NaN equals both 0 and 1,
+-- which no number does.
+local function isNaN(x)
+    return x ~= x or (x == 0 and x == 1)
+end
+JSMath.isNaN = isNaN
+if not (isNaN(NAN) and not isNaN(0) and not isNaN(huge)) then error("NaN detection failed on this host", 0) end
+
+-- JavaScript relational operators: false whenever either side is NaN.
+function JSMath.lt(a, b) return not isNaN(a) and not isNaN(b) and a < b end
+function JSMath.gt(a, b) return not isNaN(a) and not isNaN(b) and a > b end
 
 -- Sign of zero without 1/x: the first test that tells -0 from +0 on this host.
 local signTests = {
@@ -30,16 +45,18 @@ for _, test in ipairs(signTests) do
         break
     end
 end
--- Whether x is -0. If no test can see the sign, -0 is treated as +0.
+-- Whether x is -0. If no test can see the sign, -0 is treated as +0. (WoW's NaN
+-- equals 0, so NaN is excluded first.)
 local function isNegativeZero(x)
-    return x == 0 and negativeZeroTest ~= nil and negativeZeroTest(x)
+    return x == 0 and not isNaN(x) and negativeZeroTest ~= nil and negativeZeroTest(x)
 end
 JSMath.isNegativeZero = isNegativeZero
 
--- JavaScript division: x / ±0 is ±Infinity, or NaN for NAN and NaN / 0.
+-- JavaScript division: x / ±0 is ±Infinity; 0 / 0 and NaN operands give NaN.
 function JSMath.div(a, b)
+    if isNaN(a) or isNaN(b) then return NAN end -- NaN operands never reach a native division
     if b ~= 0 then return a / b end
-    if a ~= a or a == 0 then return NAN end
+    if a == 0 then return NAN end
     if (a < 0) ~= isNegativeZero(b) then return -huge end
     return huge
 end
@@ -55,7 +72,7 @@ end
 
 -- Math.round: nearest integer, ties toward +infinity, keeping -0 for [-0.5, -0].
 function JSMath.round(x)
-    if x ~= x or x == huge or x == -huge then return x end
+    if isNaN(x) or x == huge or x == -huge then return x end
     local r = floor(x)
     if x - r >= 0.5 then r = r + 1 end
     if r == 0 and (x < 0 or isNegativeZero(x)) then return NEG_ZERO end
@@ -183,9 +200,9 @@ end
 -- results within about 2^-90 of a rounding boundary. Special values follow
 -- ECMAScript Number::exponentiate. Measured against V8 in docs/reference/WORKSHOP.md.
 function JSMath.pow(x, y)
-    if y ~= y then return NAN end
+    if isNaN(y) then return NAN end
     if y == 0 then return 1 end
-    if x ~= x then return NAN end
+    if isNaN(x) then return NAN end
     local ax = x < 0 and -x or x
     if y == huge or y == -huge then
         if ax == 1 then return NAN end
@@ -240,7 +257,7 @@ local function toWords(x)
     local sign = (x < 0 or isNegativeZero(x)) and 1 or 0
     local a = sign == 1 and -x or x
     local e, mantissa
-    if a ~= a then
+    if isNaN(a) then
         e, mantissa = 2047, 2 ^ 51
     elseif a == huge then
         e, mantissa = 2047, 0
@@ -280,8 +297,8 @@ local function highWord(x)
     local sign = x < 0 or isNegativeZero(x)
     local a = sign and -x or x
     local hi
-    if a ~= a or a == huge then
-        hi = 2047 * 2 ^ 20 + (a ~= a and 2 ^ 19 or 0)
+    if isNaN(a) or a == huge then
+        hi = 2047 * 2 ^ 20 + (isNaN(a) and 2 ^ 19 or 0)
     elseif a == 0 then
         hi = 0
     else
@@ -636,7 +653,7 @@ end
 
 -- Number::toString (radix 10) with ECMAScript's plain and exponent layouts.
 function JSMath.toString(x)
-    if x ~= x then return "NaN" end
+    if isNaN(x) then return "NaN" end
     if x == 0 then return "0" end
     if x == huge then return "Infinity" end
     if x == -huge then return "-Infinity" end

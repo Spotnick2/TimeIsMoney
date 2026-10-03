@@ -128,6 +128,52 @@ function Checks.environment(JSMath)
     return results
 end
 
+-- NaN and infinity behavior of the host (WoW's Lua rejects some NaN arithmetic).
+-- Every operation is recorded as its value or its error.
+function Checks.nan()
+    local zero, inf = tonumber("0"), math.huge
+    local results = {}
+    local function measure(name, probe)
+        local ran, value = pcall(probe)
+        results[#results + 1] = name .. " -> " .. (ran and tostring(value) or ("error: " .. tostring(value)))
+    end
+    local n = math.fmod(5, zero)
+    measure("inf - inf", function() return inf - inf end)
+    measure("0 * inf", function() return zero * inf end)
+    measure("math.fmod(5, 0)", function() return n end)
+    measure("math.sqrt(-1)", function() return math.sqrt(-1) end)
+    measure("nan == nan", function() return n == n end)
+    measure("nan ~= nan", function() return n ~= n end)
+    measure("nan < 1", function() return n < 1 end)
+    measure("nan > 1", function() return n > 1 end)
+    measure("nan <= 1", function() return n <= 1 end)
+    measure("nan >= 1", function() return n >= 1 end)
+    measure("1 < nan", function() return 1 < n end)
+    measure("nan == 1", function() return n == 1 end)
+    measure("nan + 1", function() return n + 1 end)
+    measure("nan - 1", function() return n - 1 end)
+    measure("nan * 2", function() return n * 2 end)
+    measure("-nan", function() return -n end)
+    measure("nan / 2", function() return n / 2 end)
+    measure("2 / nan", function() return 2 / n end)
+    measure("nan % 2", function() return n % 2 end)
+    measure("2 % nan", function() return 2 % n end)
+    measure("nan ^ 2", function() return n ^ 2 end)
+    measure("math.floor(nan)", function() return math.floor(n) end)
+    measure("math.ceil(nan)", function() return math.ceil(n) end)
+    measure("math.abs(nan)", function() return math.abs(n) end)
+    measure("math.max(nan, 1)", function() return math.max(n, 1) end)
+    measure("math.frexp(nan)", function() return (math.frexp(n)) end)
+    measure("string.format %.17g nan", function() return string.format("%.17g", n) end)
+    measure("table key nan", function() local t = {} t[n] = 1 return "stored" end)
+    measure("inf / 2", function() return inf / 2 end)
+    measure("2 / inf", function() return 2 / inf end)
+    measure("inf * 0 == inf * 0", function() return inf * zero == inf * zero end)
+    measure("inf % 2", function() return inf % 2 end)
+    measure("math.floor(inf)", function() return math.floor(inf) end)
+    return results
+end
+
 -- Vectors: {fn, x, y, expected} with numbers as {hi, lo} words and toString
 -- results as text. Returns counts per function and the first mismatches.
 function Checks.math(vectors, JSMath)
@@ -165,6 +211,36 @@ function Checks.math(vectors, JSMath)
     return counts, failures
 end
 
+local function digest(game, draws, JSMath)
+    local snapshot = {}
+    for k, v in pairs(game.S) do if k ~= "grid" then snapshot[k] = v end end
+    return Checks.fnv1a(Checks.serialize({
+        state = snapshot, readouts = game.readouts, timers = game.clock:describe(), draws = draws,
+    }, JSMath))
+end
+
+local function golden(JSMath)
+    local PHI = JSMath.fromWords(0x3FE3C6EF, 0x372FE950) -- 0.6180339887498949
+    local random = { count = 0 }
+    function random:draw()
+        self.count = self.count + 1
+        return (self.count * PHI) % 1
+    end
+    return random
+end
+
+-- A zero price: demand becomes NaN (Infinity + Infinity * 0), so the sale roll and
+-- revenue comparisons take JavaScript's NaN paths.
+function Checks.workshopPriceFloor(ns)
+    local random = golden(ns.JSMath)
+    local game = ns.Workshop.new(random, {})
+    game.S.margin, game.S.unsoldClips = .02, 400
+    game:click("btnLowerPrice")
+    game:click("btnLowerPrice")
+    game:advanceTo(1500)
+    return digest(game, random.count, ns.JSMath), random.count
+end
+
 -- Runs the workshop simulation through a fixed plan and digests its final state.
 function Checks.workshop(ns)
     local JSMath, Workshop = ns.JSMath, ns.Workshop
@@ -187,12 +263,7 @@ function Checks.workshop(ns)
     game:click("btnQcompute")
     game:click("projectButton1")
     game:advanceTo(2500)
-    local snapshot = {}
-    for k, v in pairs(S) do if k ~= "grid" then snapshot[k] = v end end
-    local digest = Checks.fnv1a(Checks.serialize({
-        state = snapshot, readouts = game.readouts, timers = game.clock:describe(), draws = draws,
-    }, JSMath))
-    return digest, draws, S.ticks
+    return digest(game, draws, JSMath), draws, S.ticks
 end
 
 ns.Checks = Checks
