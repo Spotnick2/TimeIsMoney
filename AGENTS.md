@@ -11,7 +11,8 @@ it owns project facts, mechanics, layout, validation and workflow.
 - Global owner model/effort limits remain authoritative. A review skill's model
   recommendation does not authorize escalation. No automatic subagent delegation.
 - Issue -> branch off main -> PR with Closes #N -> owner-requested review ->
-  owner squash-merges. Do not merge or enable auto-merge.
+  owner squash-merges. Do not merge or enable auto-merge without the owner's
+  explicit approval; an owner request to merge is that approval.
 - Commit/push only when requested. This initialization request authorizes the
   initialization branch, commits, issue backlog and PR.
 
