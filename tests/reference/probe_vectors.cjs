@@ -66,9 +66,10 @@ function workshopDigest() {
     ].join("\n");
     const run=spawnSync(LUA,["-e",script],{cwd:ROOT,encoding:"utf8"});
     if (run.status!==0) throw new Error("Probe workshop run failed: "+run.stderr);
-    const [head,fieldText,floorText]=run.stdout.split("\n");
+    // Windows lua.exe writes CRLF; field pairs never contain whitespace.
+    const [head,fieldText,floorText]=run.stdout.split(/\r?\n/);
     const [digest,draws,floor,floorDraws]=head.trim().split(" ");
-    const parse=text=>text.split(";").filter(Boolean).map(pair=>pair.split("="));
+    const parse=text=>text.split(";").filter(pair=>pair.trim()!=="").map(pair=>pair.split("="));
     return {digest,draws:Number(draws),floor,floorDraws:Number(floorDraws),fields:parse(fieldText),floorFields:parse(floorText)};
 }
 

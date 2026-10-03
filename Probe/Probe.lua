@@ -1,7 +1,7 @@
 -- TimeIsMoneyProbe (issue #9): developer measurements in the Forever client.
 -- Commands: /timprobe env | math | sim | nan | icons | save <text> | status | all.
 -- Developer-only; not part of the TimeIsMoney addon or its package. It never
--- reads or writes TimeIsMoneyDB.
+-- writes TimeIsMoneyDB and only checks whether it exists.
 local ADDON, ns = ...
 local Checks, JSMath, Expected = ns.Checks, ns.JSMath, ns.ProbeVectors
 
@@ -88,6 +88,8 @@ local SPELL = { id = 2259, label = "Alchemy (profession spell)" }
 local ITEM_TIMEOUT = 10 -- seconds per item request
 
 local frame, rows, requestToken = nil, {}, 0
+-- One frame receives GET_ITEM_INFO_RECEIVED for all pending item requests.
+local itemWaiter, pendingItems = nil, {}
 
 local function Row(index)
     if rows[index] then return rows[index] end
@@ -110,33 +112,36 @@ end
 
 local function ShowItem(index, item, token)
     local started = GetTime()
-    local function Report(loaded)
+    local function Report(outcome)
         if token ~= requestToken then return end -- a newer request owns the rows
         local name = C_Item.GetItemNameByID(item.id)
         local fileID = C_Item.GetItemIconByID(item.id)
-        local state = loaded and string.format("loaded in %.1fs", GetTime() - started)
+        local elapsed = GetTime() - started
+        local state = outcome == "loaded" and string.format("loaded in %.1fs", elapsed)
+            or outcome == "failed" and string.format("load failed after %.1fs", elapsed)
             or ("not loaded after " .. ITEM_TIMEOUT .. "s")
         ShowRow(index, fileID, string.format("%s %d: %s [%s]", item.label, item.id, tostring(name), state))
     end
     if C_Item.IsItemDataCachedByID(item.id) then
-        Report(true)
+        Report("loaded")
         return
     end
-    local waiter = CreateFrame("Frame")
-    local done = false
-    waiter:RegisterEvent("GET_ITEM_INFO_RECEIVED")
-    waiter:SetScript("OnEvent", function(self, _, itemID, success)
-        if itemID ~= item.id or done then return end
-        done = true
-        self:UnregisterAllEvents()
-        Report(success)
-    end)
+    if not itemWaiter then
+        itemWaiter = CreateFrame("Frame")
+        itemWaiter:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+        itemWaiter:SetScript("OnEvent", function(_, _, itemID, success)
+            local report = pendingItems[itemID]
+            if not report then return end
+            pendingItems[itemID] = nil
+            report(success and "loaded" or "failed")
+        end)
+    end
+    pendingItems[item.id] = Report
     C_Item.RequestLoadItemDataByID(item.id)
     C_Timer.After(ITEM_TIMEOUT, function()
-        if done then return end
-        done = true
-        waiter:UnregisterAllEvents()
-        Report(false)
+        if pendingItems[item.id] ~= Report then return end
+        pendingItems[item.id] = nil
+        Report("timeout")
     end)
 end
 

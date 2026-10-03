@@ -260,9 +260,7 @@ local function toWords(x)
     local sign = (x < 0 or isNegativeZero(x)) and 1 or 0
     local a = sign == 1 and -x or x
     local e, mantissa
-    if isNaN(a) then
-        e, mantissa = 2047, 2 ^ 51
-    elseif a == huge then
+    if a == huge then
         e, mantissa = 2047, 0
     elseif a == 0 then
         e, mantissa = 0, 0
@@ -301,8 +299,8 @@ local function highWord(x)
     local sign = x < 0 or isNegativeZero(x)
     local a = sign and -x or x
     local hi
-    if isNaN(a) or a == huge then
-        hi = 2047 * 2 ^ 20 + (isNaN(a) and 2 ^ 19 or 0)
+    if a == huge then
+        hi = 2047 * 2 ^ 20
     elseif a == 0 then
         hi = 0
     else

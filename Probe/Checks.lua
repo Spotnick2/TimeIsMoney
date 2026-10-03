@@ -137,10 +137,14 @@ function Checks.nan()
         local ran, value = pcall(probe)
         results[#results + 1] = name .. " -> " .. (ran and tostring(value) or ("error: " .. tostring(value)))
     end
-    local n = math.fmod(5, zero)
+    local n = inf - inf
+    if not (n ~= n or (n == 0 and n == 1)) then
+        results[1] = "inf - inf did not produce NaN (" .. tostring(n) .. "); NaN rows skipped"
+        return results
+    end
     measure("inf - inf", function() return inf - inf end)
     measure("0 * inf", function() return zero * inf end)
-    measure("math.fmod(5, 0)", function() return n end)
+    measure("math.fmod(5, 0)", function() return math.fmod(5, zero) end)
     measure("math.sqrt(-1)", function() return math.sqrt(-1) end)
     measure("nan == nan", function() return n == n end)
     measure("nan ~= nan", function() return n ~= n end)
@@ -253,12 +257,7 @@ end
 -- Runs the workshop simulation through a fixed plan and digests its final state.
 function Checks.workshop(ns)
     local JSMath, Workshop = ns.JSMath, ns.Workshop
-    local PHI = JSMath.fromWords(0x3FE3C6EF, 0x372FE950) -- 0.6180339887498949
-    local draws = 0
-    local random = { draw = function()
-        draws = draws + 1
-        return (draws * PHI) % 1
-    end }
+    local random = golden(JSMath)
     local game = Workshop.new(random, {})
     local S = game.S
     S.compFlag, S.memory, S.standardOps, S.processors, S.trust = 1, 50, 50000, 29, 100
@@ -272,8 +271,8 @@ function Checks.workshop(ns)
     game:click("btnQcompute")
     game:click("projectButton1")
     game:advanceTo(2500)
-    local overall, fields = digest(game, draws, JSMath)
-    return overall, draws, S.ticks, fields
+    local overall, fields = digest(game, random.count, JSMath)
+    return overall, random.count, S.ticks, fields
 end
 
 ns.Checks = Checks

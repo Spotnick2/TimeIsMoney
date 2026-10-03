@@ -32,7 +32,7 @@ continuation and rendering are not implemented or verified by these observations
 
 A separate developer-only addon, **TimeIsMoneyProbe** (Probe/), installed by
 Tools/deploy_probe.ps1 into `AddOns\TimeIsMoneyProbe`. It is not in the
-TimeIsMoney TOC or package, and never reads or writes TimeIsMoneyDB. It loads the
+TimeIsMoney TOC or package; it never writes TimeIsMoneyDB and only checks whether it exists. It loads the
 Sim/ files with the client's embedded Lua, plus:
 
 - `/timprobe env`: build, interface and the double behavior the simulation

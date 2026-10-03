@@ -136,6 +136,12 @@ game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000
 local speed = game.S.creativitySpeed
 fails("verified processor count %(issue #24%)", game.addProc, game)
 assert(game.S.processors == Workshop.VERIFIED_PROCESSORS and game.S.creativitySpeed == speed)
+-- A battle with no ship alive keeps running, as in the reference (NaN centroid unused).
+local empty = Workshop.new(stub, {})
+for _, ship in ipairs(empty.S.ships) do ship.alive = false end
+empty:advanceTo(200)
+assert(empty.S.ships[1].framesDead == 10 and empty.S.i == empty.S.numShips)
+
 -- Project purchases: a button must be in the document; restart is refused (#23).
 local projects = Workshop.new(stub, {})
 local ok, message = pcall(projects.click, projects, "projectButton1")
