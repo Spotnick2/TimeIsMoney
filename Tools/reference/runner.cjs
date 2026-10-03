@@ -24,12 +24,12 @@ function inputs(cache = CACHE) {
         if (index.source_sha256[file.name] !== file.sha256) throw new Error("Inventory/source pin mismatch");
     return {lock,files,index,cache};
 }
-function config(source, random) {
+function config(source, random, cosmetic) {
     const stateNames = [...new Set(ORDER.flatMap(name => [
         ...source.index.sources[name].top_level_declarations,
         ...source.index.sources[name].implicit_global_write_candidates
     ].map(entry=>entry.name)))].sort();
-    return {stateNames,domIds:source.index.html_ids,random,maxCallbacks:2000,
+    return {stateNames,domIds:source.index.html_ids,random,cosmetic,maxCallbacks:2000,
             calls:["blink","hypnoDroneEvent","createBattle","save","load","refresh"]};
 }
 function load(trace, source = inputs()) {
@@ -47,41 +47,66 @@ function load(trace, source = inputs()) {
         if (!(id in global)) global[id] = global.document.getElementById(id);
     }
     global.location = {reload(){throw new Error("Reload requires an explicit future host decision");}};
-    const harness = Harness.create(global,config(source,trace.random));
+    const harness = Harness.create(global,config(source,trace.random,trace.cosmetic));
     for (const name of ORDER) vm.runInContext(source.files[name],context,{filename:name,timeout:5000});
-    return {global,harness,source};
+    return {global,harness,source,context};
 }
-function run(trace, source = inputs()) {
+// prepare(runner) may alter a loaded runner before the trace starts; tests use it
+// to inject deliberate divergences.
+function run(trace, source = inputs(), prepare = null) {
     const runner = load(trace,source);
+    if (prepare) prepare(runner);
     const result=runner.harness.run(trace);
     result.input={fixture:trace.fixture || {},commands:trace.commands || [],until:trace.until,
         random_sha256:sha256(JSON.stringify(trace.random)),trace_sha256:sha256(JSON.stringify(trace))};
     return {...runner,trace,result};
 }
-function report(result, source) {
-    return {schema:1,source_sha256:source.index.source_sha256,input:result.input,
-            checkpoints:result.checkpoints.map(({json,...meta})=>({...meta,sha256:sha256(json)})),
-            timerLog:result.timerLog,draws:result.draws,
+// Inventory scope for each observed file:line:column draw label.
+// The inventory records random calls by line; a label adds the column.
+const scopeCache=new WeakMap();
+function siteScope(site, source) {
+    if (!scopeCache.has(source.index)) {
+        const known={};
+        for (const file of ORDER) for (const call of source.index.sources[file].random_calls)
+            known[file+":"+call.line]=call.scope;
+        scopeCache.set(source.index,known);
+    }
+    const [file,line]=site.split(":");
+    return scopeCache.get(source.index)[file+":"+line] || null;
+}
+function drawSites(events, source) {
+    const counts={};
+    for (const event of events) if (event.action==="draw") {
+        counts[event.site] ??= {scope:siteScope(event.site,source),draws:0};
+        counts[event.site].draws++;
+    }
+    return counts;
+}
+// Trace document consumed by the first-divergence comparator. Full mode keeps
+// checkpoint JSON so state differences resolve to a field instead of a hash.
+function report(result, source, full = false) {
+    return {schema:Harness.TRACE_SCHEMA.version,source_sha256:source.index.source_sha256,input:result.input,
+            checkpoints:result.checkpoints.map(({json,...meta})=>({...meta,sha256:sha256(json),...(full ? {json} : {})})),
+            events:result.events,draws:result.draws,draw_sites:drawSites(result.events,source),
+            events_sha256:sha256(JSON.stringify(result.events)),
             final_sha256:sha256(JSON.stringify(Harness.encode(result.final)))};
 }
-function firstDifference(left,right,at="$") {
-    if (Object.is(left,right)) return null;
-    if (!left || !right || typeof left!=="object" || typeof right!=="object")
-        return {path:at,left,right};
-    const keys=[...new Set([...Object.keys(left),...Object.keys(right)])].sort();
-    for (const key of keys) {
-        const diff=firstDifference(left[key],right[key],at+"."+key);
-        if (diff) return diff;
-    }
-    return null;
+// Adds inventory scopes to the differing draw labels.
+function compare(left, right, source = null) {
+    const found=Harness.compareTraces(left,right);
+    if (found && source) for (const side of ["left","right"])
+        if (found[side]?.action==="draw") found[side]={...found[side],scope:siteScope(found[side].site,source)};
+    return found;
 }
-module.exports = {ROOT,CACHE,ORDER,sha256,inputs,config,load,run,report,firstDifference};
+const firstDifference=Harness.firstDifference;
+module.exports = {ROOT,CACHE,ORDER,sha256,inputs,config,load,run,report,compare,siteScope,firstDifference};
 
 if (require.main === module) {
     try {
-        if (process.argv.length !== 3) throw new Error("Usage: node Tools/reference/runner.cjs <trace.json>");
-        const trace=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
+        const args=process.argv.slice(2), full=args[0]==="--full";
+        if (args.length !== (full ? 2 : 1)) throw new Error("Usage: node Tools/reference/runner.cjs [--full] <trace.json>");
+        const trace=JSON.parse(fs.readFileSync(args.at(-1),"utf8"));
         const {result,source}=run(trace);
-        console.log(JSON.stringify(report(result,source),null,2));
+        console.log(JSON.stringify(report(result,source,full),null,full ? 0 : 2));
     } catch (error) { console.error(error.stack); process.exitCode=1; }
 }

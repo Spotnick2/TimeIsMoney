@@ -17,7 +17,7 @@ It fails if that cached runtime is absent; it does not download another dependen
 
 ~~~powershell
 python Tools/paperclips_reference.py fetch
-node --test tests/reference/runner.test.cjs
+node --test tests/reference/runner.test.cjs tests/reference/divergence.test.cjs
 node Tools/reference/check_browser.cjs
 ~~~
 
@@ -34,11 +34,13 @@ node -e "const fs=require('node:fs'), f=require('./tests/reference/traces.cjs');
 node Tools/reference/runner.cjs .tmp-paperclips/workshop-trace.json
 ~~~
 
-The report includes source hashes, fixture globals, commands/times, random-stream
-and input hashes, callback/command checkpoint hashes, registrations/cancellations,
-draw counts and the final state hash. Full checkpoint JSON remains available in
-the runner API and in the local browser diagnostic endpoint for first-field
-differences. It is not committed as a copy of the game's source/presentation.
+The report is a trace document (schema 2): source hashes, fixture globals,
+commands/times, random-stream and input hashes, callback/command checkpoint hashes,
+the ordered event log (registrations, cancellations, callbacks, labeled draws and
+checkpoints), per-site draw counts with inventory scopes and the final state hash.
+`--full` also embeds each checkpoint's JSON so a comparison can name the first
+differing field. Reports stay in the ignored cache; they are not committed copies
+of the game's source/presentation.
 
 ## Host behavior
 
@@ -102,8 +104,32 @@ tests/reference/traces.cjs expands an explicit eight-value repeat pattern into
 a **finite 60,000-value fixture stream**. It is not a seeded PRNG or native RNG;
 it does not wrap when exhausted. Initialization consumes 3,200 values through
 the constructor and initialization ship resets before later scripts load.
-Every checkpoint records consumed draws. Call-site labeling, shared PRNG design
-and Lua first-divergence comparisons remain issue #4.
+Every checkpoint records consumed draws. The specified shared PRNG that may later
+generate such streams is still undesigned; matching JavaScript and Lua native
+seeds would not be enough.
+
+Issue [#4](https://github.com/Spotnick2/TimeIsMoney/issues/4) labels every draw.
+The simulation stream logs a zero-based ordinal, logical time, value and call site
+as file:line:column of the first frame outside host.js (URL queries removed, so
+VM filenames and served scripts agree). Reports add the
+[inventory](inventory.json) scope for each site. Every observed site is
+inventoried. The traces cover combat initialization (Ship, createBattle),
+generated names (generateBattleName, generateSymbol/createStock), market,
+sales, tournament and grid draws. All source Math.random calls, names included,
+are simulation draws because the port must preserve their consumption.
+
+A separate **cosmetic** stream has its own ordinals and log and never enters the
+simulation event log. The pinned source has no cosmetic draws; the stream exists
+so later presentation effects cannot shift outcomes. A test draws cosmetic values
+during a command and gets the identical simulation trace.
+
+tests/reference/RecordedRandom.lua is the Lua side of the same contract. It reads
+the recorded stream document `{"schema":1,"stream":...,"values":[...]}`, labels
+each draw, refuses exhaustion and emits the same draw events. A Node test runs it
+under Lua 5.1 (TIM_LUA, default C:\Program Files (x86)\Lua\5.1\lua.exe). Edge
+doubles convert identically, and an extra Lua draw is found at its ordinal. It is
+developer tooling, not addon runtime code; the shipped RNG adapter and the Lua
+simulation that calls it belong to the workshop slices.
 
 A fixture can set known globals, project flags or strategy selection after
 ordinary source initialization. This is explicitly seeded developer state,
@@ -130,18 +156,67 @@ records the first field and both values. ECMAScript specifies
 [implementation-approximated exponentiation](https://tc39.es/ecma262/2025/multipage/ecmascript-data-types-and-values.html#sec-numeric-types-number-exponentiate).
 The runner preserves each runtime's arithmetic rather than replacing Math.pow,
 rounding persistent state or applying a broad epsilon. Exact Windows comparisons
-remain required. Cross-platform numerical/threshold evidence belongs in issue #4;
-these traces do not establish exact arithmetic on Linux or other JS engines.
+remain required; these traces do not establish exact arithmetic on Linux or other
+JS engines. The comparator reports a numeric difference's distance in doubles
+(state.p10f above is 1) as evidence, but **accepts no tolerance**. Any future
+exception needs its own change with a narrow path, a documented bound and a
+threshold test showing that no decision changes.
 
-SHA-256 checks locate a divergent checkpoint; the browser diagnostic then
-compares parsed state and reports the first differing field. The seven current
-cases compare all checkpoints exactly, with no numerical tolerance.
+## First-divergence comparison
+
+`node Tools/reference/compare.cjs <left.json> <right.json>` compares two trace
+documents from any runner (for example two `runner.cjs --full` reports). It exits
+0 when they agree, 1 at a divergence and 2 on bad input. The same compareTraces
+function in host.js runs in Node, in the native-browser probe and on the
+evidence server.
+
+Each document must have schema 2. Each checkpoint must have exactly one
+checkpoint event, in index order, so walking the events visits every checkpoint.
+A checkpoint compares by SHA-256 when both sides have one, otherwise by JSON.
+A pair with neither in common is refused (exit 2), not reported as a state
+divergence. Arrays never equal objects with the same keys, array lengths must
+match, and differing hashes are reported even if the field walk finds nothing. Source hashes compare by file, regardless of key order, and different
+hashes stop the comparison. Otherwise events are compared in order, so the
+earliest difference wins:
+
+- **draw**: an extra, missing or relabeled draw, or a different value, at its
+  ordinal. The scopes of both sites are included.
+- **timer**: a different registration, cancellation or callback (for example
+  the same due time firing in a different order).
+- **checkpoint**: different checkpoint metadata, such as a command or callback ID.
+- **state**: the first differing checkpoint field, with its category (resource,
+  flag, array, project, entity, value, pending-callback, draw-count, host-dom or
+  reference-storage) and distance in doubles. Hash-only documents report the
+  checkpoint and both hashes. The browser probe then fetches the Node JSON for
+  that checkpoint and names the field.
+- **length**: one trace ends early.
+
+Each result includes both source hashes and inputs (fixture, commands, end time,
+random/trace hashes), the last matched checkpoint and the eight preceding events
+on each side. host.js TRACE_SCHEMA (version 2) lists the emerging event fields,
+checkpoint sections, command forms and categories. It will grow as the port adds
+state; it is not a SavedVariables schema.
+
+tests/reference/divergence.test.cjs injects deliberate divergences into one
+runner. Each is reported at the first differing point:
+
+| Injection | Reported as |
+| --- | --- |
+| Extra draw inside the buyWire click handler | draw at ordinal 3,200, the injected.js site against the reference's next event |
+| Skipped adjustWirePrice branch | draw at main.js:704:14 (adjustWirePrice); the next reference draw arrives one ordinal early |
+| clipClick making one extra clip (no draws) | state $.state.clips (resource), 1 against 2, at the btnMakePaperclip checkpoint |
+| Reversed tie-break for equal due times | timer: callbacks 1 and 6 swap at t=80 |
+| Changed checkpoint, hashes only | state at checkpoint 5 with both hashes; with JSON, $.state.funds |
+
+A temporary local probe that added the same extra draw in native Chrome reported
+the same event and ordinal. That probe is not committed.
 
 ## Measured native-browser acceptance
 
 [browser-evidence.json](browser-evidence.json) records source/tool/input hashes,
-runtime versions, checkpoint totals, draw consumption, final hashes and native
-timer-order results. The automated probe serves verified bytes on loopback,
+runtime versions, checkpoint and event totals, draw consumption, the event-log
+hash (timer events plus labeled draws), final hashes and native timer-order
+results. The automated probe serves verified bytes on loopback,
 removes analytics/style/art requests, injects the logical host before gameplay,
 and executes all four gameplay scripts unchanged with a **native DOM**.
 It uses the same clock/random fixture so the comparison isolates host/VM
@@ -154,19 +229,24 @@ behavior. It does not independently prove native wall-clock timing.
 | cancellation | 106 | A blink interval fires twelve times, cancels itself, restores visibility and stays cancelled |
 | tournament | 285 | Selection, operations charge, alternating 50 ms callbacks, completion, results and Yomi reward |
 | range | 165 | Eight slider assignments: fractional tie/down rounding, empty/hex/newline fallback, bounds, exponent input and subsequent swarm read-back |
+| investment | 597 | Deposit, stockShop purchase, stock-symbol name generation and 19,362 labeled draws |
 | combat | 325 | 100 combat updates at 16 ms, ship/grid motion and nine million probe losses |
 | combat-nodraw | 325 | Same complete state and draws as combat with drawing suppressed |
 
-All 1,311 callback/command/setup/final checkpoints matched in the recorded run.
-Fourteen Node tests on the Windows profile cover deterministic repeats, native final-state expectations,
-timer rules, DOM lifecycle/selection, range sanitization/read-back, storage, numeric encoding, drawing
-independence, input exhaustion and evidence consistency. The Windows CI job repeats
-source retrieval, native-browser comparison and Node checks before its Lua/deploy
-checks. Linux retains original-byte, provenance, Lua, tooling and package checks.
+All 1,908 callback/command/setup/final checkpoints and all 46,398 events matched
+in the recorded run. The events include every draw's call-site label. Twelve
+first-divergence tests and fifteen runner tests on the Windows profile cover:
+deterministic repeats; native final-state and event-log expectations; timer rules;
+DOM lifecycle/selection; range sanitization/read-back; storage; numeric encoding;
+drawing independence; input exhaustion; and evidence consistency. The Windows CI
+job retrieves sources and runs the native-browser comparison, then builds Lua 5.1
+and runs the Node checks (the Lua stream test needs Lua) before its Lua/deploy
+checks. Linux keeps its original-byte, provenance, Lua (including
+test_recorded_random.lua), tooling and package checks.
 
-No in-game addon behavior, Lua translation, gameplay UI, persistence schema,
+No in-game addon behavior, Lua simulation, gameplay UI, persistence schema,
 full-campaign parity, media playback or native browser timing guarantee is
 implemented here. Upstream reuse terms remain unestablished; upstream bytes
 remain ignored local/CI developer inputs and are absent from the addon archive.
-Issue #4 and the workshop slices are the next implementation work after review
-and merge.
+The workshop slices (#5 onward) will emit this trace format from the Lua
+simulation and compare it with the reference.

@@ -86,9 +86,6 @@ jobs:
       - name: Compare reference adapter with installed Chromium
         shell: pwsh
         run: node Tools/reference/check_browser.cjs
-      - name: Test deterministic reference runner
-        shell: pwsh
-        run: node --test tests/reference/runner.test.cjs
       - name: Build declared Lua 5.1 toolchain
         shell: pwsh
         run: |
@@ -118,6 +115,9 @@ jobs:
           & cmd.exe /d /c $build
           if ($LASTEXITCODE -ne 0) { throw 'Lua MSVC build failed.' }
           "TIM_LUA=$(Join-Path $luaRoot 'src/lua.exe')" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Test deterministic reference runner and first-divergence comparison
+        shell: pwsh
+        run: node --test tests/reference/runner.test.cjs tests/reference/divergence.test.cjs
       - name: Execute Windows test runner
         shell: pwsh
         run: ./tests/run.ps1 -Lua $env:TIM_LUA
