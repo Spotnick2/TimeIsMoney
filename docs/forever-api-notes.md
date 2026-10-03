@@ -59,8 +59,8 @@ Results are recorded below with the build and date.
 
 ### Results — 2026-10-03, client 1.60.1.70205
 
-The client reported **1.60.1.70205**, interface 16001, Lua 5.1. That is newer than the
-1.60.1.70170 API evidence; the build-evidence update is separate work (/client-update).
+The client reported **1.60.1.70205**, interface 16001, Lua 5.1. That was newer than the
+1.60.1.70170 API evidence at the time; #40 moved the evidence to 70205.
 
 **WoW's embedded Lua differs from C Lua 5.1 for zero divisors and NaN.** Each line
 below was measured in the client under pcall:
@@ -198,9 +198,29 @@ TimeIsMoneyProbeDB. "The Barrens" is GetRealZoneText's zone for Ratchet.
 - **Mouse and layers:** window strata DIALOG, level 1, mouse enabled for dragging;
   both scenes level 2 with the mouse disabled.
 
+## API evidence 1.60.1.70205 (#40)
+
+The evidence moved from 1.60.1.70170 to 1.60.1.70205, the build measured in #9 and
+#10. Shared `..\AltStable\Tools\ForeverAPIDump\Compare-Dumps.ps1`:
+
+```
+## Documented functions - no change (6598)
+## Documented events - no change (1806)
+## Documented tables - no change (797)
+## Widget methods - no change (7530)
+## Namespace functions - no change (5417)
+## Global functions - +1 -6 (walks _G: addon noise, not listed)
+## Namespace candidates - +229 -137 (walks _G: addon noise, not listed)
+
+Documented surface identical.
+```
+
+No addon call, stub or fallback changes. The constant is evidence, not a measured
+claim; the 70205 measurements are the #9 and #10 sections above.
+
 ## Future probes
 
-Supplied API evidence: 1.60.1.70170, Interface 16001. Shared measurements from
+Supplied API evidence: 1.60.1.70205, Interface 16001. Shared measurements from
 AltStable and the canonical porting guide retain their own tested builds.
 
 Record date, actual GetBuildInfo result, runtime Lua/numeric observations,

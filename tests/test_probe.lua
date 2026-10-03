@@ -117,7 +117,7 @@ local function Widget(kind)
 end
 local env = {
     print = function(message) messages[#messages + 1] = message end,
-    GetBuildInfo = function() return "1.60.1", "70170", "Oct 1 2026", 16001 end,
+    GetBuildInfo = function() return "1.60.1", "70205", "Oct 2 2026", 16001 end,
     SlashCmdList = {}, string = string, math = math, table = table, pairs = pairs, ipairs = ipairs,
     tostring = tostring, pcall = pcall, type = type, _VERSION = _VERSION,
     date = function() return "12:00:00" end,
@@ -162,7 +162,7 @@ assert(messages[#messages - 2]:find("previous loadCount=2 %(nil = the file was n
 assert(messages[#messages - 1]:find("marker at load=before", 1, true))
 assert(last():find("TimeIsMoneyDB is untouched", 1, true))
 slash("save hello")
-assert(env.TimeIsMoneyProbeDB.marker == "hello @12:00:00" and env.TimeIsMoneyProbeDB.markerBuild == "1.60.1.70170")
+assert(env.TimeIsMoneyProbeDB.marker == "hello @12:00:00" and env.TimeIsMoneyProbeDB.markerBuild == "1.60.1.70205")
 slash("math")
 assert(last():find("math: exact", 1, true), last())
 slash("sim")
@@ -179,7 +179,7 @@ assert(messages[#messages - 1]:find("target Gazlowe: npc 3391, unit display 7002
 assert(last():find("goblin 7002: box after", 1, true), last())
 local recorded = env.TimeIsMoneyProbeDB.goblins[1]
 assert(recorded.npc == 3391 and recorded.display == 7002 and recorded.unitDisplay == 7002 and recorded.templateDisplay == 7001)
-assert(recorded.build == "1.60.1.70170" and recorded.zone == "Ratchet")
+assert(recorded.build == "1.60.1.70205" and recorded.zone == "Ratchet")
 local window = frames[2]
 assert(window.body.actor.display == 7002 and window.strip.actor.display == 7002 and window.portrait.portrait == 7002)
 assert(window.lookup.mouse == false, "the lookup model never takes the mouse")

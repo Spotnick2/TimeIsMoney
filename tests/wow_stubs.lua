@@ -1,11 +1,11 @@
--- Allowlist from forever-api-1.60.1.70170.md; no rendering/persistence claim.
+-- Allowlist from forever-api-1.60.1.70205.md; no rendering/persistence claim.
 local function New(saved)
     local captured = { frames = {}, messages = {} }
     local env = {
         TimeIsMoneyDB = saved, SlashCmdList = {}, _VERSION = _VERSION,
         tostring = tostring,
         print = function(message) captured.messages[#captured.messages + 1] = message end,
-        GetBuildInfo = function() return "1.60.1", "70170", "Oct 1 2026", 16001 end,
+        GetBuildInfo = function() return "1.60.1", "70205", "Oct 2 2026", 16001 end,
     }
     local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true }
     setmetatable(env, { __index = function(_, key)
