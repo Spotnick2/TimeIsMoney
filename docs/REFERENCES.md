@@ -39,7 +39,7 @@ Developer execution and native-DOM comparison: [reference runner](reference/RUNN
 
 | Local source | Scope |
 | --- | --- |
-| C:\Projects\References\forever-api-1.60.1.70170.md | Client API inventory: Interface 16001, WOW_PROJECT_ID 18; presence/signatures, not working behavior. |
+| C:\Projects\References\forever-api-1.60.1.70205.md | Client API inventory: Interface 16001, WOW_PROJECT_ID 18; presence/signatures, not working behavior. Documented surface identical to 1.60.1.70170 (Compare-Dumps, #40). |
 | C:\Projects\References\forever-consumables-1.60.1.70009.md | Client classID 0 consumables scan, not all items. Reaper kit 4391 and battery 274048 included. |
 | C:\Projects\References\forever-recipes-2026-09-30.md | Wowhead snapshot; client availability can differ. Matches 12 of the brief's 14 identities. |
 | C:\Projects\References\PORTING-TBC-TO-FOREVER.md | Canonical measured field notes, build-specific. Full client exit matters for persistence evidence. |

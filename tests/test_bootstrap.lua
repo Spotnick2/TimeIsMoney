@@ -40,7 +40,7 @@ assert(env.TimeIsMoneyDB == future and future.schema == 999 and future.progress.
 assert(env.SLASH_TIMEISMONEY1 == "/timeismoney")
 assert(env.SLASH_TIMEISMONEY2 == "/tim")
 env.SlashCmdList.TIMEISMONEY("  StAtUs  ")
-assert(captured.messages[#captured.messages]:find("1.60.1.70170", 1, true))
+assert(captured.messages[#captured.messages]:find("1.60.1.70205", 1, true))
 assert(captured.messages[#captured.messages]:find("16001", 1, true))
 env.SlashCmdList.TIMEISMONEY("help")
 assert(captured.messages[#captured.messages]:find("/timeismoney", 1, true))
