@@ -111,6 +111,28 @@ test("checkpoints are compared from either representation and malformed document
     assert.throws(()=>Harness.compareTraces({...baseline,schema:1},baseline),/left trace schema 1 is not supported/);
     assert.throws(()=>Harness.compareTraces(baseline,{schema:2}),/right trace needs events and checkpoints/);
 });
+test("arrays never equal objects with the same keys in full comparisons",()=>{
+    const doc=full(Traces.make("initialization"));
+    const substitute=(value,replacement)=>{
+        const changed=JSON.parse(JSON.stringify(doc)), point=changed.checkpoints[0], state=JSON.parse(point.json);
+        state.state.activeProjects=value; point.json=JSON.stringify(state); point.sha256=Runner.sha256(point.json);
+        const base=JSON.parse(JSON.stringify(doc)), basePoint=base.checkpoints[0], baseState=JSON.parse(basePoint.json);
+        baseState.state.activeProjects=replacement; basePoint.json=JSON.stringify(baseState);
+        basePoint.sha256=Runner.sha256(basePoint.json);
+        return Runner.compare(base,changed,source);
+    };
+    for (const [array,object] of [[[],{}],[[1],{0:1}]]) {
+        const found=substitute(object,array);
+        assert.deepEqual([found.kind,found.checkpoint,found.difference.path],["state",0,"$.state.activeProjects"]);
+        assert.equal(found.difference.category,"project");
+    }
+    assert.deepEqual(Harness.firstDifference([1,2],[1]),{path:"$.length",left:2,right:1});
+    assert.equal(Harness.firstDifference([1,{a:[]}],[1,{a:[]}]),null);
+    // A differing hash is never accepted, even when the JSON walk finds no field.
+    const odd=JSON.parse(JSON.stringify(doc)); odd.checkpoints[0].sha256="0".repeat(64);
+    const found=Runner.compare(doc,odd,source);
+    assert.deepEqual([found.kind,found.checkpoint,found.difference],["state",0,null]);
+});
 test("numeric differences are exact and report their distance in doubles",()=>{
     // The recorded Linux/Windows Math.pow difference in state.p10f is one step apart.
     const found=Harness.stateDifference({state:{p10f:190931795304.0943}},{state:{p10f:190931795304.09433}});

@@ -272,8 +272,12 @@
     }
     function firstDifference(left, right, at = "$") {
         if (Object.is(left, right)) return null;
-        if (!left || !right || typeof left !== "object" || typeof right !== "object")
+        if (!left || !right || typeof left !== "object" || typeof right !== "object" ||
+            Array.isArray(left) !== Array.isArray(right))
             return { path: at, left, right };
+        // An array and an object with the same keys differ; so do array lengths.
+        if (Array.isArray(left) && left.length !== right.length)
+            return { path: at + ".length", left: left.length, right: right.length };
         for (const key of [...new Set([...Object.keys(left), ...Object.keys(right)])].sort()) {
             const diff = firstDifference(left[key], right[key], at + "." + key);
             if (diff) return diff;
@@ -343,6 +347,9 @@
             } else if (pa.json !== undefined && pb.json !== undefined) {
                 const diff = pa.json === pb.json ? null : stateDifference(JSON.parse(pa.json), JSON.parse(pb.json));
                 if (diff) return found("state", { checkpoint: a.index, difference: diff });
+                // Never accept differing hashes, even if the field walk finds nothing.
+                if (hashed) return found("state", { checkpoint: a.index, difference: null,
+                    sha256: { left: pa.sha256, right: pb.sha256 } });
             } else if (hashed) {
                 return found("state", { checkpoint: a.index, difference: null,
                     sha256: { left: pa.sha256, right: pb.sha256 } });

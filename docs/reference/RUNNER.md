@@ -174,7 +174,8 @@ Each document must have schema 2. Each checkpoint must have exactly one
 checkpoint event, in index order, so walking the events visits every checkpoint.
 A checkpoint compares by SHA-256 when both sides have one, otherwise by JSON.
 A pair with neither in common is refused (exit 2), not reported as a state
-divergence. Source hashes compare by file, regardless of key order, and different
+divergence. Arrays never equal objects with the same keys, array lengths must
+match, and differing hashes are reported even if the field walk finds nothing. Source hashes compare by file, regardless of key order, and different
 hashes stop the comparison. Otherwise events are compared in order, so the
 earliest difference wins:
 
@@ -233,7 +234,7 @@ behavior. It does not independently prove native wall-clock timing.
 | combat-nodraw | 325 | Same complete state and draws as combat with drawing suppressed |
 
 All 1,908 callback/command/setup/final checkpoints and all 46,398 events matched
-in the recorded run. The events include every draw's call-site label. Eleven
+in the recorded run. The events include every draw's call-site label. Twelve
 first-divergence tests and fifteen runner tests on the Windows profile cover:
 deterministic repeats; native final-state and event-log expectations; timer rules;
 DOM lifecycle/selection; range sanitization/read-back; storage; numeric encoding;
