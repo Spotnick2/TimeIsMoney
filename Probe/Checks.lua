@@ -78,28 +78,53 @@ function Checks.serialize(value, JSMath)
     return table.concat(out)
 end
 
--- Runtime facts the simulation relies on. Each check is {name, ok, observed}.
+-- Runtime facts the simulation relies on. Each check is {name, ok, observed};
+-- every probe runs under pcall so one host error cannot hide the rest.
 function Checks.environment(JSMath)
     local W = JSMath.fromWords
     local results = {}
-    local function check(name, ok, observed) results[#results + 1] = { name = name, ok = ok, observed = observed } end
     local zero = tonumber("0")
-    check("Lua version", _VERSION == "Lua 5.1", tostring(_VERSION))
-    check("doubles: 2^53 + 1 rounds to 2^53", 2 ^ 53 + 1 == 2 ^ 53, tostring(2 ^ 53 + 1 == 2 ^ 53))
-    check("negative zero survives", 1 / (-zero) == -math.huge, tostring(1 / (-zero)))
-    check("NaN is unequal to itself", (zero / zero) ~= (zero / zero), "")
-    check("math.frexp/ldexp/fmod exist", type(math.frexp) == "function" and type(math.ldexp) == "function"
-        and type(math.fmod) == "function", "")
-    check("math.floor keeps 2^60", math.floor(2 ^ 60) == 2 ^ 60, "")
-    check("frexp/ldexp round-trip a subnormal", math.ldexp(math.frexp(W(0, 1))) == W(0, 1), "")
+    local function check(name, probe)
+        local ran, ok, observed = pcall(probe)
+        if not ran then ok, observed = false, "error: " .. tostring(ok) end
+        results[#results + 1] = { name = name, ok = ok and true or false, observed = tostring(observed or "") }
+    end
+    local function measure(name, probe) -- informational: records the outcome either way
+        local ran, value = pcall(probe)
+        results[#results + 1] = { name = name .. " (informational)", ok = true,
+            observed = ran and ("value " .. tostring(value)) or ("error: " .. tostring(value)) }
+    end
+    check("Lua version", function() return _VERSION == "Lua 5.1", _VERSION end)
+    check("doubles: 2^53 + 1 rounds to 2^53", function() return 2 ^ 53 + 1 == 2 ^ 53, "" end)
+    check("NaN from infinity minus infinity", function() return JSMath.NAN ~= JSMath.NAN, "" end)
+    check("signed zero is observable", function() return JSMath.signedZeroTest ~= nil, JSMath.signedZeroTest end)
+    check("JS division by zero", function()
+        return JSMath.div(1, zero) == math.huge and JSMath.div(-1, zero) == -math.huge
+            and JSMath.div(1, JSMath.NEG_ZERO) == -math.huge and JSMath.div(zero, zero) ~= JSMath.div(zero, zero), ""
+    end)
+    check("math.frexp/ldexp/fmod exist", function()
+        return type(math.frexp) == "function" and type(math.ldexp) == "function" and type(math.fmod) == "function", ""
+    end)
+    check("math.floor keeps 2^60", function() return math.floor(2 ^ 60) == 2 ^ 60, "" end)
+    check("frexp/ldexp round-trip a subnormal", function() return math.ldexp(math.frexp(W(0, 1))) == W(0, 1), "" end)
     -- Decimal parsing: the halfway case an older C runtime misrounded.
-    check("tonumber halfway case", tonumber("20614348053932190") == W(0x43524F28, 0xFB41FA28),
-        string.format("%.17g", tonumber("20614348053932190")))
-    check("tonumber 0.5400000000000001", tonumber("0.5400000000000001") == W(0x3FE147AE, 0x147AE149),
-        string.format("%.17g", tonumber("0.5400000000000001")))
-    -- Informational: C long width and the bit library, which the simulation avoids.
-    check("string.format %d of 2^31 (informational)", true, string.format("%d", 2 ^ 31))
-    check("bit library (informational)", true, type(bit))
+    check("tonumber halfway case", function()
+        local v = tonumber("20614348053932190")
+        return v == W(0x43524F28, 0xFB41FA28), string.format("%.17g", v)
+    end)
+    check("tonumber 0.5400000000000001", function()
+        local v = tonumber("0.5400000000000001")
+        return v == W(0x3FE147AE, 0x147AE149), string.format("%.17g", v)
+    end)
+    -- What the host refuses or returns; the simulation avoids these.
+    measure("1 / 0", function() return 1 / zero end)
+    measure("0 / 0", function() return zero / zero end)
+    measure("5 % 0", function() return 5 % zero end)
+    measure("math.fmod(5, 0)", function() return math.fmod(5, zero) end)
+    measure("tostring(-0)", function() return tostring(JSMath.NEG_ZERO) end)
+    measure("math.atan2(-0, -1)", function() return math.atan2(JSMath.NEG_ZERO, -1) end)
+    measure("string.format %d of 2^31", function() return string.format("%d", 2 ^ 31) end)
+    measure("bit library", function() return type(bit) end)
     return results
 end
 

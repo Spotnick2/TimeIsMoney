@@ -113,8 +113,8 @@ local function findCentroid(S)
             alive = alive + 1
         end
     end
-    x = x / alive
-    y = y / alive
+    x = ns.JSMath.div(x, alive)
+    y = ns.JSMath.div(y, alive)
     x = (x * 0.8) + (S.battleWIDTH / 2 * 0.2)
     y = (y * 0.8) + (S.battleHEIGHT / 2 * 0.2)
     return x, y

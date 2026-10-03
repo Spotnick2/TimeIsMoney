@@ -12,7 +12,7 @@ ns = ns or {}
 local JSMath, Scheduler, Battle = ns.JSMath, ns.Scheduler, ns.Battle
 local floor, ceil = math.floor, math.ceil
 local round, pow, num, undefined = JSMath.round, JSMath.pow, JSMath.num, JSMath.undefined
-local sin, log10 = JSMath.sin, JSMath.log10
+local sin, log10, div = JSMath.sin, JSMath.log10, JSMath.div
 
 function ns.Unported(what, issue)
     error("Unported reference path: " .. what .. " (issue " .. issue .. ")", 0)
@@ -308,7 +308,7 @@ function Game:calculateRev()
     S.avgRev = chanceOfPurchase * (.7 * pow(S.demand, 1.15)) * S.margin * 10
     if S.demand > S.unsoldClips then
         S.avgRev = S.trueAvgRev
-        S.avgSales = S.avgRev / S.margin
+        S.avgSales = div(S.avgRev, S.margin)
     end
 end
 
@@ -478,7 +478,7 @@ function Game:calculateCreativity()
     local creativityThreshold = 400
     local s = S.prestigeS / 10
     local ss = S.creativitySpeed + (S.creativitySpeed * s)
-    local creativityCheck = creativityThreshold / ss
+    local creativityCheck = div(creativityThreshold, ss)
     if S.creativityCounter >= creativityCheck then
         if creativityCheck >= 1 then S.creativity = S.creativity + 1 end
         if creativityCheck < 1 then S.creativity = (S.creativity + ss / creativityThreshold) end
@@ -507,7 +507,7 @@ function Game:qComp()
         local buffer = (S.memory * 1000) - S.standardOps
         local damper = (S.tempOps / 100) + 5
         if qq > buffer then
-            S.tempOps = S.tempOps + ceil(qq / damper) - buffer
+            S.tempOps = S.tempOps + ceil(div(qq, damper)) - buffer
             qq = buffer
             S.opFade = .01
             S.opFadeTimer = 0
@@ -612,7 +612,7 @@ function Game:mainLoop()
 
     if S.humanFlag == 1 then
         S.marketing = (pow(1.1, (S.marketingLvl - 1)))
-        S.demand = (((.8 / S.margin) * S.marketing * S.marketingEffectiveness) * S.demandBoost)
+        S.demand = (((div(.8, S.margin)) * S.marketing * S.marketingEffectiveness) * S.demandBoost)
         S.demand = S.demand + ((S.demand / 10) * S.prestigeU)
     end
 

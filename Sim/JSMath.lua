@@ -10,12 +10,46 @@ local NEG_ZERO = -tonumber("0")
 local JSMath = {}
 JSMath.NEG_ZERO = NEG_ZERO
 
+-- WoW's embedded Lua raises "Division by zero" where C Lua returns infinity or
+-- NaN, so nothing here divides by zero. NaN comes from infinity minus infinity.
+local NAN = huge - huge
+JSMath.NAN = NAN
+
+-- Sign of zero without 1/x: the first test that tells -0 from +0 on this host.
+local signTests = {
+    { "math.atan2", function(x) return math.atan2(x, -1) < 0 end },
+    { "tostring", function(x) return tostring(x) == "-0" end },
+    { "division", function(x) return 1 / x < 0 end },
+}
+local negativeZeroTest
+for _, test in ipairs(signTests) do
+    local okNeg, neg = pcall(test[2], NEG_ZERO)
+    local okPos, pos = pcall(test[2], tonumber("0"))
+    if okNeg and okPos and neg == true and pos == false then
+        negativeZeroTest, JSMath.signedZeroTest = test[2], test[1]
+        break
+    end
+end
+-- Whether x is -0. If no test can see the sign, -0 is treated as +0.
+local function isNegativeZero(x)
+    return x == 0 and negativeZeroTest ~= nil and negativeZeroTest(x)
+end
+JSMath.isNegativeZero = isNegativeZero
+
+-- JavaScript division: x / ±0 is ±Infinity, or NaN for NAN and NaN / 0.
+function JSMath.div(a, b)
+    if b ~= 0 then return a / b end
+    if a ~= a or a == 0 then return NAN end
+    if (a < 0) ~= isNegativeZero(b) then return -huge end
+    return huge
+end
+
 -- JavaScript's undefined, kept distinct from nil so state tables keep the key.
 -- Arithmetic sites convert it explicitly with JSMath.num (undefined -> NaN).
 JSMath.undefined = setmetatable({}, { __tostring = function() return "undefined" end })
 
 function JSMath.num(value)
-    if value == JSMath.undefined then return 0 / 0 end
+    if value == JSMath.undefined then return NAN end
     return value
 end
 
@@ -24,7 +58,7 @@ function JSMath.round(x)
     if x ~= x or x == huge or x == -huge then return x end
     local r = floor(x)
     if x - r >= 0.5 then r = r + 1 end
-    if r == 0 and (x < 0 or 1 / x < 0) then return NEG_ZERO end
+    if r == 0 and (x < 0 or isNegativeZero(x)) then return NEG_ZERO end
     return r
 end
 
@@ -149,12 +183,12 @@ end
 -- results within about 2^-90 of a rounding boundary. Special values follow
 -- ECMAScript Number::exponentiate. Measured against V8 in docs/reference/WORKSHOP.md.
 function JSMath.pow(x, y)
-    if y ~= y then return 0 / 0 end
+    if y ~= y then return NAN end
     if y == 0 then return 1 end
-    if x ~= x then return 0 / 0 end
+    if x ~= x then return NAN end
     local ax = x < 0 and -x or x
     if y == huge or y == -huge then
-        if ax == 1 then return 0 / 0 end
+        if ax == 1 then return NAN end
         if (ax > 1) == (y > 0) then return huge end
         return 0
     end
@@ -164,11 +198,11 @@ function JSMath.pow(x, y)
         return isOddInteger(y) and NEG_ZERO or 0
     end
     if x == 0 then
-        local negativeZero = 1 / x < 0
+        local negativeZero = isNegativeZero(x)
         if y > 0 then return (negativeZero and isOddInteger(y)) and NEG_ZERO or 0 end
         return (negativeZero and isOddInteger(y)) and -huge or huge
     end
-    if x < 0 and not isInteger(y) then return 0 / 0 end
+    if x < 0 and not isInteger(y) then return NAN end
     if y == 1 then return x end
     if ax == 1 then return (x < 0 and isOddInteger(y)) and -1 or 1 end
 
@@ -203,7 +237,7 @@ end
 -- IEEE-754 words for fdlibm ports: signed high word and unsigned low word, as in
 -- EXTRACT_WORDS. Lua 5.1 has no bit library, so this uses frexp/ldexp.
 local function toWords(x)
-    local sign = (x < 0 or (x == 0 and 1 / x < 0)) and 1 or 0
+    local sign = (x < 0 or isNegativeZero(x)) and 1 or 0
     local a = sign == 1 and -x or x
     local e, mantissa
     if a ~= a then
@@ -230,7 +264,7 @@ local function fromWords(hi, lo)
     local mantissa = (hi % 2 ^ 20) * 2 ^ 32 + lo
     local value
     if e == 2047 then
-        value = mantissa == 0 and huge or 0 / 0
+        value = mantissa == 0 and huge or NAN
     elseif e == 0 then
         value = ldexp(mantissa, -1074)
     else
@@ -243,7 +277,7 @@ JSMath.toWords, JSMath.fromWords = toWords, fromWords
 
 -- The signed high word alone (sign, exponent and top 20 mantissa bits).
 local function highWord(x)
-    local sign = x < 0 or (x == 0 and 1 / x < 0)
+    local sign = x < 0 or isNegativeZero(x)
     local a = sign and -x or x
     local hi
     if a ~= a or a == huge then
@@ -405,7 +439,7 @@ local function ieeeLog(x)
     local k = 0
     if hx < 0x00100000 then
         if abs31(hx) == 0 and lx == 0 then return -huge end
-        if hx < 0 then return 0 / 0 end
+        if hx < 0 then return NAN end
         k = k - 54
         x = x * two54
         hx, lx = toWords(x)
@@ -449,7 +483,7 @@ function JSMath.log10(x)
     local k = 0
     if hx < 0x00100000 then
         if abs31(hx) == 0 and lx == 0 then return -huge end
-        if hx < 0 then return 0 / 0 end
+        if hx < 0 then return NAN end
         k = k - 54
         x = x * two54
         hx, lx = toWords(x)
@@ -632,7 +666,7 @@ local function stringToNumber(text)
         local value = 0
         for c in digits:gmatch(".") do
             local d = tonumber(c, 36)
-            if not d or d >= base then return 0 / 0 end
+            if not d or d >= base then return NAN end
             value = value * base + d
         end
         return value
@@ -640,17 +674,17 @@ local function stringToNumber(text)
     local body = trimmed:match("^[+-]?(.*)$")
     local mantissa = body:match("^(%d+%.?%d*)[eE][+-]?%d+$") or body:match("^(%.%d+)[eE][+-]?%d+$")
         or body:match("^(%d+%.?%d*)$") or body:match("^(%.%d+)$")
-    if not mantissa then return 0 / 0 end
+    if not mantissa then return NAN end
     return tonumber(trimmed)
 end
 
 function JSMath.toNumber(v)
     if type(v) == "number" then return v end
-    if v == JSMath.undefined then return 0 / 0 end
+    if v == JSMath.undefined then return NAN end
     if type(v) == "string" then return stringToNumber(v) end
     if v == true then return 1 end
     if v == false then return 0 end
-    return 0 / 0
+    return NAN
 end
 
 ns.JSMath = JSMath

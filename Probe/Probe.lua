@@ -27,8 +27,12 @@ end
 
 local function Math()
     local started = debugprofilestop()
-    local counts, failures = Checks.math(Expected.vectors, JSMath)
+    local ran, counts, failures = pcall(Checks.math, Expected.vectors, JSMath)
     local elapsed = debugprofilestop() - started
+    if not ran then
+        Print("math: ERROR " .. tostring(counts))
+        return
+    end
     local total, bad = 0, 0
     for name, c in pairs(counts) do
         total, bad = total + c[1], bad + c[2]
