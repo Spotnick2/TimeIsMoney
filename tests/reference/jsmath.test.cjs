@@ -25,14 +25,14 @@ function parse(s) {
 }
 
 // Evaluates [name, x, y?] cases with Sim/JSMath.lua and returns the results.
-function luaMath(cases) {
+function luaMath(cases, keepText=false) {
     const dir=fs.mkdtempSync(path.join(os.tmpdir(),"tim-math-"));
     try {
         const input=path.join(dir,"cases.txt"), output=path.join(dir,"results.txt");
-        fs.writeFileSync(input,cases.map(([name,x,y])=>name+" "+text(x)+(y===undefined ? "" : " "+text(y))).join("\n")+"\n");
+        fs.writeFileSync(input,cases.map(([name,x,y])=>name+" "+text(x)+(y===undefined ? "" : " "+(typeof y==="string" ? y : text(y)))).join("\n")+"\n");
         const run=spawnSync(LUA,[path.join(__dirname,"lua_math_probe.lua"),input,output],{encoding:"utf8"});
         assert.equal(run.status,0,run.stderr);
-        const results=fs.readFileSync(output,"utf8").trim().split("\n").map(parse);
+        const results=fs.readFileSync(output,"utf8").replace(/\n$/,"").split("\n").map(line=>line.startsWith("=") ? line.slice(1) : parse(line));
         assert.equal(results.length,cases.length);
         return results;
     } finally { fs.rmSync(dir,{recursive:true,force:true}); }
@@ -145,4 +145,42 @@ test("a one-step pow difference cannot change sale quantities and stays within t
     }
     assert.ok(maxSales<=bound["$.state.avgSales"] && maxRev<=bound["$.state.avgRev"]);
     t.diagnostic("neighbor cases "+cases+"; max steps avgSales "+maxSales+", avgRev "+maxRev);
+});
+
+test("Number::toString matches V8 exactly without the C library",t=>{
+    let seed=11;
+    const rnd=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648;};
+    const values=[0.5400000000000001,0.51,1,100,1e21,1.5e21,123456789012345680000,1e-7,1.5e-7,1e-6,1.2e-6,-0.5,
+        5e-324,2.2250738585072014e-308,1.7976931348623157e308,0.1+0.2,1/3,-1234567.891,2**53+2,2**60,1e23,
+        12823867.7978515625,-497002601623535170];
+    let threshold=.5;
+    for (let k=0;k<200;k++) { threshold=threshold+.01; values.push(threshold); } // stockGainThreshold
+    for (let i=0;i<6000;i++) values.push((rnd()-0.5)*Math.pow(10,Math.floor(rnd()*60-30)));
+    for (let i=0;i<2000;i++) values.push(Math.floor(rnd()*1e6)/100);
+    for (let i=0;i<1000;i++) values.push(Math.pow(2,Math.floor(rnd()*2000-1074)));
+    const results=luaMath(values.map(x=>["toString",x]));
+    values.forEach((x,i)=>assert.equal(results[i],String(x),"toString("+x+")"));
+    t.diagnostic("exact cases: "+values.length);
+});
+
+test("formatWithCommas matches the reference function",()=>{
+    const Runner=require("../../Tools/reference/runner.cjs"), Workshop=require("./workshop.cjs");
+    const reference=Runner.load(Workshop.make("milestones"),Runner.inputs()).global.formatWithCommas;
+    const values=[0,1,999,1000,-1000,12345.678,123456789,123454288.25,-2500.75,1e21,1.5e21,2.5e22,1234.5,0.001,
+        999.999,1000000.5,NaN,1e-7,987654321.123];
+    const cases=[];
+    for (const x of values) for (const decimal of [undefined,0,2]) cases.push(["formatWithCommas",x,decimal===undefined ? undefined : String(decimal)]);
+    const results=luaMath(cases);
+    cases.forEach(([,x,decimal],i)=>{
+        const expected=decimal===undefined ? reference(x) : reference(x,Number(decimal));
+        assert.equal(results[i],expected,"formatWithCommas("+x+", "+decimal+")");
+    });
+});
+
+test("Math.pow(level, Math.E) matches V8 for every investment level below the verified bound",()=>{
+    const bound=967, list=[];
+    for (let n=1;n<=bound+1;n++) list.push(["pow",n,Math.E]);
+    const results=luaMath(list);
+    for (let n=1;n<=bound;n++) assert.ok(Object.is(results[n-1],Math.pow(n,Math.E)),"pow("+n+", e)");
+    assert.equal(ulps(results[bound],Math.pow(bound+1,Math.E)),1,"first known difference");
 });

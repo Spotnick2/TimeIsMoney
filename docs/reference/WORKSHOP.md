@@ -1,7 +1,8 @@
 # Pure-Lua workshop slice
 
-Issues [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5) and
-[#6](https://github.com/Spotnick2/TimeIsMoney/issues/6). This is the first port of
+Issues [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5),
+[#6](https://github.com/Spotnick2/TimeIsMoney/issues/6) and
+[#7](https://github.com/Spotnick2/TimeIsMoney/issues/7). This is the first port of
 the [pinned reference](README.md) into the pure-Lua simulation layer (`Sim/`). The simulation has no WoW globals, frames, clocks, I/O or native
 randomness. It is parity-tested outside the game and is **not yet in the TOC or
 the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
@@ -14,7 +15,9 @@ the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
 | Sim/JSMath.lua | JavaScript number semantics: `undefined`, Math.round, `%`, a pure-Lua Math.pow, and the fdlibm Math.sin and Math.log10 that V8 uses |
 | Sim/Scheduler.lua | The reference host's logical timer queue (due time, then a stable ordinal; intervals requeue after their callback) |
 | Sim/Battle.lua | The always-running battle core from combat.js |
-| Sim/Workshop.lua | The phase-one workshop and computation, the seven reference intervals and the click commands |
+| Sim/Workshop.lua | The phase-one workshop and computation, the seven reference intervals, formatWithCommas and the click and select commands |
+| Sim/Investments.lua | The investment engine (#7) |
+| Sim/Strategy.lua | Strategic modeling and tournaments (#7) |
 
 State uses the reference global names, formulas and statement order: `clips`
 (lifetime production), `unusedClips` (spendable stock) and `unsoldClips`
@@ -44,6 +47,26 @@ State uses the reference global names, formulas and statement order: `clips`
   - qComp: overflow into temporary Operations, including the reference's
     negative tempOps on overflow, and the negative-Operations path when the chip
     sum is negative.
+- **Investments (#7):**
+  - deposits and withdrawals (the ledger);
+  - stockShop budgets and reserves for each risk level;
+  - createStock with generated symbols and roll-based prices;
+  - price updates with gains, losses and the zero-price rescue roll;
+  - sales once sellDelay reaches 5;
+  - the risk select, read every 100 ms;
+  - engine upgrades with `Math.pow(level, Math.E)` costs;
+  - the lifetime report.
+- **Strategy (#7):**
+  - tournaments: the payoff grid, then each round of ten moves joined by two
+    chained 50 ms timeouts;
+  - all eight strategies' moves (RANDOM, A100, B100, GREEDY, GENEROUS, MINIMAX,
+    TIT FOR TAT, BEAT LAST);
+  - scoring, winner, place and show;
+  - Yomi for the picked strategy, with the reference's message text;
+  - the strategy picker (a string value) and automatic tournaments while results
+    are shown.
+  - Strategy purchases are project effects (#8). Traces use the host's strategies
+    fixture.
 - **Projects:** project availability (manageProjects) for every trigger that reads
   state this slice changes, in projects.js registration order. This includes the
   shared blinkCounter and the 30 ms blink intervals. Project purchases and
@@ -66,7 +89,8 @@ Reference paths outside the slice raise
 
 | Path | Issue |
 | --- | --- |
-| Stock purchases, sales and valuation, investment report, automatic tournaments, strategy selection | #7 |
+| Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #8 |
+| Tournament placing bonuses (project128) | #14 |
 | Project purchases and project-dependent milestones | #8 |
 | Planetary production and phase-two controls (`humanFlag == 0`) | #11 |
 | exploreUniverse and probe functions | #14 |
@@ -74,6 +98,7 @@ Reference paths outside the slice raise
 | Ending sequence and dismantling clicks | #17 |
 | Reference auto-save (after 25 s) | #19 |
 | addProc beyond 3,424 processors, where Math.pow(n, 1.1) first differs from V8 | #24 |
+| investUpgrade at level 967 and beyond, where Math.pow(level + 1, Math.E) first differs from V8 (at 968) | #24 |
 | Math.sin of arguments beyond 2²⁰·π/2 (about 1,647,099; the quantum clock reaches it after about 19 days) | #24 |
 
 ## JavaScript semantics in Lua
@@ -139,6 +164,18 @@ Reference paths outside the slice raise
   not covered by this claim. The reduction includes fdlibm's npio2_hw quick
   path, and jsmath.test.cjs covers arguments one or more high words away from
   n·π/2.
+- **Number::toString and formatWithCommas:** messages print numbers, for
+  example 0.5 + 0.01 + 0.01 + 0.01 as `0.5400000000000001`. C printf rounds exact
+  halves differently, and the older C runtime's strtod accepts wrong round-trips.
+  JSMath.toString therefore generates the shortest digits exactly
+  (Steele–White/Dragon4) with small big integers, and lays them out with
+  ECMAScript's plain and exponent rules. It matches V8 in all 9,223 tested cases,
+  including subnormals, huge values and exact ties. formatWithCommas matches the
+  reference function in its VM, including the quirk where 1e21 becomes
+  "1e+21,000,000,000,000,000,000,000".
+- **String keys:** `pick` holds the select's string value. `pick < 10` converts it
+  to a number, but `strats[pick]` is a property lookup, so `"0"` names the first
+  strategy while `""` and `"00"` name nothing.
 - **creativitySpeed:** `log10(n) * pow(n, 1.1) + n - 1` for an integer processor
   count. log10 is exact. The correctly rounded pow matches V8 for every count up
   to 3,424 (tested); V8 first differs at 3,425. Creativity drives project
@@ -153,8 +190,10 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines sixteen traces with an explicit equidistributed
-stream: the fractional part of i × 0.6180339887498949, recorded into the trace.
+tests/reference/workshop.cjs defines twenty-seven traces with an explicit equidistributed
+stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
+the trace. Longer traces use longer streams. A few investment traces use an
+offset so the 25 % purchase rolls succeed within seconds.
 The #4 repeat pattern never draws below 0.06, so it would never sell at the
 default 5 % sale probability.
 
@@ -182,6 +221,14 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | opFade | Temporary Operations fading after opFadeDelay, with the accelerating fade | match |
 | quantumOverflow | Seven chips oscillating every tick; qComp fills to the memory cap and overflows. The reference leaves a negative tempOps on the first overflow | match |
 | quantumNegative | A −7.1 chip sum drains about 2,550 Operations per click. Operations fall below −12,000, unlock the recovery project, and refill slowly | match |
+| investments | A deposit, three stockShop purchases with generated symbols, price updates with gains and losses, a medium-risk select and a second deposit | match |
+| investmentSale | A purchase sold once sellDelay reaches 5 | match |
+| investmentRisk | High risk spends the whole bankroll; an unknown risk value empties the select (still high risk); withdrawal | match |
+| investUpgrade | Two upgrades before the next tick overspend Yomi (−258); messages "…now 0.51" and "…now 0.52"; then the control disables | match |
+| investReport | Lifetime report "$123,454,288" through formatWithCommas | match |
+| tourneyGreedy, tourneyMinimax, tourneyBeatLast, tourneyFixed | Two-strategy tournaments covering all eight moves. Each runs 4 rounds × 10 moves on the timer chain and awards Yomi with the message; Run stays disabled while running | match |
+| autoTourney | A finished tournament with shown results starts the next after 300 ticks | match |
+| noPick | Without a picked strategy, the tournament finishes with no Yomi and no results flag | match |
 
 The reference VM mutates fixture objects such as qChips. The host therefore
 clones fixture values, so the report records the fixture as injected and the Lua

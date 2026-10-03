@@ -114,7 +114,7 @@ assert(#game.clock:describe() == 7)
 game:click("btnMakePaperclip")
 game:advanceTo(2000)
 assert(game.S.clips == 1 and game.S.ticks == 200)
-fails("Unported reference path: control btnNewTournament", game.click, game, "btnNewTournament")
+fails("Unported reference path: control btnMakeFactory", game.click, game, "btnMakeFactory")
 
 -- addProc refuses to cross the verified processor count before changing state.
 game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000

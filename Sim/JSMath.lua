@@ -456,5 +456,165 @@ function JSMath.log10(x)
     return z + y * log10_2hi
 end
 
+-- Exact shortest decimal digits (Steele-White free-format / Dragon4) with small
+-- base-10^7 big integers, so Number::toString never depends on the C library's
+-- printf rounding or strtod.
+local BASE = 10000000
+local function big(n) -- n: nonnegative integer below 2^53
+    local t = {}
+    repeat
+        t[#t + 1] = n % BASE
+        n = floor(n / BASE)
+    until n == 0
+    return t
+end
+local function bigMulSmall(a, m)
+    local carry = 0
+    for i = 1, #a do
+        local v = a[i] * m + carry
+        a[i] = v % BASE
+        carry = floor(v / BASE)
+    end
+    while carry > 0 do
+        a[#a + 1] = carry % BASE
+        carry = floor(carry / BASE)
+    end
+    return a
+end
+local function bigCopy(a) local t = {} for i = 1, #a do t[i] = a[i] end return t end
+local function bigCompare(a, b)
+    local na, nb = #a, #b
+    while na > 1 and a[na] == 0 do na = na - 1 end
+    while nb > 1 and b[nb] == 0 do nb = nb - 1 end
+    if na ~= nb then return na < nb and -1 or 1 end
+    for i = na, 1, -1 do
+        if a[i] ~= b[i] then return a[i] < b[i] and -1 or 1 end
+    end
+    return 0
+end
+local function bigAdd(a, b) -- new value a + b
+    local t, carry = {}, 0
+    for i = 1, math.max(#a, #b) do
+        local v = (a[i] or 0) + (b[i] or 0) + carry
+        t[i] = v % BASE
+        carry = floor(v / BASE)
+    end
+    if carry > 0 then t[#t + 1] = carry end
+    return t
+end
+local function bigSub(a, b) -- a := a - b, requires a >= b
+    local borrow = 0
+    for i = 1, #a do
+        local v = a[i] - (b[i] or 0) - borrow
+        if v < 0 then v = v + BASE; borrow = 1 else borrow = 0 end
+        a[i] = v
+    end
+    return a
+end
+local function bigPow2(a, n) for _ = 1, n do bigMulSmall(a, 2) end return a end
+
+-- Returns the shortest digit string d1..dk and n with value = 0.d1..dk * 10^n,
+-- choosing the closest such string (ties to an even last digit).
+local function shortestDigits(x)
+    local hi, lo = toWords(x)
+    local e = floor(abs31(hi) / 2 ^ 20) % 2048
+    local mantissa = (abs31(hi) % 2 ^ 20) * 2 ^ 32 + lo
+    local exponent
+    if e == 0 then exponent = -1074 else mantissa = mantissa + 2 ^ 52; exponent = e - 1075 end
+    local even = mantissa % 2 == 0
+    local r, s, mPlus, mMinus
+    if exponent >= 0 then
+        local be = bigPow2(big(1), exponent)
+        if mantissa ~= 2 ^ 52 then
+            r = bigMulSmall(bigPow2(big(mantissa), exponent), 2)
+            s = big(2)
+            mPlus, mMinus = be, bigCopy(be)
+        else
+            r = bigMulSmall(bigPow2(big(mantissa), exponent), 4)
+            s = big(4)
+            mPlus, mMinus = bigMulSmall(bigCopy(be), 2), be
+        end
+    else
+        if e <= 1 or mantissa ~= 2 ^ 52 then
+            r = bigMulSmall(big(mantissa), 2)
+            s = bigPow2(big(1), 1 - exponent)
+            mPlus, mMinus = big(1), big(1)
+        else
+            r = bigMulSmall(big(mantissa), 4)
+            s = bigPow2(big(1), 2 - exponent)
+            mPlus, mMinus = big(2), big(1)
+        end
+    end
+    -- Scale so that the first digit is generated next.
+    local k = math.ceil(math.log10(x) - 1e-10)
+    if k >= 0 then
+        for _ = 1, k do bigMulSmall(s, 10) end
+    else
+        for _ = 1, -k do bigMulSmall(r, 10); bigMulSmall(mPlus, 10); bigMulSmall(mMinus, 10) end
+    end
+    local function high(rr) local c = bigCompare(bigAdd(rr, mPlus), s) return even and c >= 0 or c > 0 end
+    while high(r) do bigMulSmall(s, 10); k = k + 1 end
+    local function highScaled()
+        local c = bigCompare(bigMulSmall(bigAdd(r, mPlus), 10), s)
+        return even and c >= 0 or c > 0
+    end
+    while not highScaled() do
+        bigMulSmall(r, 10); bigMulSmall(mPlus, 10); bigMulSmall(mMinus, 10); k = k - 1
+    end
+    local digits = {}
+    while true do
+        bigMulSmall(r, 10); bigMulSmall(mPlus, 10); bigMulSmall(mMinus, 10)
+        local d = 0
+        while bigCompare(r, s) >= 0 do bigSub(r, s); d = d + 1 end
+        local cl = bigCompare(r, mMinus)
+        local low = even and cl <= 0 or cl < 0
+        local hiOk = high(r)
+        if low or hiOk then
+            if low and hiOk then
+                local c = bigCompare(bigMulSmall(bigCopy(r), 2), s)
+                if c > 0 or (c == 0 and d % 2 == 1) then d = d + 1 end
+            elseif hiOk then
+                d = d + 1
+            end
+            digits[#digits + 1] = d
+            break
+        end
+        digits[#digits + 1] = d
+    end
+    return table.concat(digits), k
+end
+
+-- Number::toString (radix 10) with ECMAScript's plain and exponent layouts.
+function JSMath.toString(x)
+    if x ~= x then return "NaN" end
+    if x == 0 then return "0" end
+    if x == huge then return "Infinity" end
+    if x == -huge then return "-Infinity" end
+    local sign = x < 0 and "-" or ""
+    local digits, n = shortestDigits(x < 0 and -x or x)
+    local k = #digits
+    if k <= n and n <= 21 then return sign .. digits .. string.rep("0", n - k) end
+    if 0 < n and n <= 21 then return sign .. digits:sub(1, n) .. "." .. digits:sub(n + 1) end
+    if -6 < n and n <= 0 then return sign .. "0." .. string.rep("0", -n) .. digits end
+    local e = n - 1
+    local mantissaText = k == 1 and digits or (digits:sub(1, 1) .. "." .. digits:sub(2))
+    return sign .. mantissaText .. "e" .. (e >= 0 and "+" or "-") .. (e < 0 and -e or e)
+end
+
+-- JavaScript relational and index conversion of a value such as a select's
+-- string value: Number("") is 0 and non-numeric text is NaN.
+function JSMath.toNumber(v)
+    if type(v) == "number" then return v end
+    if v == JSMath.undefined then return 0 / 0 end
+    if type(v) == "string" then
+        local trimmed = v:match("^%s*(.-)%s*$")
+        if trimmed == "" then return 0 end
+        return tonumber(trimmed) or 0 / 0
+    end
+    if v == true then return 1 end
+    if v == false then return 0 end
+    return 0 / 0
+end
+
 ns.JSMath = JSMath
 return JSMath
