@@ -133,42 +133,44 @@ a bounded 3 s poll and a stale-callback token.
 Every row was targeted with `/timprobe target` on 1.60.1.70205 and saved in
 TimeIsMoneyProbeDB. "The Barrens" is GetRealZoneText's zone for Ratchet.
 
-| Goblin | npc | Zone | Display | Box (l, w, h) | Model file |
-| --- | --- | --- | --- | --- | --- |
-| **Gazlowe (chosen Director)** | 3391 | The Barrens (Ratchet) | **7052** | 1.04, 1.24, 1.48 | — |
-| Fuzruckle | 3496 | The Barrens | 7058 | 1.04, 1.24, 1.48 | — |
-| Tinkerwiz | 3494 | The Barrens | 7073 | 1.04, 1.24, 1.48 | — |
-| Vexspindle | 3492 | The Barrens | 7094 | 1.04, 1.24, 1.48 | — |
-| Innkeeper Wiley | 6791 | The Barrens | 7153 | 1.04, 1.24, 1.48 | — |
-| Ratchet Bruiser | 3502 | The Barrens | 7060 and 146928 | 146928: 1.32, 1.18, 1.66 | — |
-| Roxxik | 11017 | Orgrimmar | 10472 | 0.84, 1.06, 1.39 | 119376 |
-| Jelinek Sharpshear | 277024 | Stormwind City | 148768 | 0.84, 1.06, 1.39 | — |
-| Mupsi Shacklefridd | 16418 | The Barrens | 16171 | 0.79, 1.05, 1.55 | 119369 |
-| Liv Rizzlefix | 8496 | The Barrens | 7909 | 1.32, 1.18, 1.66 | — |
-| Kitzy Werkblaster | 274740 | The Barrens | 147838 | 1.32, 1.18, 1.66 | — |
+| Goblin | npc | Zone | Display (template) |
+| --- | --- | --- | --- |
+| **Gazlowe (chosen Director)** | 3391 | The Barrens (Ratchet) | **7052** (twice) |
+| Fuzruckle | 3496 | The Barrens | 7058 |
+| Tinkerwiz | 3494 | The Barrens | 7073 |
+| Vexspindle | 3492 | The Barrens | 7094 |
+| Sputtervalve | 3442 | The Barrens | 7054 |
+| Innkeeper Wiley | 6791 | The Barrens | 7153 |
+| Ratchet Bruiser | 3502 | The Barrens | 7060, 7061, 146928 |
+| Roxxik | 11017 | Orgrimmar | 10472 |
+| Jelinek Sharpshear | 277024 | Stormwind City | 148768 |
+| Mupsi Shacklefridd | 16418 | The Barrens | 16171 |
+| Liv Rizzlefix | 8496 | The Barrens | 7909 |
+| Kitzy Werkblaster | 274740 | The Barrens | 147838 |
 
-**One NPC, several displays:** Ratchet Bruiser (npc 3502) answered 7060 and 146928.
-These displays came from `SetCreature(npc)`, which resolves the creature template
-and can pick a random look (AltStable). So it is not established that the two
-bruisers on screen differ. The probe now records the targeted unit's own display
-(`SetUnit("target")`) next to the template's. Either way, pin a look by display ID,
-never by npc ID. Gazlowe's 7052 matches his in-world look by eye.
+- **The targeted unit's own display is not readable.** `PlayerModel:SetUnit("target")`
+  then `GetDisplayInfo()` returns 0 for NPCs (as AltStable found for pets).
+- **The template display can be any of the creature's looks.**
+  `SetCreature(npc)` -> `GetDisplayInfo()` resolves the creature template.
+  Ratchet Bruiser answered 7060, 7061 and 146928 on different calls, regardless
+  of which bruiser was targeted (the owner saw "the previous target").
+- **Consequence:** a single-look NPC such as Gazlowe is unambiguous (7052 both
+  times, matching him by eye). For anything else, pin the look by display ID,
+  checked by eye, never by npc ID.
+- **Box readings were unreliable.** The first probe read the bounding box at
+  once after loading a new display, which returned the **previous** model's box:
+  146928 was recorded with two different boxes, and 7052 with both male boxes.
+  The probe now clears the actor and waits a poll step before reading. Box sizes
+  from this session are therefore not recorded here. Re-measure them before
+  relying on them.
 
 - **Texture:** every display renders **fully textured** from the display ID with the idle
   animation running. Display IDs (not npc IDs) keep the chosen look (AltStable).
 - **2D fallback:** `SetPortraitTextureFromCreatureDisplayID` gives a textured round
   head portrait for every goblin measured. This is the verified fallback.
 - **Framing:**
-  - The box arrived at once (cached models). There are four bodies, and the same
-    crop frames every head:
-
-    | Body | Box (l x w x h) | Displays |
-    | --- | --- | --- |
-    | Classic male | 1.04 x 1.24 x 1.48 | 7052, 7058, 7073, 7094, 7153 |
-    | Newer male | 0.84 x 1.06 x 1.39 | 10472, 148768 |
-    | Female | 0.79 x 1.05 x 1.55 | 16171 |
-    | Second female | 1.32 x 1.18 x 1.66 | 7909, 146928, 147838 |
-
+  - Despite the stale boxes, the 0.40 crop framed every goblin's head by eye: the
+    goblin bodies are close enough in proportion.
   - The probe's records reach disk only on /reload or logout: the first file read
     held three of the twelve records until the owner reloaded.
   - Fitting the height alone clipped the arms in the tall body pane, so the whole

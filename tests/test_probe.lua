@@ -79,8 +79,9 @@ local function Widget(kind)
     function w:SetText(text) self.text = text end
     function w:CreateActor()
         local actor = Widget("Actor")
-        actor.polls = 0
+        actor.polls, actor.cleared = 0, 0
         function actor:SetModelByCreatureDisplayID(display) self.display, self.polls = display, 0 return true end
+        function actor:ClearModel() self.cleared = self.cleared + 1 end
         function actor:GetActiveBoundingBox()
             self.polls = self.polls + 1
             if self.polls < 3 then error("not loaded") end
@@ -184,6 +185,7 @@ assert(window.body.actor.display == 7002 and window.strip.actor.display == 7002 
 assert(window.lookup.mouse == false, "the lookup model never takes the mouse")
 assert(window.strip.actor.scale > window.body.actor.scale and window.strip.actor.z < 0 and window.body.actor.z == 0)
 assert(window.body.mouse == false and window.strip.mouse == false, "scenes never take the mouse")
+assert(window.body.actor.cleared == 1 and window.strip.actor.cleared == 1, "the previous model is cleared first")
 slash("anims")
 pump()
 assert(messages[#messages - 1]:find("anims for display 7002: 4 IDs (HasAnimation rejects 1866 and up): 0-1, 60, 69", 1, true), messages[#messages - 1])

@@ -36,8 +36,9 @@ Inspected local HEAD: 01708d2a4fedc941b4e9ce5aa4109c2afcde1b24.
 [#10](https://github.com/Spotnick2/TimeIsMoney/issues/10) measured goblin displays on
 1.60.1.70205 (docs/forever-api-notes.md, "#10 goblin model probe"):
 
-- Twelve targeted goblin records (eleven NPCs, four bodies) render textured with
-  idle running. One NPC can answer several displays, so pin a look by display ID.
+- Twelve goblin NPCs' template displays render textured with idle running.
+  The targeted unit's own display is unreadable (SetUnit -> 0), and a template can
+  answer any of the creature's looks. Pin a look by display ID, checked by eye.
 - The 2D fallback is `SetPortraitTextureFromCreatureDisplayID`.
 - The actor's position scales with the actor, so offsets are in model units.
 - A crop of the top 0.40 of the height with a 1.15 margin frames the 96x72 strip.

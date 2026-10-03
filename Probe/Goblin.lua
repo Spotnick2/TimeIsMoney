@@ -131,7 +131,9 @@ local function Show(display)
     w.label:SetText("display " .. display .. ": loading")
     w:Show()
     for _, scene in ipairs({ w.body, w.strip }) do
-        -- No fit is carried over from the previous display.
+        -- No model or fit is carried over: read at once, the box was the previous
+        -- model's (measured on 70205, every box "after 0.0s").
+        scene.actor:ClearModel()
         scene.actor:SetScale(1)
         scene.actor:SetPosition(0, 0, 0)
         local ok, result = pcall(scene.actor.SetModelByCreatureDisplayID, scene.actor, display)
@@ -140,7 +142,8 @@ local function Show(display)
     end
     local ok, err = pcall(SetPortraitTextureFromCreatureDisplayID, w.portrait, display)
     if not ok then Print("goblin " .. display .. ": 2D portrait error " .. tostring(err)) end
-    MeasureBox(G.token, POLLS, GetTime())
+    local token, started = G.token, GetTime()
+    C_Timer.After(POLL_STEP, function() MeasureBox(token, POLLS, started) end)
 end
 
 -- Loads the lookup model with load(lookup) and calls onDisplay(display or nil)
