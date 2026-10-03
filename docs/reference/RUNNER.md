@@ -12,8 +12,9 @@ runner, existing Python 3, and an installed
 Chromium browser for native checks. There are no npm dependencies or browser
 downloads. Local measurements used Node v24.15.0, Python 3.13.13 and
 HeadlessChrome 154 on Windows; the evidence records the observed versions.
-CI selects the Windows hosted runner's cached Node 24 and existing Python/Chrome.
-It fails if that cached runtime is absent; it does not download another dependency.
+The Windows CI job runs on the owner's self-hosted runner (labels self-hosted,
+Windows, tim), using its installed Node 24, Python, Chrome and MSVC. It fails if
+Node is not version 24; it does not download another runtime.
 
 ~~~powershell
 python Tools/paperclips_reference.py fetch
