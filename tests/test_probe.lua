@@ -63,7 +63,8 @@ end
 -- TimeIsMoneyDB. Widgets accept any method; the model ones answer a fake display.
 local messages, frames, timers, calls = {}, {}, {}, {}
 local function Widget(kind)
-    local w = { kind = kind, events = {}, scripts = {}, width = 0, height = 0 }
+    -- Fields read before being set must exist: unknown keys resolve to methods.
+    local w = { kind = kind, events = {}, scripts = {}, width = 0, height = 0, shown = 0, streaming = false, mouse = true }
     function w:RegisterEvent(event) self.events[event] = true end
     function w:UnregisterEvent(event) self.events[event] = nil end
     function w:SetScript(name, callback)
@@ -91,8 +92,16 @@ local function Widget(kind)
         function actor:GetModelFileID() return 12345 end
         return actor
     end
-    function w:SetCreature(npc) self.npc = npc end
-    function w:GetDisplayInfo() return self.npc and 7001 or 0 end
+    -- The lookup model: the unit and the template can answer different looks.
+    function w:ClearModel() self.shown, self.streaming = 0, false end
+    function w:SetUnit() self.shown = 7002 end
+    -- SetCreature streams: it answers on the second poll.
+    function w:SetCreature(npc) self.shown, self.streaming = 0, npc == 3391 and 7001 or 7100 end
+    function w:SetDisplayInfo(display) self.shown = display end
+    function w:GetDisplayInfo()
+        if self.streaming then self.shown, self.streaming = self.streaming, false return 0 end
+        return self.shown or 0
+    end
     function w:HasAnimation(id)
         if id > 1865 then error("Usage: local hasAnimation = self:HasAnimation(anim)") end
         return id == 0 or id == 1 or id == 60 or id == 69
@@ -165,18 +174,20 @@ assert(messages[#messages - 1]:find("/timprobe env", 1, true) and last():find("g
 -- the box poll fits both panes; a closed window drops late callbacks.
 slash("target")
 pump()
-assert(messages[#messages - 1]:find("target Gazlowe: npc 3391, display 7001 %(Humanoid, Ratchet%); recorded"), messages[#messages - 1])
-assert(last():find("goblin 7001: box after", 1, true), last())
+assert(messages[#messages - 1]:find("target Gazlowe: npc 3391, unit display 7002, template display 7001 %(Humanoid, Ratchet%); recorded"), messages[#messages - 1])
+assert(last():find("goblin 7002: box after", 1, true), last())
 local recorded = env.TimeIsMoneyProbeDB.goblins[1]
-assert(recorded.npc == 3391 and recorded.display == 7001 and recorded.build == "1.60.1.70170" and recorded.zone == "Ratchet")
+assert(recorded.npc == 3391 and recorded.display == 7002 and recorded.unitDisplay == 7002 and recorded.templateDisplay == 7001)
+assert(recorded.build == "1.60.1.70170" and recorded.zone == "Ratchet")
 local window = frames[2]
-assert(window.body.actor.display == 7001 and window.strip.actor.display == 7001 and window.portrait.portrait == 7001)
+assert(window.body.actor.display == 7002 and window.strip.actor.display == 7002 and window.portrait.portrait == 7002)
+assert(window.lookup.mouse == false, "the lookup model never takes the mouse")
 assert(window.strip.actor.scale > window.body.actor.scale and window.strip.actor.z < 0 and window.body.actor.z == 0)
 assert(window.body.mouse == false and window.strip.mouse == false, "scenes never take the mouse")
 slash("anims")
 pump()
-assert(messages[#messages - 1]:find("anims for display 7001: 4 IDs (HasAnimation rejects 1866 and up): 0-1, 60, 69", 1, true), messages[#messages - 1])
-slash("anim next") slash("anim next") slash("anim next")
+assert(messages[#messages - 1]:find("anims for display 7002: 4 IDs (HasAnimation rejects 1866 and up): 0-1, 60, 69", 1, true), messages[#messages - 1])
+slash("anim next") slash("anim Next") slash("ANIM next")
 assert(window.body.actor.anim == 60 and last():find("anim 60 (3 of 4)", 1, true), last())
 slash("posmode world")
 assert(window.strip.actor.z < -1 and last():find("posmode world", 1, true))
@@ -185,12 +196,25 @@ assert(window.strip.actor.z > -1)
 slash("crop 0.3 0.1")
 assert(last() == "|cffd9a066TIM probe|r: crop 0.30, nudge 0.10")
 slash("goblin 8000")
+assert(window.body.actor.scale == 1 and window.body.actor.z == 0, "no fit carried over to a new display")
+slash("crop 0.4")
+assert(last():find("no box yet", 1, true), last())
 slash("close")
 pump()
 assert(last():find("closed", 1, true), "a late box answer after close prints nothing")
+-- Overlapping lookups: only the newer one records.
 slash("npc 4444")
+slash("npc 3391")
 pump()
-assert(env.TimeIsMoneyProbeDB.goblins[2].source == "npc" and env.TimeIsMoneyProbeDB.goblins[2].npc == 4444)
+local goblins = env.TimeIsMoneyProbeDB.goblins
+assert(#goblins == 2 and goblins[2].npc == 3391 and goblins[2].display == 7001, "the older lookup was cancelled")
+-- anims refuses to scan a lookup that holds another display.
+window.lookup.SetDisplayInfo = function(self) self.shown = 9999 end
+slash("goblin 7001")
+pump()
+slash("anims")
+pump()
+assert(last():find("reports display 9999, not 7001; not scanned", 1, true), last())
 env.UnitIsPlayer = function() return true end
 slash("target")
 assert(last():find("is a player %(Goblin%)"), last())

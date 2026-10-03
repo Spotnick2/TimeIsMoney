@@ -33,7 +33,7 @@ Inspected local HEAD: 01708d2a4fedc941b4e9ce5aa4109c2afcde1b24.
 
 ## Probe and integration
 
-[#10](https://github.com/Spotnick2/TimeIsMoney/issues/10) measured two goblin displays on
+[#10](https://github.com/Spotnick2/TimeIsMoney/issues/10) measured goblin displays on
 1.60.1.70205 (docs/forever-api-notes.md, "#10 goblin model probe"):
 
 - Twelve targeted goblin records (eleven NPCs, four bodies) render textured with

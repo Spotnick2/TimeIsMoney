@@ -17,9 +17,10 @@ local PORTRAIT = 72                   -- 2D fallback texture
 local POLLS, POLL_STEP = 30, 0.1      -- box poll: about 3 s
 local ANIM_SCAN = 2000                -- animation IDs checked with HasAnimation
 
--- posScaled: whether the client multiplies the actor's position by its scale
--- (unmeasured; /timprobe posmode compares both).
-local G = { token = 0, crop = 0.4, nudge = 0, particles = false, anims = {}, animIndex = 0, posScaled = true }
+-- posScaled: the client multiplies the actor's position by its scale (measured on
+-- 70205, #10); /timprobe posmode world remains for re-checking a new build.
+-- token guards the shown display; lookupToken guards the shared lookup model.
+local G = { token = 0, lookupToken = 0, crop = 0.4, nudge = 0, particles = false, anims = {}, animIndex = 0, posScaled = true }
 
 local function DB()
     TimeIsMoneyProbeDB = TimeIsMoneyProbeDB or {}
@@ -27,10 +28,6 @@ local function DB()
     return TimeIsMoneyProbeDB.goblins
 end
 
-local function Build()
-    local version, build = GetBuildInfo()
-    return version .. "." .. build
-end
 
 -- One scene and actor, set up as AltStable's PetFrame does.
 local function Pane(parent, width, height)
@@ -79,11 +76,13 @@ local function Window()
     w.portrait = w:CreateTexture(nil, "ARTWORK")
     w.portrait:SetSize(PORTRAIT, PORTRAIT)
     w.portrait:SetPoint("BOTTOMLEFT", w.strip, "BOTTOMRIGHT", 10, 0)
-    -- A hidden PlayerModel answers SetCreature -> GetDisplayInfo and HasAnimation.
-    w.lookup = CreateFrame("PlayerModel", nil, w)
+    -- An invisible PlayerModel answers SetUnit/SetCreature -> GetDisplayInfo and
+    -- HasAnimation. Parented to UIParent so closing the window cannot hide it.
+    w.lookup = CreateFrame("PlayerModel", nil, UIParent)
     w.lookup:SetSize(1, 1)
-    w.lookup:SetPoint("TOPRIGHT")
+    w.lookup:SetPoint("TOPLEFT")
     w.lookup:SetAlpha(0)
+    w.lookup:EnableMouse(false)
     G.window = w
     return w
 end
@@ -132,6 +131,9 @@ local function Show(display)
     w.label:SetText("display " .. display .. ": loading")
     w:Show()
     for _, scene in ipairs({ w.body, w.strip }) do
+        -- No fit is carried over from the previous display.
+        scene.actor:SetScale(1)
+        scene.actor:SetPosition(0, 0, 0)
         local ok, result = pcall(scene.actor.SetModelByCreatureDisplayID, scene.actor, display)
         if not ok or result == false then Print("goblin " .. display .. ": SetModelByCreatureDisplayID -> " .. tostring(result)) end
         scene.actor:SetParticleOverrideScale(G.particles and 1 or 0)
@@ -141,24 +143,27 @@ local function Show(display)
     MeasureBox(G.token, POLLS, GetTime())
 end
 
--- Display ID of an NPC through PlayerModel:SetCreature (AltStable: answers at once
--- for a demon). Polled briefly in case it streams.
-local function DisplayOfNPC(npc, onDisplay)
+-- Loads the lookup model with load(lookup) and calls onDisplay(display or nil)
+-- once GetDisplayInfo answers, or after the bounded poll. The model is cleared
+-- first so a previous answer cannot be read, and a newer lookup cancels this one.
+local function Lookup(load, onDisplay)
     local lookup = Window().lookup
-    lookup:SetCreature(npc)
-    local token = G.token
+    G.lookupToken = G.lookupToken + 1
+    local token = G.lookupToken
+    lookup:ClearModel()
+    load(lookup)
     local function Poll(tries)
-        if token ~= G.token then return end
+        if token ~= G.lookupToken then return end
         local display = lookup:GetDisplayInfo()
         if display and display > 0 then onDisplay(display)
         elseif tries > 0 then C_Timer.After(POLL_STEP, function() Poll(tries - 1) end)
-        else Print("npc " .. npc .. ": GetDisplayInfo stayed 0 after SetCreature") end
+        else onDisplay(nil) end
     end
     Poll(POLLS)
 end
 
 local function Record(entry)
-    entry.build = Build()
+    entry.build = ns.ProbeBuild()
     entry.zone = GetRealZoneText()
     local list = DB()
     list[#list + 1] = entry
@@ -178,18 +183,27 @@ function Commands.target()
     local npc = Checks.npcFromGUID(guid)
     if not npc then Print("target " .. tostring(name) .. ": not a creature GUID (" .. tostring(guid):match("^%a+") .. ")") return end
     local creatureType = UnitCreatureType("target")
-    DisplayOfNPC(npc, function(display)
-        Record({ source = "target", name = name, npc = npc, display = display, creatureType = creatureType })
-        Print(string.format("target %s: npc %d, display %d (%s, %s); recorded", tostring(name), npc, display, tostring(creatureType), GetRealZoneText()))
-        Show(display)
+    -- The unit's own display is what is on screen; SetCreature(npc) resolves the
+    -- creature template and can pick another of its looks (AltStable). Record both.
+    Lookup(function(model) model:SetUnit("target") end, function(unitDisplay)
+        Lookup(function(model) model:SetCreature(npc) end, function(templateDisplay)
+            local display = unitDisplay or templateDisplay
+            if not display then Print("target " .. tostring(name) .. ": no display from the unit or the template") return end
+            Record({ source = "target", name = name, npc = npc, display = display, unitDisplay = unitDisplay,
+                templateDisplay = templateDisplay, creatureType = creatureType })
+            Print(string.format("target %s: npc %d, unit display %s, template display %s (%s, %s); recorded",
+                tostring(name), npc, tostring(unitDisplay), tostring(templateDisplay), tostring(creatureType), GetRealZoneText()))
+            Show(display)
+        end)
     end)
 end
 
 function Commands.npc(rest)
     local npc = tonumber(rest)
     if not npc then Print("usage: /timprobe npc <npcID>") return end
-    DisplayOfNPC(npc, function(display)
-        Record({ source = "npc", npc = npc, display = display })
+    Lookup(function(model) model:SetCreature(npc) end, function(display)
+        if not display then Print("npc " .. npc .. ": GetDisplayInfo stayed 0 after SetCreature") return end
+        Record({ source = "npc", npc = npc, templateDisplay = display, display = display })
         Print(string.format("npc %d: display %d; recorded", npc, display))
         Show(display)
     end)
@@ -204,8 +218,21 @@ end
 -- Which animation IDs the model has, by HasAnimation on the hidden PlayerModel.
 function Commands.anims()
     if not G.display then Print("anims: show a display first") return end
-    local lookup, token = Window().lookup, G.token
-    lookup:SetDisplayInfo(G.display)
+    local token, display = G.token, G.display
+    Lookup(function(model) model:SetDisplayInfo(display) end, function(loaded)
+        if token ~= G.token then return end
+        if loaded ~= display then
+            Print("anims: the lookup model reports display " .. tostring(loaded) .. ", not " .. display .. "; not scanned")
+            return
+        end
+        Commands.scan(token)
+    end)
+end
+
+-- The scan itself, once the lookup holds the shown display.
+function Commands.scan(token)
+    local lookup = G.window and G.window.lookup
+    if token ~= G.token or not lookup then return end
     local function Scan(tries)
         if token ~= G.token then return end
         if not lookup:HasAnimation(0) then
@@ -249,14 +276,14 @@ function Commands.crop(rest)
     if not share or share <= 0 or share > 1 then Print("usage: /timprobe crop <share 0-1 of the height> [nudge]") return end
     G.crop, G.nudge = share, nudge or G.nudge
     Refit()
-    Print(string.format("crop %.2f, nudge %.2f", G.crop, G.nudge))
+    Print(string.format("crop %.2f, nudge %.2f", G.crop, G.nudge) .. (G.box and "" or " (no box yet: applies once loaded)"))
 end
 
 function Commands.posmode(rest)
     if rest ~= "scaled" and rest ~= "world" then Print("usage: /timprobe posmode scaled|world") return end
     G.posScaled = rest == "scaled"
     Refit()
-    Print("posmode " .. rest .. ": the strip should show the head in exactly one of the two modes")
+    Print("posmode " .. rest .. ": the strip should show the head in exactly one of the two modes" .. (G.box and "" or " (no box yet)"))
 end
 
 function Commands.particles(rest)
@@ -295,6 +322,7 @@ end
 
 function Commands.close()
     G.token = G.token + 1
+    G.lookupToken = G.lookupToken + 1
     if G.window then
         G.window.body.actor:ClearModel()
         G.window.strip.actor:ClearModel()
@@ -312,4 +340,6 @@ function Commands.layers()
         w.body:GetFrameLevel(), tostring(w.body:IsMouseEnabled()), w.strip:GetFrameLevel(), tostring(w.strip:IsMouseEnabled())))
 end
 
-for name, handler in pairs(Commands) do ns.ProbeCommands[name] = handler end
+for name, handler in pairs(Commands) do
+    if name ~= "scan" then ns.ProbeCommands[name] = handler end
+end

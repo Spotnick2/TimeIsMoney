@@ -111,7 +111,7 @@ After these changes, in the client:
   marker intact. **Account SavedVariables load back on 1.60.1.70205.**
   TimeIsMoneyDB stayed nil throughout.
 
-No model was tested (#10).
+Models were measured separately in #10 (below).
 
 ## #10 goblin model probe
 
@@ -147,13 +147,17 @@ TimeIsMoneyProbeDB. "The Barrens" is GetRealZoneText's zone for Ratchet.
 | Liv Rizzlefix | 8496 | The Barrens | 7909 | 1.32, 1.18, 1.66 | — |
 | Kitzy Werkblaster | 274740 | The Barrens | 147838 | 1.32, 1.18, 1.66 | — |
 
-**One NPC, several displays:** two Ratchet Bruisers (npc 3502) answered 7060 and
-146928. Pin a look by display ID, never by npc ID (as AltStable found for pets).
+**One NPC, several displays:** Ratchet Bruiser (npc 3502) answered 7060 and 146928.
+These displays came from `SetCreature(npc)`, which resolves the creature template
+and can pick a random look (AltStable). So it is not established that the two
+bruisers on screen differ. The probe now records the targeted unit's own display
+(`SetUnit("target")`) next to the template's. Either way, pin a look by display ID,
+never by npc ID. Gazlowe's 7052 matches his in-world look by eye.
 
 - **Texture:** every display renders **fully textured** from the display ID with the idle
   animation running. Display IDs (not npc IDs) keep the chosen look (AltStable).
 - **2D fallback:** `SetPortraitTextureFromCreatureDisplayID` gives a textured round
-  head portrait for both. This is the verified fallback.
+  head portrait for every goblin measured. This is the verified fallback.
 - **Framing:**
   - The box arrived at once (cached models). There are four bodies, and the same
     crop frames every head:
