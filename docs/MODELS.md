@@ -48,7 +48,8 @@ Inspected local HEAD: 01708d2a4fedc941b4e9ce5aa4109c2afcde1b24.
 
 **Director: Gazlowe, creature display 7052** (npc 3391, Ratchet; owner choice,
 2026-10-03). Use the display ID with SetModelByCreatureDisplayID, the 2D portrait
-from the same ID as the fallback, and the 0.40 / 1.15 strip crop.
+from the same ID as the fallback, and the 0.40 / 1.15 strip crop. Measured box
+0.84 x 1.06 x 1.39; #22 still fits from the live box.
 
 [#22](https://github.com/Spotnick2/TimeIsMoney/issues/22) integrates one reused Director
 scene, idle by default, measured reactions only. Cosmetics cannot delay commands,

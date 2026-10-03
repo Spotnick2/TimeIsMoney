@@ -161,8 +161,11 @@ TimeIsMoneyProbeDB. "The Barrens" is GetRealZoneText's zone for Ratchet.
   once after loading a new display, which returned the **previous** model's box:
   146928 was recorded with two different boxes, and 7052 with both male boxes.
   The probe now clears the actor and waits a poll step before reading. Box sizes
-  from this session are therefore not recorded here. Re-measure them before
-  relying on them.
+  from that session are therefore withdrawn.
+- **Gazlowe re-measured with the fixed probe** (first model after a /reload, so no
+  earlier model could answer): display 7052, box l=0.84 w=1.06 h=1.39. Body scale
+  2.960, strip scale 7.026 at crop 0.40. The whole body fits, and the strip and
+  the 2D portrait frame his face.
 
 - **Texture:** every display renders **fully textured** from the display ID with the idle
   animation running. Display IDs (not npc IDs) keep the chosen look (AltStable).
