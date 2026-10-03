@@ -98,7 +98,7 @@ Reference paths outside the slice raise
 | Ending sequence and dismantling clicks | #17 |
 | Reference auto-save (after 25 s) | #19 |
 | addProc beyond 3,424 processors, where Math.pow(n, 1.1) first differs from V8 | #24 |
-| investUpgrade at level 967 and beyond, where Math.pow(level + 1, Math.E) first differs from V8 (at 968) | #24 |
+| investUpgrade when the new cost's base (investLevel + 1) would pass 967; Math.pow(base, Math.E) first differs from V8 at base 968 | #24 |
 | Math.sin of arguments beyond 2²⁰·π/2 (about 1,647,099; the quantum clock reaches it after about 19 days) | #24 |
 
 ## JavaScript semantics in Lua

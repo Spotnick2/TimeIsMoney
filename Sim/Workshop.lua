@@ -1,4 +1,6 @@
--- Phase-one workshop slice of the pinned reference (main.js/globals.js): manual
+-- Phase-one workshop slice of the pinned reference (main.js/globals.js). The game
+-- loop calls into Sim/Investments.lua and Sim/Strategy.lua, which Sim/Reference.lua
+-- always loads after this file. Manual
 -- production, wire purchases, price/demand/sales, revenue tracking, marketing,
 -- AutoClippers/MegaClippers, trust and milestones, processors/memory, Operations,
 -- creativity and quantum computing, plus the always-running battle core. Source identifiers, formulas and statement order are preserved; state
@@ -102,8 +104,9 @@ Workshop.projects = {
 
 -- Controls the slice ports, with their disabled state in every checkpoint. A click
 -- on a disabled control does nothing, as in the browser. buttonUpdate maintains
--- the state of all except btnRaisePrice and btnQcompute, which the reference never
--- disables.
+-- most of them; btnRaisePrice, btnQcompute, btnInvest, btnWithdraw and
+-- btnToggleAutoTourney are never disabled, and newTourney/runTourney set
+-- btnRunTournament.
 Workshop.buttons = {
     "btnMakePaperclip", "btnBuyWire", "btnMakeClipper", "btnExpandMarketing",
     "btnLowerPrice", "btnRaisePrice", "btnMakeMegaClipper", "btnAddProc", "btnAddMem", "btnQcompute",
@@ -140,7 +143,10 @@ function Workshop.new(random, log)
     for _, id in ipairs(Workshop.buttons) do game.disabled[id] = false end
     game.readouts = { "Welcome to Universal Paperclips", "", "", "", "" }
     -- Select controls the slice reads: options in document order and the value.
-    game.selects = { investStrat = { options = { "low", "med", "hi" }, value = "low" } }
+    game.selects = {
+        investStrat = { options = { "low", "med", "hi" }, value = "low" },
+        stratPicker = { options = { "10", "0" }, value = "10" },
+    }
     for _, setup in ipairs(Workshop.setups) do setup(game, S) end
     game.draw = function(site) return random:draw(site, game.clock.now) end
 
@@ -320,6 +326,7 @@ function Game:calculateRev()
     for i = 1, #tracker do
         S.sum = round((S.sum + tracker[i]) * 100) / 100
     end
+    S.i = #tracker -- the loop uses the global i
     S.trueAvgRev = S.sum / #tracker
     local chanceOfPurchase = S.demand / 100
     if chanceOfPurchase > 1 then chanceOfPurchase = 1 end

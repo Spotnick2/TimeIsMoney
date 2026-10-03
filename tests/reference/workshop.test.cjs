@@ -215,6 +215,10 @@ test("tournaments score every strategy pair and award Yomi to the picked strateg
         assert.ok(end.state.activeProjects.some(p=>p.id==="projectButton27"),name+": Yomi unlocks");
     }
     assert.ok(states(run("tourneyMinimax").port).some(s=>s.w!==undefined),"TIT FOR TAT writes w");
+    // The implicit loop globals i and n are compared like any other state.
+    const projected=run("tourneyGreedy").port.projection.state;
+    assert.ok(projected.includes("i") && projected.includes("n"));
+    assert.equal(final(run("tourneyGreedy").port).state.n,2);
     const greedy=run("tourneyGreedy").port;
     assert.equal(command(greedy,40,"btnRunTournament").state.currentRound,0,"Run disables while running");
 });

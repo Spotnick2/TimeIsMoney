@@ -23,14 +23,16 @@ Workshop.setups[#Workshop.setups + 1] = function(_, S)
     for i = 1, 26 do S.alphabet[i] = string.char(64 + i) end
 end
 
--- Math.pow(investLevel + 1, Math.E) matches V8 for every level below this bound
--- (tests/reference/jsmath.test.cjs); the first known difference is at 968.
-Workshop.VERIFIED_INVEST_BASE = 967
+-- Math.pow(base, Math.E) matches V8 for every base up to this bound
+-- (tests/reference/jsmath.test.cjs); the first known difference is at base 968.
+Workshop.VERIFIED_INVEST_POW_BASE = 967
 
 function Game:investUpgrade()
     local S = self.S
-    if S.investLevel + 2 > Workshop.VERIFIED_INVEST_BASE then
-        Unported("investUpgradeCost beyond the verified investment level", "#24")
+    -- The new cost uses base (investLevel + 1) after the level increment.
+    local base = S.investLevel + 2
+    if base > Workshop.VERIFIED_INVEST_POW_BASE then
+        Unported("investUpgradeCost beyond the verified Math.pow(base, Math.E) range", "#24")
     end
     S.yomi = S.yomi - S.investUpgradeCost
     S.investLevel = S.investLevel + 1

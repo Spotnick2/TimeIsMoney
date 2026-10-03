@@ -16,8 +16,9 @@ local initial = {
     hMovePrev = 1, vMovePrev = 1, aa = 0, ab = 0, ba = 0, bb = 0, rounds = 0, currentRound = 0,
     rCounter = 0, tourneyInProg = 0, winnerPtr = 0, placeScore = 0, showScore = 0, high = 0,
     pick = 10, yomi = 0, yomiBoost = 1, resultsTimer = 0, strategyEngineFlag = 0,
-    -- Implicit globals that tournaments create (pickStrats, TIT FOR TAT).
-    h = JSMath.undefined, v = JSMath.undefined, w = JSMath.undefined,
+    -- Implicit globals that tournaments create (pickStrats, TIT FOR TAT, and the
+    -- scoring loops' n; i is shared with combat.js and calculateRev).
+    h = JSMath.undefined, v = JSMath.undefined, w = JSMath.undefined, n = JSMath.undefined,
 }
 for key, value in pairs(initial) do Workshop.initial[key] = value end
 for _, key in ipairs({ "choiceANames", "choiceBNames", "allStrats", "strats", "results" }) do
@@ -42,11 +43,11 @@ Workshop.setups[#Workshop.setups + 1] = function(game, S)
     S.strats = { S.allStrats[1] }
     S.results = {}
     S.hStrat, S.vStrat = S.strats[1], S.strats[1]
-    -- Read by declareWinner; the project itself is a later-phase purchase (#14).
-    S.project128 = { id = "projectButton128", flag = 0, uses = 1 }
+    -- Read by declareWinner; the project itself is a later-phase purchase (#14),
+    -- so keep a managed project object if one exists.
+    S.project128 = S.project128 or { id = "projectButton128", flag = 0, uses = 1 }
     game.disabled.btnRunTournament = true -- main.js load
     game.resultsTableDisplay = ""
-    game.selects.stratPicker = { options = { "10", "0" }, value = "10" }
 end
 
 local function findBiggestPayoff(S)
@@ -118,8 +119,7 @@ function Game:generateGrid()
     grid.valueBA = ceil(self.draw("main.js:1946:41") * 10)
     grid.valueBB = ceil(self.draw("main.js:1947:41") * 10)
     S.aa, S.ab, S.ba, S.bb = grid.valueAA, grid.valueAB, grid.valueBA, grid.valueBB
-    -- The label pair only selects text.
-    local _ = floor(self.draw("main.js:1954:29") * #S.choiceANames)
+    self.draw("main.js:1954:29") -- picks the choice labels (presentation)
 end
 
 function Game:toggleAutoTourney()
@@ -136,6 +136,7 @@ function Game:newTourney()
     S.currentRound = 0
     S.rounds = #S.strats * #S.strats
     for _, strat in ipairs(S.strats) do strat.currentScore = 0 end
+    S.i = #S.strats
     S.stratCounter = 0
     S.standardOps = S.standardOps - S.tourneyCost
     S.tourneyLvl = S.tourneyLvl + 1
@@ -197,7 +198,8 @@ function Game:pickWinner()
     S.results = {}
     local temp = {}
     for i, strat in ipairs(S.strats) do temp[i] = strat end
-    for _ = 1, #S.strats do
+    for n = 1, #S.strats do
+        S.n = n - 1
         local tempHigh, tempWinnerPtr = 0, 1
         for i, strat in ipairs(temp) do
             if strat.currentScore > tempHigh then
@@ -205,23 +207,28 @@ function Game:pickWinner()
                 tempHigh = strat.currentScore
             end
         end
+        S.i = #temp
         S.results[#S.results + 1] = temp[tempWinnerPtr]
         table.remove(temp, tempWinnerPtr)
     end
+    S.n = #S.strats
     for i, strat in ipairs(S.strats) do
         if strat.currentScore > S.high then
             S.winnerPtr = i - 1
             S.high = strat.currentScore
         end
     end
+    S.i = #S.strats
 end
 
 function Game:calculatePlaceScore()
     local S = self.S
     S.placeScore = 0
+    S.i = math.max(1, #S.results)
     for i = 2, #S.results do
         if S.results[i].currentScore < S.results[i - 1].currentScore then
             S.placeScore = S.results[i].currentScore
+            S.i = i - 1
             break
         end
     end
@@ -230,9 +237,11 @@ end
 function Game:calculateShowScore()
     local S = self.S
     S.showScore = 0
+    S.i = math.max(1, #S.results)
     for i = 2, #S.results do
         if S.results[i].currentScore < S.placeScore then
             S.showScore = S.results[i].currentScore
+            S.i = i - 1
             break
         end
     end
@@ -256,8 +265,12 @@ function Game:calculateStratsBeat()
     local S = self.S
     local name = picked(S).name
     for i, strat in ipairs(S.results) do
-        if strat.name == name then return #S.results - (i - 1) end
+        if strat.name == name then
+            S.i = i - 1
+            return #S.results - (i - 1)
+        end
     end
+    S.i = #S.results
     return JSMath.undefined
 end
 
@@ -265,6 +278,8 @@ function Game:declareWinner()
     local S = self.S
     if toNumber(S.pick) < 10 then
         local strat = picked(S)
+        -- Refuse before awarding anything, so a caught stop leaves no partial award.
+        if S.project128.flag == 1 then Unported("tournament placing bonuses", "#14") end
         local bB, w = 0, "strats"
         local beatBoost = JSMath.num(self:calculateStratsBeat()) - 1
         if beatBoost == 1 then w = "strat" end
@@ -280,8 +295,9 @@ function Game:declareWinner()
                 toString(bB) .. " " .. w .. ". Yomi increased by " ..
                 toString(strat.currentScore * S.yomiBoost * beatBoost))
         end
-        if S.project128.flag == 1 then Unported("tournament placing bonuses", "#14") end
-        -- populateTourneyReport is presentation; displayTourneyReport:
+        -- populateTourneyReport (presentation, but its loop leaves i):
+        S.i = #S.results
+        -- displayTourneyReport:
         S.resultsFlag = 1
         self.resultsTableDisplay = ""
     end

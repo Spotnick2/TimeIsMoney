@@ -115,7 +115,10 @@ local ok, failure = pcall(function()
     if (trace.fixture or {}).strategies then
         -- Host fixture: strats = strategies.map(i => allStrats[i]).
         local strats = {}
-        for i, index in ipairs(trace.fixture.strategies) do strats[i] = S.allStrats[index + 1] end
+        for i, index in ipairs(trace.fixture.strategies) do
+            strats[i] = S.allStrats[index + 1]
+            if not strats[i] then error("Strategies fixture index outside allStrats: " .. tostring(index), 0) end
+        end
         S.strats = strats
     end
     checkpoint({ kind = "fixture", at = game.clock.now })

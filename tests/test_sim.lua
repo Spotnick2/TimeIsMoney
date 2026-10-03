@@ -77,6 +77,15 @@ assert(JSMath.log10(11) == 1.041392685158225 and JSMath.log10(40) == 1.602059991
 assert(JSMath.log10(1000) == 3 and JSMath.log10(1) == 0 and JSMath.log10(0) == -math.huge)
 assert(same(JSMath.log10(-1), 0 / 0))
 
+-- ToNumber for strings (select values): JavaScript grammar, not C strtod.
+local toNumber = JSMath.toNumber
+assert(toNumber("") == 0 and toNumber("  12  ") == 12 and toNumber("1e3") == 1000 and toNumber(".5") == .5)
+assert(toNumber("5.") == 5 and toNumber("0x10") == 16 and toNumber("0b101") == 5 and toNumber("0o17") == 15)
+assert(toNumber("Infinity") == math.huge and toNumber("-Infinity") == -math.huge and toNumber("-12.5") == -12.5)
+for _, text in ipairs({ "inf", "infinity", "-0x10", "0x1p4", "abc", "1e", "1.2.3", "0x", "nan" }) do
+    assert(same(toNumber(text), 0 / 0), "toNumber(" .. text .. ") should be NaN")
+end
+
 -- Scheduler: due time then queue order, nested registration, shared cancellation,
 -- requeue after the callback and the runaway guard.
 local log, seen = {}, {}
@@ -121,4 +130,11 @@ game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000
 local speed = game.S.creativitySpeed
 fails("verified processor count %(issue #24%)", game.addProc, game)
 assert(game.S.processors == Workshop.VERIFIED_PROCESSORS and game.S.creativitySpeed == speed)
+-- The placing-bonus stop refuses before awarding Yomi.
+local tourney = Workshop.new(stub, {})
+tourney.S.pick, tourney.S.project128.flag = "0", 1
+tourney.S.results = { tourney.S.strats[1] }
+local yomiBefore = tourney.S.yomi
+fails("tournament placing bonuses %(issue #14%)", tourney.declareWinner, tourney)
+assert(tourney.S.yomi == yomiBefore and tourney.S.resultsFlag == 0)
 print("simulation: JavaScript numbers, scheduler, purity and workshop smoke passed")

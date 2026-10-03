@@ -23,6 +23,8 @@ Battle.initial = {
     probeCombat = 0, probeCombatBaseRate = .15, attackSpeedFlag = 0, probeSpeed = 0,
     drifterCombat = 1.75, unitSize = 0, probeCount = 0, probesLostCombat = 0,
     drifterCount = 0, driftersKilled = 0, battleNameFlag = 0,
+    -- The implicit global i: combat.js load runs for (i=0; i<battleNames.length; i++).
+    i = 105,
 }
 
 -- new Ship(team): draw order and arithmetic follow combat.js lines 704-727.
@@ -98,6 +100,7 @@ local function updateGrid(S)
             cell.ships[cell.numShips] = p
         end
     end
+    S.i = S.numShips -- UpdateGrid loops with the global i
 end
 
 local function findCentroid(S)

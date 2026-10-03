@@ -511,7 +511,15 @@ local function bigSub(a, b) -- a := a - b, requires a >= b
     end
     return a
 end
-local function bigPow2(a, n) for _ = 1, n do bigMulSmall(a, 2) end return a end
+-- Multiply by 2^n in exact 2^20 steps (a limb times 2^20 stays below 2^53).
+local function bigPow2(a, n)
+    while n >= 20 do
+        bigMulSmall(a, 2 ^ 20)
+        n = n - 20
+    end
+    if n > 0 then bigMulSmall(a, 2 ^ n) end
+    return a
+end
 
 -- Returns the shortest digit string d1..dk and n with value = 0.d1..dk * 10^n,
 -- choosing the closest such string (ties to an even last digit).
@@ -601,16 +609,37 @@ function JSMath.toString(x)
     return sign .. mantissaText .. "e" .. (e >= 0 and "+" or "-") .. (e < 0 and -e or e)
 end
 
--- JavaScript relational and index conversion of a value such as a select's
--- string value: Number("") is 0 and non-numeric text is NaN.
+-- ToNumber for strings such as a select's value (StringNumericLiteral): blank is
+-- 0; decimal literals, unsigned 0x/0o/0b integers and [+-]Infinity convert;
+-- anything else (including "inf" or "-0x10", which C strtod accepts) is NaN.
+-- Decimal digits go through tonumber only after this grammar check.
+local function stringToNumber(text)
+    local trimmed = text:match("^%s*(.-)%s*$")
+    if trimmed == "" then return 0 end
+    if trimmed == "Infinity" or trimmed == "+Infinity" then return huge end
+    if trimmed == "-Infinity" then return -huge end
+    local prefix, digits = trimmed:match("^0([xXoObB])(%w+)$")
+    if prefix then
+        local base = ({ x = 16, o = 8, b = 2 })[prefix:lower()]
+        local value = 0
+        for c in digits:gmatch(".") do
+            local d = tonumber(c, 36)
+            if not d or d >= base then return 0 / 0 end
+            value = value * base + d
+        end
+        return value
+    end
+    local body = trimmed:match("^[+-]?(.*)$")
+    local mantissa = body:match("^(%d+%.?%d*)[eE][+-]?%d+$") or body:match("^(%.%d+)[eE][+-]?%d+$")
+        or body:match("^(%d+%.?%d*)$") or body:match("^(%.%d+)$")
+    if not mantissa then return 0 / 0 end
+    return tonumber(trimmed)
+end
+
 function JSMath.toNumber(v)
     if type(v) == "number" then return v end
     if v == JSMath.undefined then return 0 / 0 end
-    if type(v) == "string" then
-        local trimmed = v:match("^%s*(.-)%s*$")
-        if trimmed == "" then return 0 end
-        return tonumber(trimmed) or 0 / 0
-    end
+    if type(v) == "string" then return stringToNumber(v) end
     if v == true then return 1 end
     if v == false then return 0 end
     return 0 / 0
