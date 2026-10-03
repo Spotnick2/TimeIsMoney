@@ -41,6 +41,12 @@ const traces = {
         commands:["99.5","","0x10","99.49","201","-1","1.25e2","42\n"].map((value,i)=>
             ({at:1+i*100,type:"value",id:"slider",value}))
     },
+    investment: {
+        // Deposit, then let stockShop create a stock: covers stock-symbol name generation.
+        until:3000,
+        fixture:{globals:{funds:10000,investmentEngineFlag:1}},
+        commands:[{at:0,type:"click",id:"btnInvest"}]
+    },
     combat: {
         until:1600,
         fixture:{globals:{probeCount:100000000,drifterCount:100000000,battleNameFlag:1}},

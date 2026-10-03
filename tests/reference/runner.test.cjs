@@ -71,8 +71,10 @@ for (const name of Traces.names) test("fixed "+name+" trace reproduces every che
     const trace=Traces.make(name), a=Runner.run(trace,source), b=Runner.run(trace,source);
     assert.deepEqual(Runner.report(a.result,source),Runner.report(b.result,source));
     const native=evidence.cases.find(item=>item.case===name);
-    const finalHash=Runner.report(a.result,source).final_sha256;
-    assert.equal(finalHash,native.final_sha256);
+    const report=Runner.report(a.result,source);
+    assert.equal(report.final_sha256,native.final_sha256);
+    assert.equal(report.events_sha256,native.events_sha256,"native timer/draw events and call-site labels");
+    assert.equal(report.events.length,native.events);
     assert.equal(a.result.checkpoints.length,native.checkpoints);
     assert.equal(a.result.checkpoints[0].kind,"initialization");
     assert.equal(a.result.checkpoints.at(-1).kind,"final");
@@ -108,6 +110,10 @@ for (const name of Traces.names) test("fixed "+name+" trace reproduces every che
         a.global.document.getElementById("slider").setAttribute("step","any");
         assert.throws(()=>{a.global.document.getElementById("slider").value="99.5";},/outside pinned/);
     }
+    if (name==="investment") {
+        assert.equal(state.stockID,1);assert.equal(state.portfolioSize,1);assert.equal(state.funds,0);
+        assert.ok(report.draw_sites["main.js:1558:18"].scope.startsWith("generateSymbol@"));
+    }
     if (name==="combat") {
         assert.equal(a.result.timerLog.filter(t=>t.action==="fire" && t.id===1).length,100);
         assert.ok(state.probesLostCombat>0 || state.driftersKilled>0);
@@ -131,7 +137,7 @@ test("random exhaustion and disallowed developer commands fail",()=>{
 
 test("recorded native browser evidence pins current implementation and inputs",()=>{
     const fs=require("node:fs"),path=require("node:path");
-    assert.equal(evidence.cases.length,7);
+    assert.equal(evidence.cases.length,8);
     for (const record of evidence.cases) {
         assert.deepEqual(record.source_sha256,source.index.source_sha256);
         assert.deepEqual(record.native_timer_probe,["first","second"]);
