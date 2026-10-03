@@ -111,7 +111,92 @@ After these changes, in the client:
   marker intact. **Account SavedVariables load back on 1.60.1.70205.**
   TimeIsMoneyDB stayed nil throughout.
 
-No model was tested (#10).
+Models were measured separately in #10 (below).
+
+## #10 goblin model probe
+
+`/timprobe target` (Probe/Goblin.lua) reads the targeted NPC's ID from its GUID. It
+gets the display ID from `PlayerModel:SetCreature(npc)` -> `GetDisplayInfo()` and
+records both with zone and build in TimeIsMoneyProbeDB. Then it renders three images:
+
+- a whole-body ModelScene pane (120x200);
+- a 96x72 head crop at the storyboard's Director-portrait size;
+- the client's 2D portrait (`SetPortraitTextureFromCreatureDisplayID`, 72x72).
+
+The rendering is AltStable's pet recipe: a plain ModelScene with one actor,
+SetModelByCreatureDisplayID, camera at +40 on X facing back, field of view 0.15,
+clip 0.1-100, a centred origin, particles at scale 0, a fit from the bounding box,
+a bounded 3 s poll and a stale-callback token.
+
+### Results — 2026-10-03, client 1.60.1.70205
+
+Every row was targeted with `/timprobe target` on 1.60.1.70205 and saved in
+TimeIsMoneyProbeDB. "The Barrens" is GetRealZoneText's zone for Ratchet.
+
+| Goblin | npc | Zone | Display (template) |
+| --- | --- | --- | --- |
+| **Gazlowe (chosen Director)** | 3391 | The Barrens (Ratchet) | **7052** (twice) |
+| Fuzruckle | 3496 | The Barrens | 7058 |
+| Tinkerwiz | 3494 | The Barrens | 7073 |
+| Vexspindle | 3492 | The Barrens | 7094 |
+| Sputtervalve | 3442 | The Barrens | 7054 |
+| Innkeeper Wiley | 6791 | The Barrens | 7153 |
+| Ratchet Bruiser | 3502 | The Barrens | 7060, 7061, 146928 |
+| Roxxik | 11017 | Orgrimmar | 10472 |
+| Jelinek Sharpshear | 277024 | Stormwind City | 148768 |
+| Mupsi Shacklefridd | 16418 | The Barrens | 16171 |
+| Liv Rizzlefix | 8496 | The Barrens | 7909 |
+| Kitzy Werkblaster | 274740 | The Barrens | 147838 |
+
+- **The targeted unit's own display is not readable.** `PlayerModel:SetUnit("target")`
+  then `GetDisplayInfo()` returns 0 for NPCs (as AltStable found for pets).
+- **The template display can be any of the creature's looks.**
+  `SetCreature(npc)` -> `GetDisplayInfo()` resolves the creature template.
+  Ratchet Bruiser answered 7060, 7061 and 146928 on different calls, regardless
+  of which bruiser was targeted (the owner saw "the previous target").
+- **Consequence:** a single-look NPC such as Gazlowe is unambiguous (7052 both
+  times, matching him by eye). For anything else, pin the look by display ID,
+  checked by eye, never by npc ID.
+- **Box readings were unreliable.** The first probe read the bounding box at
+  once after loading a new display, which returned the **previous** model's box:
+  146928 was recorded with two different boxes, and 7052 with both male boxes.
+  The probe now clears the actor and waits a poll step before reading. Box sizes
+  from that session are therefore withdrawn.
+- **Gazlowe re-measured with the fixed probe** (first model after a /reload, so no
+  earlier model could answer): display 7052, box after 0.1 s (one poll step)
+  l=0.84 w=1.06 h=1.39, model file 119376. Body scale
+  2.960, strip scale 7.026 at crop 0.40. The whole body fits, and the strip and
+  the 2D portrait frame his face.
+
+- **Texture:** every display renders **fully textured** from the display ID with the idle
+  animation running. Display IDs (not npc IDs) keep the chosen look (AltStable).
+- **2D fallback:** `SetPortraitTextureFromCreatureDisplayID` gives a textured round
+  head portrait for every goblin measured. This is the verified fallback.
+- **Framing:**
+  - Despite the stale boxes, the 0.40 crop framed every goblin's head by eye: the
+    goblin bodies are close enough in proportion.
+  - The probe's records reach disk only on /reload or logout: the first file read
+    held three of the twelve records until the owner reloaded.
+  - Fitting the height alone clipped the arms in the tall body pane, so the whole
+    body fits both height and width (`box.w`, world Y across the view).
+  - **The actor's position is multiplied by its scale.** An offset computed in view
+    units pushed the head out of the strip; computed in model units (offset /
+    scale), it framed it.
+  - A crop of the **top 0.40 of the height** with a 1.15 margin gives a readable
+    head-and-shoulders portrait at 96x72.
+- **Animations:**
+  - The male displays have 321 animation IDs and the female 313 (0-1786, sparse).
+  - `HasAnimation(id)` **raises "bad argument" for id >= 1866**, so the scan stops
+    at the first error.
+  - Idle (0) loops.
+  - Talk, approval and reaction IDs were not identified by eye in this session; #22
+    keeps idle only until they are.
+- **Frame cost:** window shown vs hidden, mean of 120 frames each: +0.34, +0.36 and
+  +0.44 ms at about 7.7 ms per frame (Roxxik, Orgrimmar). One earlier sample at
+  about 50 fps read +2.6 ms (the barber, Stormwind). Record it as under 0.5 ms at a
+  steady frame rate.
+- **Mouse and layers:** window strata DIALOG, level 1, mouse enabled for dragging;
+  both scenes level 2 with the mouse disabled.
 
 ## Future probes
 

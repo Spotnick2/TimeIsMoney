@@ -8,11 +8,15 @@ local Checks, JSMath, Expected = ns.Checks, ns.JSMath, ns.ProbeVectors
 local function Print(message)
     print("|cffd9a066TIM probe|r: " .. message)
 end
+ns.ProbePrint = Print
+-- Later probe files add commands here (Goblin.lua, #10).
+ns.ProbeCommands = ns.ProbeCommands or {}
 
 local function Build()
     local version, build, _, interface = GetBuildInfo()
     return tostring(version) .. "." .. tostring(build), tostring(interface)
 end
+ns.ProbeBuild = Build
 
 local function Env()
     local build, interface = Build()
@@ -199,8 +203,10 @@ local function Slash(message)
     elseif command == "save" then Save(rest)
     elseif command == "status" then Status()
     elseif command == "all" then Env(); Math(); Sim(); Status()
+    elseif ns.ProbeCommands[command] then ns.ProbeCommands[command](rest:lower())
     else
         Print("/timprobe env | math | sim | nan | icons | save <text> | status | all")
+        Print("goblins: /timprobe target | npc <id> | goblin <displayID> | anims | anim <id> | crop <share> [nudge] | posmode scaled|world | particles on|off | frametime | layers | close")
     end
 end
 

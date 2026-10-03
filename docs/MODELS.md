@@ -33,10 +33,23 @@ Inspected local HEAD: 01708d2a4fedc941b4e9ce5aa4109c2afcde1b24.
 
 ## Probe and integration
 
-[#10](https://github.com/Spotnick2/TimeIsMoney/issues/10) probes existing Forever goblin
-creature displays. No goblin display/emote IDs are selected or tested here.
-Record display/provenance/build, textured rendering, framing/idle motion and useful
-talk/approval/reaction animations. Do not guess IDs from Retail animation lists.
+[#10](https://github.com/Spotnick2/TimeIsMoney/issues/10) measured goblin displays on
+1.60.1.70205 (docs/forever-api-notes.md, "#10 goblin model probe"):
+
+- Twelve goblin NPCs' template displays render textured with idle running.
+  The targeted unit's own display is unreadable (SetUnit -> 0), and a template can
+  answer any of the creature's looks. Pin a look by display ID, checked by eye.
+- The 2D fallback is `SetPortraitTextureFromCreatureDisplayID`.
+- The actor's position scales with the actor, so offsets are in model units.
+- A crop of the top 0.40 of the height with a 1.15 margin frames the 96x72 strip.
+- The cost is under 0.5 ms per frame.
+- Talk, approval and reaction animations are still unidentified: idle only until
+  measured. Do not guess IDs from Retail animation lists.
+
+**Director: Gazlowe, creature display 7052** (npc 3391, Ratchet; owner choice,
+2026-10-03). Use the display ID with SetModelByCreatureDisplayID, the 2D portrait
+from the same ID as the fallback, and the 0.40 / 1.15 strip crop. Measured box
+0.84 x 1.06 x 1.39; #22 still fits from the live box.
 
 [#22](https://github.com/Spotnick2/TimeIsMoney/issues/22) integrates one reused Director
 scene, idle by default, measured reactions only. Cosmetics cannot delay commands,

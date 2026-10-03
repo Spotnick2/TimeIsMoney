@@ -68,7 +68,7 @@ drift check. Change shared material upstream first; no glass copied in M0.
 Animated goblin: adapt ..\AltStable\Plugins\Roster\AltStableRoster.lua pet rendering:
 PetFrame, ReadBox, PlacePet, MeasurePet. Keep live idle, explicit camera,
 bounds-based fit, bounded streaming polls/cancellation token and 2D fallback.
-Read docs/MODELS.md; goblin textures/framing/emotes remain unverified.
+Read docs/MODELS.md: Director = Gazlowe display 7052; framing/fallback measured (#10); emotes unverified.
 
 ## Client evidence and saves
 
