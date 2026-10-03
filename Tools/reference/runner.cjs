@@ -98,8 +98,21 @@ function compare(left, right, source = null) {
         if (found[side]?.action==="draw") found[side]={...found[side],scope:siteScope(found[side].site,source)};
     return found;
 }
+// Restrict a full reference document to a port's declared projection: the named
+// state globals, control disabled flags, message readouts, timers and draw count.
+// Events are kept whole, so every timer and labeled draw is still compared.
+function project(doc, projection) {
+    return {...doc,checkpoints:doc.checkpoints.map(({json,sha256,...meta})=>{
+        if (json===undefined) throw new Error("Projection needs full checkpoint JSON");
+        const point=JSON.parse(json), state={}, dom={};
+        for (const key of projection.state) if (Object.hasOwn(point.state,key)) state[key]=point.state[key];
+        for (const id of projection.disabled) dom[id]={disabled:point.dom[id].disabled};
+        for (const id of projection.html) dom[id]={html:point.dom[id].html};
+        return {...meta,json:JSON.stringify({state,dom,timers:point.timers,draws:point.draws})};
+    })};
+}
 const firstDifference=Harness.firstDifference;
-module.exports = {ROOT,CACHE,ORDER,sha256,inputs,config,load,run,report,compare,siteScope,firstDifference};
+module.exports = {ROOT,CACHE,ORDER,sha256,inputs,config,load,run,report,compare,project,siteScope,firstDifference};
 
 if (require.main === module) {
     try {

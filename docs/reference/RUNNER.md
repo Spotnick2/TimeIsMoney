@@ -248,5 +248,5 @@ No in-game addon behavior, Lua simulation, gameplay UI, persistence schema,
 full-campaign parity, media playback or native browser timing guarantee is
 implemented here. Upstream reuse terms remain unestablished; upstream bytes
 remain ignored local/CI developer inputs and are absent from the addon archive.
-The workshop slices (#5 onward) will emit this trace format from the Lua
-simulation and compare it with the reference.
+The Lua workshop slice ([WORKSHOP.md](WORKSHOP.md), #5) emits this trace format
+and is compared exactly against a projection of the reference document.

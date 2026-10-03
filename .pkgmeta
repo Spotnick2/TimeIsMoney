@@ -12,6 +12,8 @@ ignore:
   - docs
   - tests
   - Tools
+  # Pure-Lua simulation: parity-tested outside WoW; not in the TOC until #18.
+  - Sim
   - AGENTS.md
   - CLAUDE.md
   - README.md

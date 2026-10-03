@@ -45,6 +45,9 @@ Preserve combat's 16 ms logical tick independently of UI refresh or drawing.
 Current TOC: Compat.lua -> TimeIsMoney.lua. Compat owns client adaptation and
 evidence build; entry point handles load/status/help only. SavedVariables are
 declared but never initialized/replaced until the schema is designed.
+Sim/ holds the pure-Lua simulation (docs/reference/WORKSHOP.md): parity-tested
+against the reference, not in the TOC or package until #18. Unported reference
+paths raise explicit errors naming their issue; never let them diverge silently.
 
 tests: Lua 5.1 loader behavior with allowlist stub and PowerShell runner.
 Tools/deploy.ps1: TOC inputs and runtime media, deployed dev version only.
