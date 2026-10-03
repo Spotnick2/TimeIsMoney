@@ -126,7 +126,10 @@ end
 
 local function Show(display)
     local w = Window()
+    -- A newer display owns the window: drop pending lookups too, so an older NPC
+    -- lookup finishing later cannot replace it.
     G.token = G.token + 1
+    G.lookupToken = G.lookupToken + 1
     G.display, G.box, G.anims, G.animIndex = display, nil, {}, 0
     w.label:SetText("display " .. display .. ": loading")
     w:Show()
@@ -228,16 +231,21 @@ function Commands.anims()
             Print("anims: the lookup model reports display " .. tostring(loaded) .. ", not " .. display .. "; not scanned")
             return
         end
-        Commands.scan(token)
+        Commands.scan(token, G.lookupToken, display)
     end)
 end
 
--- The scan itself, once the lookup holds the shown display.
-function Commands.scan(token)
+-- The scan itself, once the lookup holds the shown display. Every retry checks
+-- that the lookup model is still this scan's and still holds that display.
+function Commands.scan(token, lookupToken, display)
     local lookup = G.window and G.window.lookup
     if token ~= G.token or not lookup then return end
     local function Scan(tries)
         if token ~= G.token then return end
+        if lookupToken ~= G.lookupToken or lookup:GetDisplayInfo() ~= display then
+            Print("anims: the lookup model was replaced; scan for " .. display .. " cancelled")
+            return
+        end
         if not lookup:HasAnimation(0) then
             if tries > 0 then C_Timer.After(POLL_STEP, function() Scan(tries - 1) end)
             else Print("anims: the model never reported animation 0 (not loaded)") end

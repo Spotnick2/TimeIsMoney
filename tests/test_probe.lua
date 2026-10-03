@@ -210,6 +210,23 @@ slash("npc 3391")
 pump()
 local goblins = env.TimeIsMoneyProbeDB.goblins
 assert(#goblins == 2 and goblins[2].npc == 3391 and goblins[2].display == 7001, "the older lookup was cancelled")
+-- A direct display wins over an NPC lookup still streaming (Codex).
+slash("npc 3391")
+slash("goblin 8000")
+pump()
+assert(window.body.actor.display == 8000 and #env.TimeIsMoneyProbeDB.goblins == 2, "the pending lookup was cancelled")
+-- A lookup replaced while the scan waits for the model cancels the scan (Codex).
+local hasAnimation = window.lookup.HasAnimation
+local ready = false
+window.lookup.HasAnimation = function(self, id) if id == 0 and not ready then return false end return hasAnimation(self, id) end
+slash("anims")
+slash("npc 3391")
+ready = true
+pump()
+local scanned = false
+for _, message in ipairs(messages) do if message:find("anims for display 8000", 1, true) then scanned = true end end
+assert(not scanned, "no animation list for a replaced lookup")
+window.lookup.HasAnimation = hasAnimation
 -- anims refuses to scan a lookup that holds another display.
 window.lookup.SetDisplayInfo = function(self) self.shown = 9999 end
 slash("goblin 7001")
