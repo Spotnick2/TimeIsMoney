@@ -241,7 +241,27 @@ local function fromWords(hi, lo)
 end
 JSMath.toWords, JSMath.fromWords = toWords, fromWords
 
-local function highWord(x) return (toWords(x)) end
+-- The signed high word alone (sign, exponent and top 20 mantissa bits).
+local function highWord(x)
+    local sign = x < 0 or (x == 0 and 1 / x < 0)
+    local a = sign and -x or x
+    local hi
+    if a ~= a or a == huge then
+        hi = 2047 * 2 ^ 20 + (a ~= a and 2 ^ 19 or 0)
+    elseif a == 0 then
+        hi = 0
+    else
+        local m, exponent = frexp(a)
+        local e = exponent + 1022
+        if e >= 1 then
+            hi = e * 2 ^ 20 + floor((m * 2 ^ 53 - 2 ^ 52) / 2 ^ 32)
+        else
+            hi = floor(ldexp(a, 1074) / 2 ^ 32)
+        end
+    end
+    if sign then return hi - 2 ^ 31 end
+    return hi
+end
 local function abs31(v) if v < 0 then return v + 2 ^ 31 end return v end
 local W = fromWords
 
@@ -255,9 +275,16 @@ local pio2_1, pio2_1t = W(0x3FF921FB, 0x54400000), W(0x3DD0B461, 0x1A626331)
 local pio2_2, pio2_2t = W(0x3DD0B461, 0x1A600000), W(0x3BA3198A, 0x2E037073)
 local pio2_3, pio2_3t = W(0x3BA3198A, 0x2E000000), W(0x397B839A, 0x252049C1)
 local invpio2 = W(0x3FE45F30, 0x6DC9C883)
+-- High words of n * pi/2 for n = 1..32 (npio2_hw).
+local npio2_hw = {
+    0x3FF921FB, 0x400921FB, 0x4012D97C, 0x401921FB, 0x401F6A7A, 0x4022D97C, 0x4025FDBB, 0x402921FB,
+    0x402C463A, 0x402F6A7A, 0x4031475C, 0x4032D97C, 0x40346B9C, 0x4035FDBB, 0x40378FDB, 0x403921FB,
+    0x403AB41B, 0x403C463A, 0x403DD85A, 0x403F6A7A, 0x40407E4C, 0x4041475C, 0x4042106C, 0x4042D97C,
+    0x4043A28C, 0x40446B9C, 0x404534AC, 0x4045FDBB, 0x4046C6CB, 0x40478FDB, 0x404858EB, 0x404921FB,
+}
 
 local function kernelSin(x, y, iy)
-    if abs31(highWord(x)) < 0x3e400000 then return x end
+    if (x < 0 and -x or x) < 2 ^ -27 then return x end -- |x| < 2^-27 (high word < 0x3e400000)
     local z = x * x
     local v = z * x
     local r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)))
@@ -267,7 +294,7 @@ end
 
 local function kernelCos(x, y)
     local ix = abs31(highWord(x))
-    if ix < 0x3e400000 then return 1 end
+    if ix < 0x3e400000 then return 1 end -- also the |x| < 2^-27 shortcut
     local z = x * x
     local r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))))
     if ix < 0x3FD33333 then return 1 - (0.5 * z - (z * r - x * y)) end
@@ -278,10 +305,8 @@ local function kernelCos(x, y)
     return a - (iz - (z * r - x * y))
 end
 
--- Returns n, y0, y1 with x = n * pi/2 + (y0 + y1). The npio2_hw table is only a
--- shortcut to the same result, so the general medium-size path is used.
-local function remPio2(x)
-    local hx = highWord(x)
+-- Returns n, y0, y1 with x = n * pi/2 + (y0 + y1); hx is x's high word.
+local function remPio2(x, hx)
     local ix = abs31(hx)
     if ix <= 0x3fe921fb then return 0, x, 0 end
     if ix < 0x4002d97c then
@@ -310,28 +335,34 @@ local function remPio2(x)
         return -1, y0, y1
     end
     if ix > 0x413921fb then
-        error("Math.sin argument beyond the ported fdlibm reduction range (|x| > 2^20*pi/2, about 1,647,099)", 0)
+        error("Unported reference path: Math.sin beyond the ported fdlibm reduction range " ..
+            "(|x| > 2^20*pi/2, about 1,647,099) (issue #24)", 0)
     end
     local t = x < 0 and -x or x
     local n = floor(t * invpio2 + 0.5)
     local r = t - n * pio2_1
     local w = n * pio2_1t
-    local j = floor(ix / 2 ^ 20)
-    local y0 = r - w
-    local i = j - floor(abs31(highWord(y0)) / 2 ^ 20) % 2048
-    if i > 16 then
-        t = r
-        w = n * pio2_2
-        r = t - w
-        w = n * pio2_2t - ((t - r) - w)
+    local y0
+    if n < 32 and ix ~= npio2_hw[n] then
+        y0 = r - w -- quick check: no cancellation
+    else
+        local j = floor(ix / 2 ^ 20)
         y0 = r - w
-        i = j - floor(abs31(highWord(y0)) / 2 ^ 20) % 2048
-        if i > 49 then
+        local i = j - floor(abs31(highWord(y0)) / 2 ^ 20) % 2048
+        if i > 16 then
             t = r
-            w = n * pio2_3
+            w = n * pio2_2
             r = t - w
-            w = n * pio2_3t - ((t - r) - w)
+            w = n * pio2_2t - ((t - r) - w)
             y0 = r - w
+            i = j - floor(abs31(highWord(y0)) / 2 ^ 20) % 2048
+            if i > 49 then
+                t = r
+                w = n * pio2_3
+                r = t - w
+                w = n * pio2_3t - ((t - r) - w)
+                y0 = r - w
+            end
         end
     end
     local y1 = (r - y0) - w
@@ -340,10 +371,11 @@ local function remPio2(x)
 end
 
 function JSMath.sin(x)
-    local ix = abs31(highWord(x))
+    local hx = highWord(x)
+    local ix = abs31(hx)
     if ix <= 0x3fe921fb then return kernelSin(x, 0, 0) end
     if ix >= 0x7ff00000 then return x - x end
-    local n, y0, y1 = remPio2(x)
+    local n, y0, y1 = remPio2(x, hx)
     local q = n % 4
     if q == 0 then return kernelSin(y0, y1, 1) end
     if q == 1 then return kernelCos(y0, y1) end

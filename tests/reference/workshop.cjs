@@ -139,8 +139,7 @@ function lua(trace) {
 // Runs both sides; returns the documents and the first divergence (or null).
 function compare(name, source=Runner.inputs()) {
     const trace=make(name);
-    // The reference VM mutates fixture objects (for example qChips), so it gets a copy.
-    const reference=Runner.report(Runner.run(JSON.parse(JSON.stringify(trace)),source).result,source,true);
+    const reference=Runner.report(Runner.run(trace,source).result,source,true);
     const port=lua(trace);
     let left=Runner.project(reference,port.projection);
     if (port.error) {

@@ -84,6 +84,15 @@ test("fdlibm Math.sin and Math.log10 match V8 exactly, including the quantum clo
     for (let k=0;k<100000;k++) { q=q+.01; if (k%23===0) for (const s of seeds) list.push(["sin",q*s*1]); }
     for (let n=1;n<=5000;n++) list.push(["sin",n],["sin",-n]); // wirePriceCounter
     for (let n=1;n<=2000;n++) for (const d of [-1,0,1]) list.push(["sin",n*Math.PI/2+d*1e-9]);
+    // Arguments one or more high words away from n*pi/2, where V8's reduction takes
+    // the npio2_hw quick path (n < 32) instead of the refinement passes.
+    const view=new DataView(new ArrayBuffer(8));
+    const high=x=>{view.setFloat64(0,x);return view.getUint32(0);};
+    const fromWords=(h,l)=>{view.setUint32(0,h>>>0);view.setUint32(4,l>>>0);return view.getFloat64(0);};
+    for (let n=1;n<=40;n++) for (const d of [1,2,8,16,-1,-2,-8,-16]) for (const low of [0,0x80000000,0xffffffff]) {
+        const x=fromWords(high(n*Math.PI/2)+d,low);
+        list.push(["sin",x],["sin",-x]);
+    }
     for (let i=0;i<20000;i++) list.push(["sin",(rnd()-0.5)*2*Math.pow(10,Math.floor(rnd()*11-5))]);
     for (const x of [0,-0,1e-300,-1e-300,5e-324,Math.PI/4,Math.PI/2,3*Math.PI/4,Infinity,-Infinity,NaN,823549,-823549])
         list.push(["sin",x]);

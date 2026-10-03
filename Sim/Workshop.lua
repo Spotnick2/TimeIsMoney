@@ -95,8 +95,10 @@ Workshop.projects = {
     { "project219", "projectButton219", function(S) return S.humanFlag == 1 and S.creativity >= 100000 end },
 }
 
--- Buttons whose disabled state buttonUpdate maintains; clicks on a disabled
--- control do nothing, as in the browser.
+-- Controls the slice ports, with their disabled state in every checkpoint. A click
+-- on a disabled control does nothing, as in the browser. buttonUpdate maintains
+-- the state of all except btnRaisePrice and btnQcompute, which the reference never
+-- disables.
 Workshop.buttons = {
     "btnMakePaperclip", "btnBuyWire", "btnMakeClipper", "btnExpandMarketing",
     "btnLowerPrice", "btnRaisePrice", "btnMakeMegaClipper", "btnAddProc", "btnAddMem", "btnQcompute",
@@ -409,10 +411,11 @@ Workshop.VERIFIED_PROCESSORS = 3424
 function Game:addProc()
     local S = self.S
     if S.trust > 0 or S.swarmGifts > 0 then
-        S.processors = S.processors + 1
-        if S.processors > Workshop.VERIFIED_PROCESSORS then
+        -- Stop before changing state, so a caught error leaves the game intact.
+        if S.processors + 1 > Workshop.VERIFIED_PROCESSORS then
             Unported("creativitySpeed beyond the verified processor count", "#24")
         end
+        S.processors = S.processors + 1
         S.creativitySpeed = log10(S.processors) * pow(S.processors, 1.1) + S.processors - 1
         if looseOne(S.creativityOn) then
             self:displayMessage("Processor added, operations (or creativity) per sec increased")
@@ -631,9 +634,9 @@ local clicks = {
     btnLowerPrice = Game.lowerPrice,
     btnRaisePrice = Game.raisePrice,
     btnMakeMegaClipper = Game.makeMegaClipper,
-    btnAddProc = function(game) game:addProc() end,
-    btnAddMem = function(game) game:addMem() end,
-    btnQcompute = function(game) game:qComp() end,
+    btnAddProc = Game.addProc,
+    btnAddMem = Game.addMem,
+    btnQcompute = Game.qComp,
 }
 
 -- A click on a disabled control has no effect, matching the browser host.

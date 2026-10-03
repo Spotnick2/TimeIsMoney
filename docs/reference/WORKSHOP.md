@@ -134,7 +134,11 @@ Reference paths outside the slice raise
 
   A 290,720-case probe found 2,633 differences with the FreeBSD cosine kernel
   and 9,824 with the C library. The wire price and the quantum chips are
-  therefore exact.
+  therefore exact on the measured profile (Node v24.15.0, V8 13.6). V8 has a
+  build option that swaps in glibc-derived sin/cos, so other Chromium builds are
+  not covered by this claim. The reduction includes fdlibm's npio2_hw quick
+  path, and jsmath.test.cjs covers arguments one or more high words away from
+  n·π/2.
 - **creativitySpeed:** `log10(n) * pow(n, 1.1) + n - 1` for an integer processor
   count. log10 is exact. The correctly rounded pow matches V8 for every count up
   to 3,424 (tested); V8 first differs at 3,425. Creativity drives project
@@ -179,8 +183,9 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | quantumOverflow | Seven chips oscillating every tick; qComp fills to the memory cap and overflows. The reference leaves a negative tempOps on the first overflow | match |
 | quantumNegative | A −7.1 chip sum drains about 2,550 Operations per click. Operations fall below −12,000, unlock the recovery project, and refill slowly | match |
 
-The reference VM mutates fixture objects such as qChips. The harness therefore
-gives it a copy, so the Lua input keeps the original values.
+The reference VM mutates fixture objects such as qChips. The host therefore
+clones fixture values, so the report records the fixture as injected and the Lua
+input keeps the original values.
 
 Changing one decrement in the Lua port by a single binary64 step was caught at
 the first tick. So was changing one acceleration factor in the battle core.

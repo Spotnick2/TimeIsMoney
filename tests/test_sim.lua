@@ -115,4 +115,10 @@ game:click("btnMakePaperclip")
 game:advanceTo(2000)
 assert(game.S.clips == 1 and game.S.ticks == 200)
 fails("Unported reference path: control btnNewTournament", game.click, game, "btnNewTournament")
+
+-- addProc refuses to cross the verified processor count before changing state.
+game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000
+local speed = game.S.creativitySpeed
+fails("verified processor count %(issue #24%)", game.addProc, game)
+assert(game.S.processors == Workshop.VERIFIED_PROCESSORS and game.S.creativitySpeed == speed)
 print("simulation: JavaScript numbers, scheduler, purity and workshop smoke passed")

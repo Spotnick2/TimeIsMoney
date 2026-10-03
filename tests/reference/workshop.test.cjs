@@ -155,6 +155,10 @@ test("quantum chips oscillate with the clock and qComp overflows into temporary 
     assert.equal(overflow.standardOps,1000);
     assert.ok(overflow.tempOps<0,"the reference can make tempOps negative on overflow");
     assert.ok(final(port).state.tempOps>0);
+    // The reference report records the injected fixture, not values the run mutated.
+    const {reference,trace}=run("quantumOverflow");
+    assert.ok(reference.input.fixture.globals.qChips.every(chip=>chip.value===0));
+    assert.ok(trace.fixture.globals.qChips.every(chip=>chip.value===0));
 });
 test("a negative chip sum drives Operations below -10,000 and unlocks the recovery project",()=>{
     const {port}=run("quantumNegative");
