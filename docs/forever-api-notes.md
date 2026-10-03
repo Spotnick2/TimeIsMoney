@@ -57,6 +57,62 @@ Procedure: deploy, fully restart the client, `/console scriptErrors 1`,
 `/reload`, `/timprobe status`, full exit and relaunch, `/timprobe status`.
 Results are recorded below with the build and date.
 
+### Results — 2026-10-03, client 1.60.1.70205
+
+The client reported **1.60.1.70205**, interface 16001, Lua 5.1. That is newer than the
+1.60.1.70170 API evidence; the build-evidence update is separate work (/client-update).
+
+**WoW's embedded Lua differs from C Lua 5.1 for zero divisors and NaN.** Each line
+below was measured in the client under pcall:
+
+| Expression | Client result |
+| --- | --- |
+| `1 / 0`, `0 / 0`, `5 % 0` | error "Division by zero" |
+| `nan / 2`, `nan % 2` | error "Numerator is not a number" |
+| `2 / nan`, `2 % nan` | error "Division by zero" (NaN also equals 0) |
+| `nan == nan`, `nan == 1`, `nan < 1`, `nan > 1`, `nan <= 1`, `nan >= 1`, `1 < nan` | all **true** |
+| `nan ~= nan` | false |
+| `nan + 1`, `nan - 1`, `nan * 2`, `nan ^ 2`, floor/ceil/abs/max/frexp of NaN | NaN |
+| `inf - inf`, `0 * inf`, `inf % 2` | NaN (`-nan(ind)`) |
+| `math.fmod(5, 0)` | NaN |
+| `math.sqrt(-1)` | error "expected non-negative argument" |
+| NaN as a table key | error "table index is NaN" |
+| `tostring(-0)`, `math.atan2(-0, -1)` | `-0`, `-3.1415926535898` (signed zero is observable) |
+| `string.format("%d", 2^31)` | error "integer overflow attempting to store 2147483648" |
+| `bit` | a table (present) |
+| `tonumber("20614348053932190")` | 20614348053932192 (correctly rounded, unlike an older C runtime) |
+
+The first probe run stopped on `1 / -0` inside the environment checks. After
+JSMath.div was added, the simulation stopped on "Numerator is not a number" in the
+first revenue second. After the NaN-safe helpers, a NaN digest still differed,
+because WoW's NaN satisfies `x < 0`. Sim/JSMath.lua now:
+
+- never divides by zero or by NaN (`JSMath.div`);
+- tests NaN as `x ~= x or (x == 0 and x == 1)`;
+- compares possibly-NaN values with `lt`/`gt`;
+- detects -0 with math.atan2, chosen at load by self-test;
+- encodes NaN canonically.
+
+After these changes, in the client:
+
+- `/timprobe env`: all checks passed.
+- `/timprobe math`: all 1,223 pow, sin, log10 and toString cases exact against V8 (73 ms).
+- `/timprobe sim`: digest `e17f48a4`, 9,198 draws, 250 ticks, 604–766 ms. This
+  matches offline Lua. The zero-price run's digest `8fa831b4` also matches. The
+  simulation therefore produces identical state in the client.
+- Icons: Hearthstone 6948 loaded at once (cached). Alchemy 2259 resolved through
+  C_Spell. The Forever battery 274048 showed its name ("9-60 Battery Pack") and
+  icon from C_Item.GetItemNameByID / GetItemIconByID. However,
+  C_Item.IsItemDataCachedByID stayed false and no GET_ITEM_INFO_RECEIVED arrived
+  within the 10 s bound. **Fallback:** use the by-ID name and icon when they
+  return values; do not wait on the cache flag or the event.
+- Persistence: loadCount went 2 → 3 after a full restart, 3 → 4 after `/reload`
+  (marker "first" written), and 4 → 5 after a full exit and relaunch, with the
+  marker intact. **Account SavedVariables load back on 1.60.1.70205.**
+  TimeIsMoneyDB stayed nil throughout.
+
+No model was tested (#10).
+
 ## Future probes
 
 Supplied API evidence: 1.60.1.70170, Interface 16001. Shared measurements from
