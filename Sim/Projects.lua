@@ -488,6 +488,11 @@ simple("project130", function(S) return S.spaceFlag == 1 and S.harvesterLevel + 
         S.standardOps = S.standardOps - 100000
     end)
 add("project131", function(S) return S.probesLostCombat >= 1 end, ops(150000), nil, "#15")
+-- Memory release (emergency probe restart) is cosmic recovery (#16): available once
+-- every probe is gone without clips for a new one.
+add("project135", function(S)
+    return S.spaceFlag == 1 and S.probeCount == 0 and S.unusedClips < S.probeCost and S.milestoneFlag < 15
+end, function(S) return S.memory >= 10 end, nil, "#16")
 -- Restart asks confirm() and resets the game (explicit new-game control, #23).
 add("project217", function(S) return S.operations <= -10000 end, function(S) return S.operations <= -10000 end,
     function() Unported("Quantum Temporal Reversion restart (confirm and reset)", "#23") end, "#23")

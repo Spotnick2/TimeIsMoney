@@ -241,7 +241,7 @@ const PROJECT_RUNS=["projectsProduction","projectsCreativity","projectsStrategy"
     "projectsVolition","projectsMachines","projectsRecovery","projectsLate","transition",
     "planetChain","planetPipeline","planetUpgrades","swarmGifts","spaceGate","spaceProjects"];
 const REPEATABLE=new Set(["project2","project40b","project51","project219"]);
-const STOPS=new Set(["project121","project131","project217"]);
+const STOPS=new Set(["project121","project131","project135","project217"]);
 test("every purchasable project is bought in a trace, with eligibility compared",()=>{
     const projected=run("projectsProduction").port.projection.state.filter(k=>/^project\d/.test(k));
     const bought=new Set();
@@ -449,6 +449,11 @@ test("the cosmic phase projects: Strategic Attachment, Elliptic Hull Polytopes, 
     const end=final(run("spaceProjects").port);
     assert.deepEqual([end.state.project128.flag,end.state.project129.flag,end.state.project130.flag],[1,1,1]);
     assert.equal(end.dom.readout1.html,"Swarm computing back online");
+});
+test("with every probe lost and too few clips, Memory release appears",()=>{
+    const end=final(run("spaceRecovery").port);
+    assert.ok(end.state.activeProjects.some(p=>p.id==="projectButton135"));
+    assert.equal(end.dom.projectButton135.disabled,false,"200 memory pays its 10");
 });
 test("drifters past warTrigger reach the battles' explicit stop",()=>{
     // The stop comes inside the tick whose drift passes warTrigger, so the last

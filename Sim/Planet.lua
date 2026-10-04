@@ -83,12 +83,14 @@ for _, id in ipairs({
 -- A cost is a pure function of its integer base, so computed values are kept
 -- (the pure-Lua pow is slow and the price sums revisit the same bases).
 local memo = {}
+for e, domain in pairs(CostPow) do
+    if type(domain) == "table" then memo[e] = {} end
+end
 local function costPow(n, e)
     local domain = CostPow[e]
     if n ~= floor(n) or n < 1 or n > domain.limit then
         Unported("building cost Math.pow(" .. JSMath.toString(n) .. ", " .. e .. ") beyond the verified domain", "#24")
     end
-    memo[e] = memo[e] or {}
     local value = memo[e][n]
     if value == nil then
         local fix = domain.fixes[n]
@@ -101,16 +103,22 @@ Workshop.costPow = costPow
 
 -- Every cost base the price updates reach from the given levels: each drone level
 -- + 1000 (purchase loops stay within that), each farm and battery level + 100.
--- Purchases and reboots call it first with the levels after the operation, so a
--- stop (#24) always comes before any change.
+-- Probes build fractional drone levels in space (#14), whose costs are not integer
+-- bases. Purchases and reboots call it first with the levels after the operation,
+-- so a stop (#24) always comes before any change.
 local function requirePriceDomains(S, levels)
-    local function level(name) return levels and levels[name] or S[name] end
+    local function level(name)
+        if levels and levels[name] ~= nil then return levels[name] end
+        return S[name]
+    end
     for _, check in ipairs({
-        { "2.25", level("harvesterLevel") + 1000 }, { "2.25", level("wireDroneLevel") + 1000 },
-        { "2.78", level("farmLevel") + 100 }, { "2.54", level("batteryLevel") + 100 },
+        { "2.25", "harvesterLevel", 1000 }, { "2.25", "wireDroneLevel", 1000 },
+        { "2.78", "farmLevel", 100 }, { "2.54", "batteryLevel", 100 },
     }) do
-        if check[2] > CostPow[check[1]].limit then
-            Unported("building cost Math.pow(" .. check[2] .. ", " .. check[1] .. ") beyond the verified domain", "#24")
+        local n = level(check[2])
+        if n ~= floor(n) or n + check[3] > CostPow[check[1]].limit then
+            Unported("building cost Math.pow(" .. JSMath.toString(n + check[3]) .. ", " .. check[1] ..
+                ") beyond the verified domain", "#24")
         end
     end
 end

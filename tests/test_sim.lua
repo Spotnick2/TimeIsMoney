@@ -161,6 +161,18 @@ planet.S.farmLevel, planet.S.storedPower = 29950, 7
 fails("Math%.pow%(30050, 2%.78%)", planet.batteryReboot, planet)
 assert(planet.S.batteryLevel == 29950 and planet.S.storedPower == 7)
 
+-- The cosmic phase (#14): fractional drone levels (probe-built) and the probe trust
+-- domain stop before any change (review of #48).
+local cosmos = Workshop.new(stub, {})
+cosmos.S.harvesterLevel, cosmos.S.wireDroneLevel, cosmos.S.unusedClips = 5, 12.34, 1e30
+fails("building cost Math%.pow%(1012%.34, 2%.25%)", cosmos.harvesterReboot, cosmos)
+assert(cosmos.S.harvesterLevel == 5 and cosmos.S.unusedClips == 1e30)
+fails("beyond the verified domain", cosmos.makeHarvester, cosmos, 1)
+assert(cosmos.S.harvesterLevel == 5 and cosmos.S.unusedClips == 1e30)
+cosmos.S.probeTrust, cosmos.S.maxTrust, cosmos.S.yomi, cosmos.S.probeTrustCost = 9999, 20000, 1e12, 1
+fails("probe formula Math%.pow%(10001, 1%.47%) for the probe trust cost", cosmos.increaseProbeTrust, cosmos)
+assert(cosmos.S.probeTrust == 9999 and cosmos.S.yomi == 1e12)
+
 -- The swarm (#13): with no drones and the slider at 0, a repeating gift is
 -- log10(0) * 0 = NaN. It must never reach a native division (WoW's Lua raises), and
 -- swarmGifts returns to 0 on the next tick, as in the reference.

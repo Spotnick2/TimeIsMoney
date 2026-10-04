@@ -14,6 +14,12 @@ local floor = math.floor
 -- Math.pow(n, e) for the probe formulas' integer bases (trust levels, hazard
 -- allocations): the pinned reference profile's value (Sim/CostPow.lua). 0^e is 0
 -- and 1^e is 1 exactly (ECMAScript Math.pow).
+local function requireProbeDomain(n, e, formula)
+    if n ~= floor(n) or n < 0 or n > ns.CostPow[e].limit then
+        Unported("probe formula Math.pow(" .. JSMath.toString(n) .. ", " .. e .. ") for " .. formula ..
+            " beyond the verified domain", "#24")
+    end
+end
 local function probePow(n, e)
     if n == 0 then return 0 end
     if n == 1 then return 1 end
@@ -71,6 +77,8 @@ end
 function Game:increaseProbeTrust()
     local S = self.S
     if S.yomi >= S.probeTrustCost and S.probeTrust < S.maxTrust then
+        -- The next cost's base, checked before anything changes.
+        requireProbeDomain(S.probeTrust + 2, "1.47", "the probe trust cost")
         S.yomi = S.yomi - S.probeTrustCost
         S.probeTrust = S.probeTrust + 1
         S.probeTrustCost = floor(probePow(S.probeTrust + 1, "1.47") * 500)
@@ -203,9 +211,13 @@ function Game:war()
     end
 end
 
--- The main loop's probe section (spaceFlag == 1).
+-- The main loop's probe section (spaceFlag == 1). Like every stop inside a tick, a
+-- stop here halts the simulation: the tick's earlier steps have run (only commands
+-- guarantee a stop before any change). The formula domains are checked first.
 function Game:probeTick()
     local S = self.S
+    requireProbeDomain(S.probeHaz, "1.6", "hazards")
+    requireProbeDomain(S.probeTrust, "1.2", "drift")
     if S.probeCount < 0 then S.probeCount = 0 end
     self:encounterHazards()
     self:spawnFactories()

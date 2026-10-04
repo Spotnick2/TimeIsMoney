@@ -174,16 +174,15 @@ Reference paths outside the slice raise
 | Path | Issue |
 | --- | --- |
 | Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #20 |
-| Tournament placing bonuses (project128) | #14 |
 | Purchases of the shown later-phase projects Name the battles and Combat | #15 |
 | Quantum Temporal Reversion (confirm() then reset) | #23 |
-| Milestones 13 (space) and 14 (universal paperclips) | #14, #17 |
 | toLocaleString of negative, fractional or unsafe-integer values | #21 |
 | Battles: the checkForBattles roll once drifters pass warTrigger with probes left | #15 |
 | Milestone 15 (all the universe's matter in clips, or surveyed and used up), which opens the correspondence and endings | #16 |
-| Probe formulas beyond the verified domain: Math.pow(n, 1.2), Math.pow(n, 1.47) and Math.pow(n, 1.6) for integer n > 10,000 (trust and hazard allocations) | #24 |
+| Probe formulas beyond the verified domain: Math.pow(n, 1.2), Math.pow(n, 1.47) and Math.pow(n, 1.6) for integer n > 10,000 (trust and hazard allocations); the trust purchase checks before any change | #24 |
+| Building purchases and reboots with fractional drone, farm or battery levels (probes build fractional drones in space), whose costs are not integer bases; checked before any change | #24 |
+| Memory release purchase (cosmic recovery) | #16 |
 | Building costs beyond the verified domain: Math.pow(n, 2.25) for n > 200,000 (drones, including the +1k lookahead), Math.pow(n, 2.54) and Math.pow(n, 2.78) for n > 30,000 (batteries, farms); checked before any change | #24 |
-| exploreUniverse and probe functions | #14 |
 | checkForBattleEnd with an active battle | #15 |
 | Ending sequence and dismantling clicks | #17 |
 | Reference auto-save (after 25 s) | #19 |
@@ -322,7 +321,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines fifty-four traces with an explicit equidistributed
+tests/reference/workshop.cjs defines fifty-five traces with an explicit equidistributed
 stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
 the trace. Longer traces use longer streams. A few investment traces use an
 offset so the 25 % purchase rolls succeed within seconds.
@@ -387,6 +386,7 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | probeSurvey | Surveying below the limit adds matter to the found and available pools | match |
 | probeShortage | Replication clamped by clips; a launch refused | match |
 | spaceProjects | Strategic Attachment (eight strategies), Elliptic Hull Polytopes, Reboot the Swarm | match |
+| spaceRecovery | Every probe lost without clips for a new one: Memory release appears, enabled | match |
 | spaceWar | Drifters pass warTrigger: the battles' explicit stop | match up to the stop (#15) |
 
 The reference VM mutates fixture objects such as qChips. The host therefore

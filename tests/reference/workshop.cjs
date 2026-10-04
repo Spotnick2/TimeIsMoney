@@ -281,6 +281,9 @@ const traces={
     spaceProjects:{until:700,fixture:{globals:space({creativity:200000,processors:300000,probesLostHaz:150,
         harvesterLevel:30,wireDroneLevel:30,probeCount:2e6,probeHaz:2,probeTrust:2}),strategies:[0,1,2,3,4,5,6,7]},
         commands:[...buy(20,"128","129","130")]},
+    // Every probe lost without clips for a new one: Memory release appears (its
+    // purchase is cosmic recovery, #16).
+    spaceRecovery:{until:200,fixture:{globals:space({probeCount:0,unusedClips:1e16})},commands:[]},
     // Drifters pass warTrigger: the next battle roll is #15, where the slice stops.
     spaceWar:{until:400,fixture:{globals:space({probeCount:1e8,probeTrust:30,maxTrust:30,drifterCount:900000})},
         commands:[]},
