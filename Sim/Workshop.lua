@@ -117,6 +117,8 @@ function Workshop.new(random, log)
         investStrat = { options = { "low", "med", "hi" }, value = "low" },
         stratPicker = { options = { "10", "0" }, value = "10" },
     }
+    -- Range inputs (value plus a sanitize function), added by later files.
+    game.ranges = {}
     for _, setup in ipairs(Workshop.setups) do setup(game, S) end
     game.draw = function(site) return random:draw(site, game.clock.now) end
 
@@ -406,7 +408,7 @@ function Game:buttonUpdate()
     disabled.btnMakeClipper = S.funds < S.clipperCost
     disabled.btnExpandMarketing = S.funds < S.adCost
     disabled.btnLowerPrice = S.margin <= .01
-    disabled.btnAddProc = S.trust <= S.processors + S.memory and S.swarmGifts <= 0
+    disabled.btnAddProc = S.trust <= S.processors + S.memory and JSMath.le(S.swarmGifts, 0)
     disabled.btnAddMem = disabled.btnAddProc
     disabled.btnNewTournament = not (S.operations >= S.tourneyCost and S.tourneyInProg == 0)
     disabled.btnImproveInvestments = S.yomi < S.investUpgradeCost
@@ -431,7 +433,7 @@ Workshop.VERIFIED_PROCESSORS = 3424
 
 function Game:addProc()
     local S = self.S
-    if S.trust > 0 or S.swarmGifts > 0 then
+    if S.trust > 0 or gt(S.swarmGifts, 0) then
         -- Stop before changing state, so a caught error leaves the game intact.
         if S.processors + 1 > Workshop.VERIFIED_PROCESSORS then
             Unported("creativitySpeed beyond the verified processor count", "#24")
@@ -449,7 +451,7 @@ end
 
 function Game:addMem()
     local S = self.S
-    if S.trust > 0 or S.swarmGifts > 0 then
+    if S.trust > 0 or gt(S.swarmGifts, 0) then
         self:displayMessage("Memory added, max operations increased")
         S.memory = S.memory + 1
         if S.humanFlag == 0 then S.swarmGifts = S.swarmGifts - 1 end
@@ -721,14 +723,16 @@ function Game:addOption(id, value)
 end
 
 -- Setting a select to a value without a matching option leaves it empty, as in
--- the browser. A control with its own sanitize (the swarm slider) uses that.
+-- the browser. A range input sanitizes the value (and keeps its number).
 function Game:setValue(id, value)
-    local select = self.selects[id]
-    if not select then Unported("value control " .. tostring(id), "a later slice") end
-    if select.sanitize then
-        select.value = select.sanitize(value)
+    local range = self.ranges[id]
+    if range then
+        range.value = range.sanitize(value)
+        range.number = JSMath.toNumber(range.value)
         return
     end
+    local select = self.selects[id]
+    if not select then Unported("value control " .. tostring(id), "a later slice") end
     select.value = ""
     for _, option in ipairs(select.options) do
         if option == value then select.value = value end

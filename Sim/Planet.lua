@@ -11,10 +11,7 @@ ns = ns or {}
 local JSMath, Workshop, CostPow = ns.JSMath, ns.Workshop, ns.CostPow
 local Game, Unported = Workshop.Game, ns.Unported
 local floor, max, min = math.floor, math.max, math.min
-local isNaN, toNumber = JSMath.isNaN, JSMath.toNumber
-
--- JavaScript `x <= 0`: false for NaN (WoW's Lua compares NaN as true).
-local function atMostZero(x) return not isNaN(x) and x <= 0 end
+local isNaN, toNumber, le, div = JSMath.isNaN, JSMath.toNumber, JSMath.le, JSMath.div
 
 -- globals.js / main.js initial values.
 local initial = {
@@ -40,20 +37,33 @@ initial.availableMatter = JSMath.pow(10, 24) * 6000
 for key, value in pairs(initial) do Workshop.initial[key] = value end
 
 -- The swarm slider (index2.html: range 0..200, step 1, value "0"). Setting it
--- sanitizes as the host does: HTML decimal syntax only, otherwise the midpoint;
--- clamped, then rounded with ties upward. Its value stays a string.
+-- sanitizes as the host does (Tools/reference/dom.cjs): the HTML decimal syntax
+-- ^-?([0-9]+(\.[0-9]+)?|\.[0-9]+)([eE][+-]?[0-9]+)?$ or else the midpoint; clamped,
+-- then rounded with ties upward. Its value stays a string; the number is kept
+-- beside it so the main loop does not parse it every tick.
+local function decimal(text)
+    local body, exponent = text:match("^%-?([%d%.]+)(.*)$")
+    if not body then return false end
+    local mantissa = body:match("^%d+$") or body:match("^%d+%.%d+$") or body:match("^%.%d+$")
+    return mantissa ~= nil and (exponent == "" or exponent:match("^[eE][+-]?%d+$") ~= nil)
+end
 local function sanitizeSlider(value)
     value = tostring(value)
-    local mantissa, exponent = value:match("^(%-?%d*%.?%d*)(.*)$")
-    local valid = mantissa and mantissa:find("%d") and not mantissa:find("%.$")
-        and (exponent == "" or exponent:find("^[eE][+-]?%d+$")) and true or false
-    local n = valid and toNumber(value) or JSMath.NAN
+    local n = decimal(value) and toNumber(value) or JSMath.NAN
     if isNaN(n) or n == math.huge or n == -math.huge then n = 100 end
     return JSMath.toString(JSMath.round(max(0, min(200, n))))
 end
 Workshop.sanitizeSlider = sanitizeSlider
 Workshop.setups[#Workshop.setups + 1] = function(game)
-    game.selects.slider = { value = "0", sanitize = sanitizeSlider }
+    game.ranges.slider = { value = "0", number = 0, sanitize = sanitizeSlider }
+end
+
+-- sliderPos as a number: 0 until Swarm Computing, then the slider's string.
+local function sliderNumber(game)
+    local v, slider = game.S.sliderPos, game.ranges.slider
+    if type(v) == "number" then return v end
+    if v == slider.value then return slider.number end
+    return toNumber(v)
 end
 
 for _, id in ipairs({
@@ -330,7 +340,7 @@ end
 function Game:updateSwarm()
     local S, disabled = self.S, self.disabled
     if isNaN(S.swarmGifts) or S.swarmGifts < 0 then S.swarmGifts = 0 end
-    if S.swarmFlag == 1 then S.sliderPos = self.selects.slider.value end
+    if S.swarmFlag == 1 then S.sliderPos = self.ranges.slider.value end
     disabled.btnSynchSwarm = S.yomi < S.synchCost
     disabled.btnEntertainSwarm = S.creativity < S.entertainCost
     if S.availableMatter == 0 and (S.harvesterLevel + S.wireDroneLevel) >= 1 then
@@ -366,9 +376,12 @@ function Game:updateSwarm()
     -- giftCountdown is recomputed only while the swarm is Active, so after a gift it
     -- stays at or below 0, and the gift repeats every tick, until the swarm is
     -- Active again (reference behavior).
-    if atMostZero(S.giftCountdown) then
-        S.nextGift = JSMath.round((JSMath.log10(d)) * toNumber(S.sliderPos) / 100)
-        if atMostZero(S.nextGift) then S.nextGift = 1 end
+    -- With no drones and the slider at 0, log10(0) * 0 is NaN: the reference carries
+    -- it into nextGift and swarmGifts (reset to 0 next tick), so nothing divides it
+    -- natively.
+    if le(S.giftCountdown, 0) then
+        S.nextGift = JSMath.round(div((JSMath.log10(d)) * sliderNumber(self), 100))
+        if le(S.nextGift, 0) then S.nextGift = 1 end
         S.swarmGifts = S.swarmGifts + S.nextGift
         if S.milestoneFlag < 15 then
             self:displayMessage("The swarm has generated a gift of " .. JSMath.toString(S.nextGift) ..
@@ -389,7 +402,7 @@ function Game:updateSwarm()
     if S.swarmStatus == 0 then
         -- d >= 2 here (0 and 1 have their own statuses), so the log is positive; a
         -- slider at 0 makes the rate 0 and the countdown Infinity.
-        S.giftBitGenerationRate = JSMath.log(d) * (toNumber(S.sliderPos) / 100)
+        S.giftBitGenerationRate = JSMath.log(d) * (sliderNumber(self) / 100)
         S.giftBits = S.giftBits + S.giftBitGenerationRate
         S.giftCountdown = JSMath.div(S.giftPeriod - S.giftBits, S.giftBitGenerationRate)
     end
@@ -421,7 +434,7 @@ function Game:acquireMatter()
         local dbsth = 1
         if S.droneBoost > 1 then dbsth = S.droneBoost * floor(S.harvesterLevel) end
         local mtr = S.powMod * dbsth * floor(S.harvesterLevel) * S.harvesterRate
-        mtr = mtr * ((200 - toNumber(S.sliderPos)) / 100)
+        mtr = mtr * ((200 - sliderNumber(self)) / 100)
         if mtr > S.availableMatter then mtr = S.availableMatter end
         S.availableMatter = S.availableMatter - mtr
         S.acquiredMatter = S.acquiredMatter + mtr
@@ -434,7 +447,7 @@ function Game:processMatter()
         local dbstw = 1
         if S.droneBoost > 1 then dbstw = S.droneBoost * floor(S.wireDroneLevel) end
         local a = S.powMod * dbstw * floor(S.wireDroneLevel) * S.wireDroneRate
-        a = a * ((200 - toNumber(S.sliderPos)) / 100)
+        a = a * ((200 - sliderNumber(self)) / 100)
         if a > S.acquiredMatter then a = S.acquiredMatter end
         S.acquiredMatter = S.acquiredMatter - a
         S.wire = S.wire + a

@@ -78,8 +78,10 @@ local stateKeys = {}
 for k in pairs(S) do if k ~= "grid" then stateKeys[#stateKeys + 1] = k end end
 table.sort(stateKeys)
 
-local selectIds = {}
-for id in pairs(game.selects) do selectIds[#selectIds + 1] = id end
+-- Value controls: selects and range inputs.
+local selectIds, controls = {}, {}
+for id, control in pairs(game.selects) do selectIds[#selectIds + 1] = id controls[id] = control end
+for id, control in pairs(game.ranges) do selectIds[#selectIds + 1] = id controls[id] = control end
 table.sort(selectIds)
 
 local checkpoints = {}
@@ -96,7 +98,7 @@ local function snapshot()
             (game.projectElements[entry.id] and ('{"disabled":' .. tostring(game.disabled[entry.id]) .. "}") or "null")
     end
     for i = 1, 5 do dom[#dom + 1] = quote("readout" .. i) .. ':{"html":' .. quote(game.readouts[i]) .. "}" end
-    for _, id in ipairs(selectIds) do dom[#dom + 1] = quote(id) .. ':{"value":' .. quote(game.selects[id].value) .. "}" end
+    for _, id in ipairs(selectIds) do dom[#dom + 1] = quote(id) .. ':{"value":' .. quote(controls[id].value) .. "}" end
     return '{"state":{' .. table.concat(parts, ",") .. '},"dom":{' .. table.concat(dom, ",") ..
         '},"timers":' .. json(game.clock:describe(), true) .. ',"draws":' .. random.cursor .. "}"
 end

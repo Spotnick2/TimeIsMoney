@@ -376,7 +376,7 @@ test("factory and drone upgrade projects multiply rates and boosts",()=>{
     const end=final(run("planetUpgrades").port).state;
     assert.deepEqual([end.factoryRate,end.factoryBoost,end.harvesterRate,end.wireDroneRate,end.droneBoost,end.yomi,end.unusedClips],
         [1e9*100*1000,1000,26180337*100*1000,16180339*100*1000,2,10000,1e21]);
-    assert.ok(end.activeProjects.some(p=>p.id==="projectButton126"),"Swarm Computing appears (its purchase is #13)");
+    assert.ok(end.activeProjects.some(p=>p.id==="projectButton126"),"Swarm Computing appears (bought in swarmGifts)");
 });
 // The swarm (#13).
 test("Swarm Computing reads the slider, the Active swarm earns gifts, and gifts buy capacity",()=>{

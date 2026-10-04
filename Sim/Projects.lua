@@ -356,8 +356,10 @@ end)
 -- Space Exploration, the expansion gate: it appears once the Earth's matter is
 -- gone. The purchase dismantles every planetary building (refunding their bills),
 -- keeps one farm at full power and sets spaceFlag; the next tick reaches the cosmic
--- phase (#14), where the slice stops explicitly. loadThrenody only loads the
--- ending's audio. Math.pow(10, 27)*5 is an integer power, exact in JSMath.
+-- phase (#14), where the slice stops explicitly. loadThrenody loads the ending's
+-- audio, whose canplaythrough listener sets threnodyLoadedBool for playThrenody;
+-- the endings and their presentation (#17) handle that, and the probe cost display
+-- belongs to space (#14). Math.pow(10, 27)*5 is an integer power, exact in JSMath.
 local spaceClips = JSMath.pow(10, 27) * 5
 add("project46", function(S) return S.humanFlag == 0 and S.availableMatter == 0 end, function(S)
     return S.operations >= 120000 and S.storedPower >= 10000000 and S.unusedClips >= spaceClips
