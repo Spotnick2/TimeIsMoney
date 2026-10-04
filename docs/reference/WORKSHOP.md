@@ -8,8 +8,9 @@ Issues [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5),
 [#12](https://github.com/Spotnick2/TimeIsMoney/issues/12), then
 [#13](https://github.com/Spotnick2/TimeIsMoney/issues/13)), the cosmic phase's core
 ([#14](https://github.com/Spotnick2/TimeIsMoney/issues/14)), battles
-([#15](https://github.com/Spotnick2/TimeIsMoney/issues/15)) and the correspondence, memorials and
-recovery ([#16](https://github.com/Spotnick2/TimeIsMoney/issues/16)). This is the first port of
+([#15](https://github.com/Spotnick2/TimeIsMoney/issues/15)), the correspondence, memorials and
+recovery ([#16](https://github.com/Spotnick2/TimeIsMoney/issues/16)) and the endings
+([#17](https://github.com/Spotnick2/TimeIsMoney/issues/17)). This is the first port of
 the [pinned reference](README.md) into the pure-Lua simulation layer (`Sim/`). The simulation has no WoW globals, frames, clocks, I/O or native
 randomness. It is parity-tested outside the game and is **not yet in the TOC or
 the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
@@ -171,6 +172,20 @@ State uses the reference global names, formulas and statement order: `clips`
     and audio are presentation) and Glory (+10 bonus honor per consecutive victory);
   - Memory release: once every probe is gone without clips for one, 10 memory buys
     10^22 clips; repeatable (its effect sets uses back to 1).
+- **The endings (#17):**
+  - Accept or Reject the exile; either removes both buttons;
+  - Accept: The Universe Next Door (prestigeU) and The Universe Within (prestigeS),
+    each saved for the next game (game.savedPrestige for the host); their reset()
+    reloads the page, which is the host's new-game control, so the slice stops there
+    (#23) with the prestige kept. A new game's prestige is a fixture global until then;
+  - Reject: end timers unlock the dismantling of the probes, the swarm, the
+    factories, the strategy engine (50 wire back), quantum computing (the photonic
+    chips rest at 0.5 and release ten more wire on fixed timer ticks), the processors
+    and memory, each project starting the next timer;
+  - final clips: from the strategy engine's dismantling on, every manual click
+    counts one; the factories and AutoClippers have stopped;
+  - once memory is gone and the last wire is made into clips, endTimer6 rolls the
+    credits as milestones 16 to 20 ("&#169;" reads back as the copyright sign).
 - **Reference quirks kept:**
   - when storage runs out during a shortage, nuSupply = 2·supply − demand +
     storedPower can be negative, so powMod is negative for that tick and harvesting
@@ -206,12 +221,11 @@ Reference paths outside the slice raise
 | Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #20 |
 | Quantum Temporal Reversion (confirm() then reset) | #23 |
 | toLocaleString of negative, fractional or unsafe-integer values | #21 |
-| Accept or Reject the exile (the departure and the endings) | #17 |
+| Reset after a prestige choice (The Universe Next Door or Within): the reload into a new game with the saved prestige | #23 |
 | Milestone 15 (all the universe's matter in clips, or surveyed and used up), which opens the correspondence and endings | #16 |
 | Probe formulas beyond the verified domain: Math.pow(n, 1.2), Math.pow(n, 1.47) and Math.pow(n, 1.6) for integer n > 10,000 (trust and hazard allocations); the trust purchase checks before any change | #24 |
 | Building purchases and reboots with fractional drone, farm or battery levels (probes build fractional drones in space), whose costs are not integer bases; checked before any change | #24 |
 | Building costs beyond the verified domain: Math.pow(n, 2.25) for n > 200,000 (drones, including the +1k lookahead), Math.pow(n, 2.54) and Math.pow(n, 2.78) for n > 30,000 (batteries, farms); checked before any change | #24 |
-| Ending sequence and dismantling clicks | #17 |
 | Reference auto-save (after 25 s) | #19 |
 | addProc beyond 3,424 processors, where Math.pow(n, 1.1) first differs from V8 | #24 |
 | investUpgrade when the new cost's base (investLevel + 1) would pass 967; Math.pow(base, Math.E) first differs from V8 at base 968 | #24 |
@@ -348,7 +362,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines sixty-four traces with an explicit equidistributed
+tests/reference/workshop.cjs defines sixty-seven traces with an explicit equidistributed
 stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
 the trace. Longer traces use longer streams. A few investment traces use an
 offset so the 25 % purchase rolls succeed within seconds.
@@ -423,6 +437,9 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | surveyedEnd | Milestone 15 from the surveyed, used-up universe | match |
 | memorials | Name the battles, the monument, the threnody twice and Glory | match |
 | memoryRelease | Every probe lost: 10 memory for 10^22 clips | match |
+| endingReject | Reject; the end timer unlocks the probes' dismantling, then the swarm's | match |
+| endingAccept | Accept; both new universes appear | match |
+| endingDismantle | Factories, strategy engine, quantum computing, processors and memory dismantled; 100 final clips by hand; the credits through milestone 20 | match |
 | battleClockTimeout | A battle down to four ships or fewer on a side ends after 2,000 more | match |
 
 The reference VM mutates fixture objects such as qChips. The host therefore
@@ -450,7 +467,8 @@ The Node tests need Lua 5.1 (TIM_LUA, default C:\Program Files (x86)\Lua\5.1\lua
 These traces establish parity for the covered paths on the measured Windows /
 Node 24 profile. They do not establish:
 
-- full-game coverage: the endings (#17) remain;
+- the restart into a new game after a prestige choice or Quantum Temporal
+  Reversion (the host's new-game control, #23), and the auto-save (#19);
 - Strategic Attachment's placing bonuses in a trace: they need eight strategies,
   whose tournament takes about a minute of game time, so tests/test_sim.lua covers
   them;

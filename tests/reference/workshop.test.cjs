@@ -238,9 +238,10 @@ test("automatic tournaments restart from shown results; without a pick nothing i
 const PROJECT_RUNS=["projectsProduction","projectsCreativity","projectsStrategy","projectsBusiness",
     "projectsVolition","projectsMachines","projectsRecovery","projectsLate","transition",
     "planetChain","planetPipeline","planetUpgrades","swarmGifts","spaceGate","spaceProjects","battleVictory",
-    "correspondence","memorials","memoryRelease"];
+    "correspondence","memorials","memoryRelease","endingReject","endingAccept","endingDismantle"];
 const REPEATABLE=new Set(["project2","project40b","project51","project219","project133","project135"]);
-const STOPS=new Set(["project147","project148","project217"]);
+// project200/201 run their effect and stop at the reset (#23); project217 is #23.
+const STOPS=new Set(["project200","project201","project217"]);
 test("every purchasable project is bought in a trace, with eligibility compared",()=>{
     const projected=run("projectsProduction").port.projection.state.filter(k=>/^project\d/.test(k));
     const bought=new Set();
@@ -248,7 +249,7 @@ test("every purchasable project is bought in a trace, with eligibility compared"
         for (const key of projected) if (state[key] && state[key].flag===1) bought.add(key);
     const missing=projected.filter(key=>!STOPS.has(key) && !bought.has(key));
     assert.deepEqual(missing,[]);
-    assert.equal(bought.size,84);
+    assert.equal(bought.size,93);
     assert.ok(run("projectsProduction").port.projection.disabled.includes("projectButton1"),"project buttons compared");
 });
 test("one-use projects never return after purchase (no duplicate reward)",()=>{
@@ -516,6 +517,28 @@ test("Memory release trades 10 memory for 10^22 clips and stays repeatable",()=>
     const end=final(run("memoryRelease").port);
     assert.deepEqual([end.state.memory,end.state.unusedClips,end.state.project135.uses],[20,1e16+1e22,1]);
     assert.equal(end.dom.readout1.html,"release the \u00f8\u00f8\u00f8\u00f8\u00f8 release ");
+});
+// The endings (#17).
+test("Reject: the end timer unlocks the probes' dismantling, then the swarm's",()=>{
+    const end=final(run("endingReject").port);
+    assert.deepEqual([end.state.project148.flag,end.state.project210.flag,end.state.project211.flag,end.state.dismantle],
+        [1,1,1,2]);
+    assert.deepEqual([end.state.probeCount,end.state.harvesterLevel,end.state.wireDroneLevel],[0,0,0]);
+    assert.ok(!end.state.activeProjects.some(p=>/14[78]$/.test(p.id)),"either choice removes both buttons");
+    assert.deepEqual([end.dom.readout1.html,end.dom.readout2.html],["Dismantling the swarm","Dismantling probe facilities"]);
+});
+test("Accept offers the two new universes",()=>{
+    const end=final(run("endingAccept").port).state;
+    assert.equal(end.project147.flag,1);
+    assert.deepEqual(end.activeProjects.map(p=>p.id).filter(id=>/20[01]$/.test(id)),["projectButton200","projectButton201"]);
+});
+test("the dismantling ends in final clips made by hand and the credits",()=>{
+    const end=final(run("endingDismantle").port);
+    assert.deepEqual([end.state.dismantle,end.state.processors,end.state.memory,end.state.creativityOn,end.state.autoTourneyFlag],
+        [7,0,0,false,0]);
+    assert.deepEqual([end.state.finalClips,end.state.wire,end.state.milestoneFlag],[100,0,20]);
+    assert.ok(end.state.qChips.every(c=>c.value===0.5),"the photonic chips rest");
+    assert.equal(end.dom.readout1.html,"\u00a9 2017 Everybody House Games");
 });
 test("the project traceability checklist is current",()=>{
     const Checklist=require("./project_checklist.cjs");

@@ -190,10 +190,13 @@ war.S.battles, war.S.numRightShips, war.S.numLeftShips, war.S.battleLEFTSHIPS = 
 war.S.battleName = "Ulm 2"
 Battle.checkForBattleEnd(war.S)
 assert(war.S.honor == 6 and war.S.bonusHonor == 0 and war.S.threnodyTitle == "Ulm 2")
--- Accepting or rejecting the exile stops on purchase (the endings, #17).
-for _, id in ipairs({ "projectButton147", "projectButton148" }) do
-    fails("purchase of a later%-phase project %(issue #17%)", Workshop.projectById[id].effect, war)
-end
+-- A prestige choice (#17) saves the next game's prestige, then stops at the restart
+-- (the host's new-game control, #23).
+war.S.standardOps, war.S.prestigeU = 400000, 2
+fails("reset after a prestige choice %(a new game with the saved prestige%) %(issue #23%)",
+    Workshop.projectById.projectButton200.effect, war)
+assert(war.S.prestigeU == 3 and war.savedPrestige.prestigeU == 3 and war.savedPrestige.prestigeS == 0)
+assert(war.readouts[1] == "Entering New Universe.")
 
 -- The swarm (#13): with no drones and the slider at 0, a repeating gift is
 -- log10(0) * 0 = NaN. It must never reach a native division (WoW's Lua raises), and
