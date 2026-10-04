@@ -1,9 +1,8 @@
--- Projects (projects.js) through the cosmic phase's correspondence: availability, eligibility,
+-- All 96 projects (projects.js): availability, eligibility,
 -- purchase effects, repeatable entries and the first transition (Release the
 -- HypnoDrones). Entries follow projects.js registration order; each has the
 -- reference trigger and cost and, where the ported phases can buy it, the effect.
--- Projects whose triggers need the endings are omitted; they
--- cannot appear yet (see docs/reference/PROJECTS.md). Extends Sim/Workshop.lua.
+-- See docs/reference/PROJECTS.md. Extends Sim/Workshop.lua.
 local _, ns = ...
 ns = ns or {}
 
@@ -568,9 +567,119 @@ message("project143", flag("project142"))
 message("project144", flag("project143"))
 message("project145", flag("project144"))
 message("project146", flag("project145"))
--- Accept or Reject the exile: the departure and the endings (#17).
-add("project147", flag("project146"), function(S) return S.operations >= S.driftKingMessageCost end, nil, "#17")
-add("project148", flag("project146"), function(S) return S.operations >= S.driftKingMessageCost end, nil, "#17")
+-- The endings (#17). Accept the exile: the two new universes. Reject it: the end
+-- timers start, and the dismantling follows. Either choice removes both buttons.
+local function departure(name)
+    add(name, flag("project146"), function(S) return S.operations >= S.driftKingMessageCost end, function(game)
+        local S = game.S
+        S.standardOps = S.standardOps - S.driftKingMessageCost
+        S[name].flag = 1
+        game:removeProject("project147")
+        game:removeProject("project148")
+    end)
+end
+departure("project147")
+departure("project148")
+-- The prestige routes: one more universe (prestigeU, +10 % demand) or one more
+-- simulation (prestigeS, +10 % creativity), saved for the next game; reset() then
+-- clears the save and reloads the page. Starting that next game is the host's
+-- new-game control (#23), so the slice stops there with the saved prestige kept.
+local function universe(name, cost, message, apply)
+    add(name, flag("project147"), cost, function(game)
+        local S = game.S
+        S[name].flag = 1
+        apply(S)
+        game.savedPrestige = { prestigeU = S.prestigeU, prestigeS = S.prestigeS }
+        game:displayMessage(message)
+        Unported("reset after a prestige choice (a new game with the saved prestige)", "#23")
+    end)
+end
+universe("project200", ops(300000), "Entering New Universe.", function(S)
+    S.standardOps = S.standardOps - 300000
+    S.prestigeU = S.prestigeU + 1
+end)
+universe("project201", creat(300000), "Entering Simulated Universe.", function(S)
+    S.creativity = S.creativity - 300000
+    S.prestigeS = S.prestigeS + 1
+end)
+-- The dismantling, one facility at a time, each unlocking the next end timer.
+add("project210", function(S) return S.endTimer1 >= 1000 end, ops(100000), function(game)
+    local S = game.S
+    S.project210.flag = 1
+    S.dismantle = 1
+    S.standardOps = S.standardOps - 100000
+    S.probeCount = 0
+    S.endTimer1 = 0
+    S.clips = S.clips + 100
+    S.unusedClips = S.unusedClips + 100
+    game:displayMessage("Dismantling probe facilities")
+    game:removeProject("project210")
+end)
+add("project211", function(S) return S.project210.flag == 1 and S.endTimer1 >= 350 end, ops(100000), function(game)
+    local S = game.S
+    S.project211.flag = 1
+    S.dismantle = 2
+    S.harvesterLevel = 0
+    S.wireDroneLevel = 0
+    S.standardOps = S.standardOps - 100000
+    S.clips = S.clips + 100
+    S.unusedClips = S.unusedClips + 100
+    game:displayMessage("Dismantling the swarm")
+    game:removeProject("project211")
+end)
+add("project212", function(S) return S.endTimer2 >= 300 end, ops(100000), function(game)
+    local S = game.S
+    S.project212.flag = 1
+    S.dismantle = 3
+    S.standardOps = S.standardOps - 100000
+    S.factoryLevel = 0
+    S.clips = S.clips + 15
+    S.unusedClips = S.unusedClips + 15
+    game:displayMessage("Dismantling factories")
+    game:removeProject("project212")
+end)
+add("project213", function(S) return S.endTimer3 >= 150 end, ops(100000), function(game)
+    local S = game.S
+    S.autoTourneyFlag = 0
+    S.project213.flag = 1
+    S.dismantle = 4
+    S.standardOps = S.standardOps - 100000
+    S.wire = S.wire + 50
+    game:displayMessage("Dismantling strategy engine")
+    game:removeProject("project213")
+end)
+add("project214", function(S) return S.endTimer4 >= 100 end, ops(100000), function(game)
+    local S = game.S
+    S.endTimer4 = 0
+    S.project214.flag = 1
+    S.dismantle = 5
+    S.standardOps = S.standardOps - 100000
+    game:displayMessage("Dismantling photonic chips")
+    game:removeProject("project214")
+end)
+add("project215", function(S) return S.project214.flag == 1 and S.endTimer4 >= 300 end, ops(100000), function(game)
+    local S = game.S
+    S.creativityOn = false
+    S.project215.flag = 1
+    S.dismantle = 6
+    S.standardOps = S.standardOps - 100000
+    S.processors = 0
+    S.wire = S.wire + 20
+    game:displayMessage("Dismantling processors")
+    game:removeProject("project215")
+end)
+-- Its cost, operations >= operations, always holds (false only for NaN).
+add("project216", function(S) return S.project215.flag == 1 and S.endTimer5 >= 150 end,
+    function(S) return S.operations >= S.operations end, function(game)
+    local S = game.S
+    S.project216.flag = 1
+    S.dismantle = 7
+    S.standardOps = 0
+    S.memory = 0
+    S.wire = S.wire + 20
+    game:displayMessage("Dismantling memory")
+    game:removeProject("project216")
+end)
 -- Restart asks confirm() and resets the game (explicit new-game control, #23).
 add("project217", function(S) return S.operations <= -10000 end, function(S) return S.operations <= -10000 end,
     function() Unported("Quantum Temporal Reversion restart (confirm and reset)", "#23") end, "#23")

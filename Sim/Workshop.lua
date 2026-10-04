@@ -44,6 +44,7 @@ Workshop.initial = {
     megaClipperCost = 500, megaClipperLevel = 0, megaClipperBoost = 1, wireBuyerFlag = 0,
     demandBoost = 1, humanFlag = 1, wirePriceCounter = 0, wireBasePrice = 20, wirePriceTimer = 0,
     wireBuyerStatus = 1, qFade = 1, prestigeU = 0, dismantle = 0, finalClips = 0,
+    endTimer1 = 0, endTimer2 = 0, endTimer3 = 0, endTimer4 = 0, endTimer5 = 0,
     factoryLevel = 0, factoryBoost = 1, factoryRate = 1000000000, powMod = 0,
     incomeThen = undefined, incomeNow = undefined, trueAvgRev = undefined, avgSales = undefined,
     incomeLastSecond = undefined, sum = undefined,
@@ -235,7 +236,8 @@ end
 
 function Game:clipClick(number)
     local S = self.S
-    if S.dismantle >= 4 then Unported("clipClick during dismantling", "#17") end
+    -- From the strategy engine's dismantling on, every click is a final clip (#17).
+    if S.dismantle >= 4 then S.finalClips = S.finalClips + 1 end
     if S.wire >= 1 then
         if number > S.wire then number = S.wire end
         S.clips = S.clips + number
@@ -655,8 +657,41 @@ function Game:mainLoop()
     if truthy(S.creativityOn) and S.operations >= (S.memory * 1000) then
         self:calculateCreativity()
     end
-    if S.dismantle >= 1 then Unported("ending sequence", "#17") end
-    -- End timers advance only after ending projects (#17); endTimer6 stays 0.
+    self:ending()
+end
+
+-- The main loop's ending section (#17), after Reject: the end timers that unlock
+-- each dismantling, the photonic chips at rest and the wire they release, and the
+-- closing credits once memory is gone and the last wire is used. The panels it
+-- hides are presentation.
+local creditWire = { [10] = true, [60] = true, [100] = true, [130] = true, [150] = true, [160] = true,
+    [165] = true, [169] = true, [172] = true, [174] = true }
+local credits = {
+    { 500, 15, "Universal Paperclips" },
+    { 600, 16, "a game by Frank Lantz" },
+    { 700, 17, "combat programming by Bennett Foddy" },
+    { 800, 18, "'Riversong' by Tonto's Expanding Headband used by kind permission of Malcolm Cecil" },
+    -- "&#169; ..." through innerHTML reads back as the copyright sign.
+    { 900, 19, "\194\169 2017 Everybody House Games" },
+}
+function Game:ending()
+    local S = self.S
+    if S.dismantle >= 5 then
+        for _, chip in ipairs(S.qChips) do chip.value = .5 end
+        if creditWire[S.endTimer4] then S.wire = S.wire + 1 end
+    end
+    if S.project148.flag == 1 then S.endTimer1 = S.endTimer1 + 1 end
+    if S.project211.flag == 1 then S.endTimer2 = S.endTimer2 + 1 end
+    if S.project212.flag == 1 then S.endTimer3 = S.endTimer3 + 1 end
+    if S.project213.flag == 1 then S.endTimer4 = S.endTimer4 + 1 end
+    if S.project215.flag == 1 then S.endTimer5 = S.endTimer5 + 1 end
+    if S.project216.flag == 1 and S.wire == 0 then S.endTimer6 = S.endTimer6 + 1 end
+    for _, credit in ipairs(credits) do
+        if S.endTimer6 >= credit[1] and S.milestoneFlag == credit[2] then
+            self:displayMessage(credit[3]) -- the first also plays the threnody (audio)
+            S.milestoneFlag = S.milestoneFlag + 1
+        end
+    end
 end
 
 -- main.js:4564, every 100 ms: wire price, sales, revenue and auto-save.

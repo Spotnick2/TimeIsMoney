@@ -304,6 +304,27 @@ const traces={
     // buys 10^22 clips.
     memoryRelease:{until:300,fixture:{globals:space({probeCount:0,unusedClips:1e16,memory:30,standardOps:30000})},
         commands:[click(20,"projectButton135")]},
+    // The endings (#17). Reject the exile: endTimer1 runs (from a fixture near its
+    // threshold) until Disassemble the Probes appears; then, 350 updates later,
+    // Disassemble the Swarm.
+    endingReject:{until:4600,fixture:{globals:space({clips:Math.pow(10,54)*30,availableMatter:1e30,endTimer1:990,
+        processors:600000,harvesterLevel:40,wireDroneLevel:40})},
+        commands:[...buy(20,"140","141","142","143","144","145","146","148"),click(400,"projectButton210"),
+            click(4300,"projectButton211")]},
+    // Accept: the two new universes appear. Their purchase resets, a reload the
+    // reference host refuses (the new-game control, #23); tests/test_sim.lua covers
+    // the saved prestige and the explicit stop.
+    endingAccept:{until:400,fixture:{globals:space({clips:Math.pow(10,54)*30,availableMatter:1e30,
+        processors:600000})},commands:[...buy(20,"140","141","142","143","144","145","146","147")]},
+    // The dismantling (timers from fixtures near their thresholds): factories, the
+    // strategy engine (wire back, final clips begin), quantum computing (the chips
+    // rest and release wire), processors and memory; the last wire is made into
+    // clips by hand, and the credits roll.
+    endingDismantle:{until:5000,fixture:{globals:space({milestoneFlag:15,dismantle:2,endTimer2:300,endTimer3:150,
+        endTimer4:100,endTimer5:150,endTimer6:890,wire:0,qFlag:1,qChips:chips(3),creativityOn:1,
+        processors:600000,factoryLevel:12})},
+        commands:[...buy(20,"212","213","214"),click(3200,"projectButton215"),click(3300,"projectButton216"),
+            ...clicks(3400,110,10,"btnMakePaperclip")]},
     // Battles (#15). Drifters pass warTrigger: an even roll starts a battle; the fleets
     // are random shares of each side (a ship per million, at most 200, often fewer
     // probe ships at full size); the ships fight, each loss costing unitSize probes
