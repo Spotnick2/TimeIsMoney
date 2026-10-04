@@ -47,11 +47,8 @@ local battleNames = { "Aboukir", "Abensberg", "Acre", "Alba de Tormes", "la Albu
     "Schongrabern", "Salamanca", "Smolensk", "Somosierra", "Talavera", "Tamames", "Trafalgar", "Trebbia", "Tudela",
     "Ulm", "Valls", "Valmaseda", "Valutino", "Vauchamps", "Vimeiro", "Vitoria", "Wagram", "Waterloo", "Wavre",
     "Wertingen", "Zaragoza" }
-Battle.names = battleNames
-Battle.setup = function(S)
-    S.battleNumbers = {}
-    for i = 1, #battleNames do S.battleNumbers[i] = 1 end
-end
+Battle.initial.battleNumbers = {}
+for i = 1, #battleNames do Battle.initial.battleNumbers[i] = 1 end
 
 -- new Ship(team): draw order and arithmetic follow combat.js lines 704-727.
 local function newShip(S, team, draw)
@@ -222,7 +219,7 @@ local function endBattle(S)
     if #S.battles > 0 then table.remove(S.battles, 1) end
 end
 
-local function checkForBattleEnd(S)
+function Battle.checkForBattleEnd(S)
     if #S.battles > 0 then
         if S.numLeftShips == 0 or S.numRightShips == 0 then
             if S.project121.flag == 1 then
@@ -343,7 +340,7 @@ local function doCombat(S, draw)
             end
         end
     end
-    checkForBattleEnd(S)
+    Battle.checkForBattleEnd(S)
 end
 
 -- The 16 ms Update callback: UpdateGrid, MoveShips, DoCombat.

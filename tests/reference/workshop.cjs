@@ -307,7 +307,8 @@ const traces={
         battles:[{id:7,clipProbes:5,drifterProbes:5,victory:false,loss:false,whiteFlag:0,territory:0,reportCount:0,
             garbageFlag:0}]})},commands:[]},
     battleClockTimeout:{until:600,fixture:{globals:space({probeCount:1e6,drifterCount:1000,battleClock:1990,
-        battleLEFTSHIPS:3,battleRIGHTSHIPS:3,numLeftShips:3,numRightShips:3,
+        battleLEFTSHIPS:3,battleRIGHTSHIPS:3,numLeftShips:3,numRightShips:3,numShips:6,
+        ships:[{alive:true,team:0,framesDead:0,gx:0,gy:0,x:5,y:20,vx:0,vy:0,color:"#ffffff"},{alive:true,team:1,framesDead:0,gx:0,gy:0,x:305,y:20,vx:0,vy:0,color:"#000000"},{alive:true,team:0,framesDead:0,gx:0,gy:0,x:5,y:70,vx:0,vy:0,color:"#ffffff"},{alive:true,team:1,framesDead:0,gx:0,gy:0,x:305,y:70,vx:0,vy:0,color:"#000000"},{alive:true,team:0,framesDead:0,gx:0,gy:0,x:5,y:120,vx:0,vy:0,color:"#ffffff"},{alive:true,team:1,framesDead:0,gx:0,gy:0,x:305,y:120,vx:0,vy:0,color:"#000000"}],
         battles:[{id:8,clipProbes:5,drifterProbes:5,victory:false,loss:false,whiteFlag:0,territory:0,reportCount:0,
             garbageFlag:0}]})},commands:[]},
     // Named battles lost: two probe ships against 200 drifter ships. The first battle

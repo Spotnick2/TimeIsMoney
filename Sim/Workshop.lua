@@ -122,7 +122,6 @@ function Workshop.new(random, log)
     }
     -- Range inputs (value plus a sanitize function), added by later files.
     game.ranges = {}
-    Battle.setup(S)
     for _, setup in ipairs(Workshop.setups) do setup(game, S) end
     game.draw = function(site) return random:draw(site, game.clock.now) end
 

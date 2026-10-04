@@ -173,6 +173,28 @@ cosmos.S.probeTrust, cosmos.S.maxTrust, cosmos.S.yomi, cosmos.S.probeTrustCost =
 fails("probe formula Math%.pow%(10001, 1%.47%) for the probe trust cost", cosmos.increaseProbeTrust, cosmos)
 assert(cosmos.S.probeTrust == 9999 and cosmos.S.yomi == 1e12)
 
+-- Battles (#15): a named victory adds the drifter fleet plus Glory's bonus once;
+-- a defeat costs the probe fleet and names the threnody; the result delay ends it.
+local war = Workshop.new(stub, {})
+local Battle = ns.Battle
+war.S.battles = { { id = 1 } }
+war.S.project121.flag, war.S.project134.flag = 1, 1
+war.S.numRightShips, war.S.battleRIGHTSHIPS, war.S.bonusHonor = 0, 7, 3
+Battle.checkForBattleEnd(war.S)
+Battle.checkForBattleEnd(war.S)
+assert(war.S.honor == 10 and war.S.bonusHonor == 13 and war.S.honorCount == 1 and war.S.battleEndDelay == 2)
+war.S.battleEndDelay = war.S.battleEndTimer - 1
+Battle.checkForBattleEnd(war.S)
+assert(#war.S.battles == 0 and war.S.honorCount == 0 and war.S.battleEndDelay == 0)
+war.S.battles, war.S.numRightShips, war.S.numLeftShips, war.S.battleLEFTSHIPS = { { id = 2 } }, 5, 0, 4
+war.S.battleName = "Ulm 2"
+Battle.checkForBattleEnd(war.S)
+assert(war.S.honor == 6 and war.S.bonusHonor == 0 and war.S.threnodyTitle == "Ulm 2")
+-- The memorials after named battles stop on purchase (#16).
+for _, id in ipairs({ "projectButton132", "projectButton133", "projectButton134" }) do
+    fails("purchase of a later%-phase project %(issue #16%)", Workshop.projectById[id].effect, war)
+end
+
 -- The swarm (#13): with no drones and the slider at 0, a repeating gift is
 -- log10(0) * 0 = NaN. It must never reach a native division (WoW's Lua raises), and
 -- swarmGifts returns to 0 on the next tick, as in the reference.

@@ -1,8 +1,8 @@
--- Projects (projects.js) through the planetary phase: availability, eligibility,
+-- Projects (projects.js) through the cosmic phase's battles: availability, eligibility,
 -- purchase effects, repeatable entries and the first transition (Release the
 -- HypnoDrones). Entries follow projects.js registration order; each has the
 -- reference trigger and cost and, where the ported phases can buy it, the effect.
--- Projects whose triggers need space, battles or the ending are omitted; they
+-- Projects whose triggers need the correspondence or the endings are omitted; they
 -- cannot appear yet (see docs/reference/PROJECTS.md). Extends Sim/Workshop.lua.
 local _, ns = ...
 ns = ns or {}

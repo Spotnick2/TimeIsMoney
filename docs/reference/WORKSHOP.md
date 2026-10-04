@@ -182,7 +182,7 @@ shared stream, about 10,000 draws per second. The spec requires the port to
 preserve that consumption. Ship setup, UpdateGrid, MoveShips, FindCentroid and
 DoCombat use only `+ - * /`, abs, floor, min and max, so Lua reproduces them
 bit for bit. Drawing is omitted; `framesDead` still advances. Battles, honor and
-battle names remain #15.
+battle names are #15 (below).
 
 ## Explicit stops
 
@@ -192,7 +192,6 @@ Reference paths outside the slice raise
 | Path | Issue |
 | --- | --- |
 | Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #20 |
-| Purchases of the shown later-phase projects Name the battles and Combat | #15 |
 | Quantum Temporal Reversion (confirm() then reset) | #23 |
 | toLocaleString of negative, fractional or unsafe-integer values | #21 |
 | The monument, the threnody and Glory purchases (memorials after named battles) | #16 |
@@ -201,7 +200,6 @@ Reference paths outside the slice raise
 | Building purchases and reboots with fractional drone, farm or battery levels (probes build fractional drones in space), whose costs are not integer bases; checked before any change | #24 |
 | Memory release purchase (cosmic recovery) | #16 |
 | Building costs beyond the verified domain: Math.pow(n, 2.25) for n > 200,000 (drones, including the +1k lookahead), Math.pow(n, 2.54) and Math.pow(n, 2.78) for n > 30,000 (batteries, farms); checked before any change | #24 |
-| checkForBattleEnd with an active battle | #15 |
 | Ending sequence and dismantling clicks | #17 |
 | Reference auto-save (after 25 s) | #19 |
 | addProc beyond 3,424 processors, where Math.pow(n, 1.1) first differs from V8 | #24 |

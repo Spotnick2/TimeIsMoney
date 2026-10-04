@@ -470,10 +470,13 @@ test("named battles won: honor from the drifter fleet, names, the result delay a
     assert.ok(all.some((s,i)=>i>0 && s.battles.length<all[i-1].battles.length),"a battle ends");
 });
 test("named battles lost: honor falls by the probe fleet and the threnody takes the battle's name",()=>{
-    const end=final(run("battleDefeat").port).state;
-    assert.ok(end.honor<0);
-    assert.equal(end.threnodyTitle,end.battleName);
-    assert.notEqual(end.threnodyTitle,"Durenstein 1");
+    const all=points(run("battleDefeat").port).map(p=>p.state);
+    // The checkpoint where a defeat lowers honor: the threnody takes that battle's name.
+    const defeat=all.find((s,i)=>i>0 && s.honor<all[i-1].honor);
+    assert.ok(defeat,"a defeat costs honor");
+    assert.equal(defeat.threnodyTitle,defeat.battleName);
+    assert.notEqual(defeat.threnodyTitle,"Durenstein 1");
+    assert.ok(all.at(-1).honor<0);
 });
 test("undecided battles end after 8,000 updates, or 2,000 with four ships or fewer on a side",()=>{
     for (const name of ["battleTimeout","battleClockTimeout"]) {
