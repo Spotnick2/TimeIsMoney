@@ -13,6 +13,6 @@ ns.Reference = {
     },
     -- Simulation files in load order.
     files = { "Sim/Reference.lua", "Sim/JSMath.lua", "Sim/Scheduler.lua", "Sim/Battle.lua", "Sim/Workshop.lua",
-        "Sim/Investments.lua", "Sim/Strategy.lua", "Sim/Projects.lua", "Sim/CostPow.lua", "Sim/Planet.lua" },
+        "Sim/Investments.lua", "Sim/Strategy.lua", "Sim/Projects.lua", "Sim/CostPow.lua", "Sim/Planet.lua", "Sim/Space.lua" },
 }
 return ns.Reference

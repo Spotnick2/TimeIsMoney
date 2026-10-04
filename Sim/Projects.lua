@@ -474,12 +474,25 @@ simple("project126", function(S) return S.harvesterLevel + S.wireDroneLevel >= 2
 simple("project127", function(S) return S.tothFlag == 1 end, ops(40000), { "Power grid online." }, function(S)
     S.standardOps = S.standardOps - 40000
 end)
--- Strategic Attachment: its flag is read by tournament scoring. Its trigger needs
--- space exploration first, so phase one never shows it.
-add("project128", function(S)
-    return S.spaceFlag == 1 and Unported("Strategic Attachment availability", "#14")
-end, creat(175000), nil, "#14")
+-- Cosmic phase (#14). Strategic Attachment adds tournament placing bonuses.
+simple("project128", function(S) return S.spaceFlag == 1 and #S.strats >= 8 and (S.probeTrustCost > S.yomi) end,
+    creat(175000),
+    { "The object of war is victory, the object of victory is conquest, and the object of conquest is occupation." },
+    function(S) S.creativity = S.creativity - 175000 end)
+simple("project129", function(S) return S.probesLostHaz >= 100 end, ops(125000),
+    { "Improved probe hull geometry. Hazard damage reduced by 50%." }, function(S)
+        S.standardOps = S.standardOps - 125000
+    end)
+simple("project130", function(S) return S.spaceFlag == 1 and S.harvesterLevel + S.wireDroneLevel >= 2 end,
+    ops(100000), { "Swarm computing back online" }, function(S)
+        S.standardOps = S.standardOps - 100000
+    end)
 add("project131", function(S) return S.probesLostCombat >= 1 end, ops(150000), nil, "#15")
+-- Memory release (emergency probe restart) is cosmic recovery (#16): available once
+-- every probe is gone without clips for a new one.
+add("project135", function(S)
+    return S.spaceFlag == 1 and S.probeCount == 0 and S.unusedClips < S.probeCost and S.milestoneFlag < 15
+end, function(S) return S.memory >= 10 end, nil, "#16")
 -- Restart asks confirm() and resets the game (explicit new-game control, #23).
 add("project217", function(S) return S.operations <= -10000 end, function(S) return S.operations <= -10000 end,
     function() Unported("Quantum Temporal Reversion restart (confirm and reset)", "#23") end, "#23")

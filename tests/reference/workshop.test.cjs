@@ -18,8 +18,8 @@ for (const name of Workshop.names) test("workshop "+name+" trace agrees with the
     assert.equal(divergence,null,JSON.stringify(divergence && {kind:divergence.kind,event:divergence.event,
         field:divergence.field,difference:divergence.difference,left:divergence.left,right:divergence.right}));
     assert.deepEqual(port.source_sha256,source.index.source_sha256);
-    // The expansion gate ends at the cosmic phase's explicit stop (asserted below).
-    if (name==="spaceGate") assert.match(port.error,/\(issue #14\)/);
+    // The war boundary ends at the battles' explicit stop (asserted below).
+    if (name==="spaceWar") assert.match(port.error,/battles \(checkForBattles roll\) \(issue #15\)/);
     else assert.equal(port.error,null);
 });
 
@@ -239,9 +239,9 @@ test("automatic tournaments restart from shown results; without a pick nothing i
 // Issue #8: phase-one projects and the first transition.
 const PROJECT_RUNS=["projectsProduction","projectsCreativity","projectsStrategy","projectsBusiness",
     "projectsVolition","projectsMachines","projectsRecovery","projectsLate","transition",
-    "planetChain","planetPipeline","planetUpgrades","swarmGifts","spaceGate"];
+    "planetChain","planetPipeline","planetUpgrades","swarmGifts","spaceGate","spaceProjects"];
 const REPEATABLE=new Set(["project2","project40b","project51","project219"]);
-const STOPS=new Set(["project121","project128","project131","project217"]);
+const STOPS=new Set(["project121","project131","project135","project217"]);
 test("every purchasable project is bought in a trace, with eligibility compared",()=>{
     const projected=run("projectsProduction").port.projection.state.filter(k=>/^project\d/.test(k));
     const bought=new Set();
@@ -249,7 +249,7 @@ test("every purchasable project is bought in a trace, with eligibility compared"
         for (const key of projected) if (state[key] && state[key].flag===1) bought.add(key);
     const missing=projected.filter(key=>!STOPS.has(key) && !bought.has(key));
     assert.deepEqual(missing,[]);
-    assert.equal(bought.size,67);
+    assert.equal(bought.size,70);
     assert.ok(run("projectsProduction").port.projection.disabled.includes("projectButton1"),"project buttons compared");
 });
 test("one-use projects never return after purchase (no duplicate reward)",()=>{
@@ -414,9 +414,52 @@ test("Entertain and Synchronize recover the swarm without checking their costs",
 });
 test("Space Exploration dismantles the planet with refunds and opens the cosmic phase",()=>{
     const {port}=run("spaceGate"), bought=command(port,30,"projectButton46").state;
+    const end=final(port);
+    assert.deepEqual([end.state.milestoneFlag,end.dom.readout1.html],[14,"Terrestrial resources fully utilized in "]);
     assert.deepEqual([bought.spaceFlag,bought.farmLevel,bought.powMod,bought.storedPower,bought.harvesterLevel,
         bought.batteryLevel,bought.harvesterBill,bought.batteryBill],[1,1,1,0,0,0,0,0]);
     assert.equal(command(port,30,"projectButton46").dom.readout1.html,"Von Neumann Probes online");
+});
+// The cosmic phase (#14).
+test("probe design: trust at the pinned 1.47 power, allocations, maximum trust and launches",()=>{
+    const {port}=run("probeDesign");
+    const costs=points(port).filter(p=>p.kind==="command" && p.id==="btnIncreaseProbeTrust").map(p=>p.state.probeTrustCost);
+    assert.deepEqual(costs,[1385,2513,3837,5326,6963,6963,6963,6963],"Yomi runs out after five");
+    const raised=command(port,20,"btnRaiseProbeRep",1).state;
+    assert.deepEqual([raised.probeRep,raised.probeTrust],[2,5],"a raise past the trust before the next tick still counts unused trust");
+    const end=final(port).state;
+    assert.deepEqual([end.maxTrust,end.probeLaunchLevel,end.probeSpeed,end.probeCombat],[30,2,2,1]);
+    assert.ok(Math.abs(end.attackSpeed-0.4)<1e-12,"two speed raises move attackSpeed");
+    assert.ok(end.foundMatter>6e27 && end.factoryLevel>0 && end.drifterCount>0);
+});
+test("a probe population replicates, meets hazards, builds and drifts with large numbers",()=>{
+    const end=final(run("probeGrowth").port).state;
+    assert.ok(end.probeDescendents>0 && end.probesLostHaz>1e6 && end.drifterCount>0 && end.drifterCount<1e6);
+    assert.ok(end.factoryLevel>0 && end.harvesterLevel===end.wireDroneLevel && end.clips>0);
+    assert.equal(end.foundMatter,Math.pow(10,54)*30,"the survey is clamped at the universe's matter");
+    const survey=final(run("probeSurvey").port).state;
+    assert.ok(survey.foundMatter>6e27 && survey.availableMatter>3e26);
+});
+test("clips limit replication and probe launches",()=>{
+    const {port}=run("probeShortage"), launch=points(port).find(p=>p.kind==="command").state;
+    assert.equal(launch.probeLaunchLevel,0,"too few clips for a launch");
+    assert.ok(launch.unusedClips<launch.probeCost);
+});
+test("the cosmic phase projects: Strategic Attachment, Elliptic Hull Polytopes, Reboot the Swarm",()=>{
+    const end=final(run("spaceProjects").port);
+    assert.deepEqual([end.state.project128.flag,end.state.project129.flag,end.state.project130.flag],[1,1,1]);
+    assert.equal(end.dom.readout1.html,"Swarm computing back online");
+});
+test("with every probe lost and too few clips, Memory release appears",()=>{
+    const end=final(run("spaceRecovery").port);
+    assert.ok(end.state.activeProjects.some(p=>p.id==="projectButton135"));
+    assert.equal(end.dom.projectButton135.disabled,false,"200 memory pays its 10");
+});
+test("drifters past warTrigger reach the battles' explicit stop",()=>{
+    // The stop comes inside the tick whose drift passes warTrigger, so the last
+    // checkpoint is the tick before it.
+    const {port}=run("spaceWar"), last=final(port).state;
+    assert.ok(last.drifterCount>900000 && last.drifterCount<=last.warTrigger);
 });
 test("the project traceability checklist is current",()=>{
     const Checklist=require("./project_checklist.cjs");

@@ -129,7 +129,7 @@ assert(#game.clock:describe() == 7)
 game:click("btnMakePaperclip")
 game:advanceTo(2000)
 assert(game.S.clips == 1 and game.S.ticks == 200)
-fails("Unported reference path: control btnMakeProbe", game.click, game, "btnMakeProbe")
+fails("Unported reference path: control btnFeedSwarm", game.click, game, "btnFeedSwarm")
 
 -- Planetary costs (#11, #12): the reference profile's pow where JSMath differs, and an
 -- explicit stop, before any change, beyond the verified domain.
@@ -160,6 +160,18 @@ assert(planet.S.farmLevel == 5 and planet.S.unusedClips == 1e30)
 planet.S.farmLevel, planet.S.storedPower = 29950, 7
 fails("Math%.pow%(30050, 2%.78%)", planet.batteryReboot, planet)
 assert(planet.S.batteryLevel == 29950 and planet.S.storedPower == 7)
+
+-- The cosmic phase (#14): fractional drone levels (probe-built) and the probe trust
+-- domain stop before any change (review of #48).
+local cosmos = Workshop.new(stub, {})
+cosmos.S.harvesterLevel, cosmos.S.wireDroneLevel, cosmos.S.unusedClips = 5, 12.34, 1e30
+fails("building cost Math%.pow%(1012%.34, 2%.25%)", cosmos.harvesterReboot, cosmos)
+assert(cosmos.S.harvesterLevel == 5 and cosmos.S.unusedClips == 1e30)
+fails("beyond the verified domain", cosmos.makeHarvester, cosmos, 1)
+assert(cosmos.S.harvesterLevel == 5 and cosmos.S.unusedClips == 1e30)
+cosmos.S.probeTrust, cosmos.S.maxTrust, cosmos.S.yomi, cosmos.S.probeTrustCost = 9999, 20000, 1e12, 1
+fails("probe formula Math%.pow%(10001, 1%.47%) for the probe trust cost", cosmos.increaseProbeTrust, cosmos)
+assert(cosmos.S.probeTrust == 9999 and cosmos.S.yomi == 1e12)
 
 -- The swarm (#13): with no drones and the slider at 0, a repeating gift is
 -- log10(0) * 0 = NaN. It must never reach a native division (WoW's Lua raises), and
@@ -203,11 +215,13 @@ assert(later.S.milestoneFlag == 8, tostring(later.S.milestoneFlag))
 assert(later.readouts[2] == "Full autonomy attained in 1 hour " and later.readouts[1] == "One Trillion Clips Created in 1 hour ")
 assert(JSMath.pow(10, 24) == 1e24 and JSMath.pow(10, 27) == 1e27)
 
--- The placing-bonus stop refuses before awarding Yomi.
+-- Strategic Attachment (#14): the picked strategy winning adds 50,000 Yomi after
+-- the score award.
 local tourney = Workshop.new(stub, {})
-tourney.S.pick, tourney.S.project128.flag = "0", 1
+tourney.S.pick, tourney.S.project128.flag, tourney.S.winnerPtr = "0", 1, 0
 tourney.S.results = { tourney.S.strats[1] }
 local yomiBefore = tourney.S.yomi
-fails("tournament placing bonuses %(issue #14%)", tourney.declareWinner, tourney)
-assert(tourney.S.yomi == yomiBefore and tourney.S.resultsFlag == 0)
+tourney:declareWinner()
+assert(tourney.S.yomi == yomiBefore + 50000 and tourney.S.resultsFlag == 1)
+assert(tourney.readouts[1] == "Selected strategy won the tournament (or tied for first). +50,000 yomi")
 print("simulation: JavaScript numbers, scheduler, purity and workshop smoke passed")

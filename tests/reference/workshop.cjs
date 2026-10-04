@@ -34,6 +34,8 @@ const rich=(memory,extra={})=>({compFlag:1,projectsFlag:1,memory,standardOps:mem
 const tourney=()=>({compFlag:1,strategyEngineFlag:1,memory:20,standardOps:15000});
 // The planetary phase (after Release the HypnoDrones) with Operations for projects.
 const planet=(extra={})=>rich(200,{humanFlag:0,trust:0,...extra});
+// The cosmic phase (after Space Exploration): the planet dismantled, one farm.
+const space=(extra={})=>planet({spaceFlag:1,availableMatter:0,farmLevel:1,powMod:1,milestoneFlag:14,...extra});
 const chips=active=>[.1,.2,.3,.4,.5,.6,.7,.8,.9,1].map((waveSeed,i)=>({waveSeed,value:0,active:i<active ? 1 : 0}));
 const clicks=(from,count,step,id)=>Array.from({length:count},(_,i)=>click(from+i*step,id));
 const traces={
@@ -246,9 +248,45 @@ const traces={
     // The expansion gate: with the Earth's matter gone, Space Exploration appears; its
     // purchase dismantles every building with refunds and starts the cosmic phase,
     // where the next tick stops explicitly (#14).
-    spaceGate:{until:200,fixture:{globals:planet({availableMatter:0,harvesterLevel:40,wireDroneLevel:40,
+    spaceGate:{until:300,fixture:{globals:planet({availableMatter:0,harvesterLevel:40,wireDroneLevel:40,
         factoryLevel:5,farmLevel:20,batteryLevel:2000,storedPower:15000000,unusedClips:6e27,processors:300000,
-        harvesterBill:5e9,factoryBill:7e9,farmBill:3e9,batteryBill:2e9})},commands:[click(30,"projectButton46")]},
+        harvesterBill:5e9,factoryBill:7e9,farmBill:3e9,batteryBill:2e9,milestoneFlag:13})},
+        commands:[click(30,"projectButton46")]},
+    // The cosmic phase (#14). Probe design: trust bought with Yomi at
+    // floor(Math.pow(trust + 1, 1.47) * 500), every allocation raised and one
+    // lowered, a raise past the trust before the next tick (the function's own check),
+    // maximum trust from honor, and two probe launches; then the probes survey,
+    // replicate, meet hazards, build and drift.
+    probeDesign:{until:800,fixture:{globals:space({yomi:20000,honor:100000,unusedClips:1e30})},commands:[
+        ...clicks(0,8,0,"btnIncreaseProbeTrust"),
+        ...["Speed","Nav","Rep","Haz","Fac","Harv","Wire","Combat"].map(n=>click(20,"btnRaiseProbe"+n)),
+        click(20,"btnRaiseProbeSpeed"),click(20,"btnLowerProbeCombat"),click(20,"btnRaiseProbeRep"),
+        click(30,"btnIncreaseMaxTrust"),click(30,"btnMakeProbe"),click(30,"btnMakeProbe")]},
+    // A large probe population: replication, whole-probe hazard losses, probe-built
+    // factories and drones, and drift into drifters (below warTrigger). The universe
+    // is already fully surveyed, so the survey is clamped to 0, while the remaining
+    // available matter and wire keep the final milestone away.
+    probeGrowth:{until:1000,fixture:{globals:space({probeCount:2e7,probeTrust:24,maxTrust:30,probeSpeed:3,
+        probeNav:3,probeRep:5,probeHaz:3,probeFac:3,probeHarv:3,probeWire:3,unusedClips:1e40,
+        foundMatter:Math.pow(10,54)*30,availableMatter:1e30})},commands:[]},
+    // Surveying below the limit: xRate = floor(probes) * 1.75e18 * speed * nav.
+    probeSurvey:{until:400,fixture:{globals:space({probeCount:1e6,probeSpeed:2,probeNav:3,probeTrust:5})},commands:[]},
+    // Clips run out: replication and the probe-built factories and drones are
+    // clamped to what the clips pay for; the probe launch then refuses.
+    probeShortage:{until:600,fixture:{globals:space({probeCount:4e6,probeTrust:9,probeRep:3,probeFac:2,probeHarv:2,
+        probeWire:2,unusedClips:3.5e17})},commands:[click(300,"btnMakeProbe")]},
+    // The cosmic phase's projects: Strategic Attachment (eight strategies, the next
+    // trust cost above Yomi), Elliptic Hull Polytopes halving hazard losses, and
+    // Reboot the Swarm, which ends the swarm's NO RESPONSE status.
+    spaceProjects:{until:700,fixture:{globals:space({creativity:200000,processors:300000,probesLostHaz:150,
+        harvesterLevel:30,wireDroneLevel:30,probeCount:2e6,probeHaz:2,probeTrust:2}),strategies:[0,1,2,3,4,5,6,7]},
+        commands:[...buy(20,"128","129","130")]},
+    // Every probe lost without clips for a new one: Memory release appears (its
+    // purchase is cosmic recovery, #16).
+    spaceRecovery:{until:200,fixture:{globals:space({probeCount:0,unusedClips:1e16})},commands:[]},
+    // Drifters pass warTrigger: the next battle roll is #15, where the slice stops.
+    spaceWar:{until:400,fixture:{globals:space({probeCount:1e8,probeTrust:30,maxTrust:30,drifterCount:900000})},
+        commands:[]},
 };
 function make(name) {
     if (!Object.hasOwn(traces,name)) throw new Error("Unknown workshop trace: "+name);

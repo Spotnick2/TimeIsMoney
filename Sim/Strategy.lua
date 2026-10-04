@@ -275,8 +275,6 @@ function Game:declareWinner()
     local S = self.S
     if toNumber(S.pick) < 10 then
         local strat = picked(S)
-        -- Refuse before awarding anything, so a caught stop leaves no partial award.
-        if S.project128.flag == 1 then Unported("tournament placing bonuses", "#14") end
         local bB, w = 0, "strats"
         local beatBoost = JSMath.num(self:calculateStratsBeat()) - 1
         if beatBoost == 1 then w = "strat" end
@@ -291,6 +289,23 @@ function Game:declareWinner()
             self:displayMessage(strat.name .. " scored " .. toString(strat.currentScore) .. " and beat " ..
                 toString(bB) .. " " .. w .. ". Yomi increased by " ..
                 toString(strat.currentScore * S.yomiBoost * beatBoost))
+        end
+        -- Strategic Attachment (#14): placing bonuses for the picked strategy.
+        if S.project128.flag == 1 and S.strats[S.winnerPtr + 1].currentScore == strat.currentScore then
+            S.yomi = S.yomi + 50000
+            if S.milestoneFlag < 15 then
+                self:displayMessage("Selected strategy won the tournament (or tied for first). +50,000 yomi")
+            end
+        elseif S.project128.flag == 1 and S.placeScore == strat.currentScore then
+            S.yomi = S.yomi + 30000
+            if S.milestoneFlag < 15 then
+                self:displayMessage("Selected strategy finished in (or tied for) second place. +30,000 yomi")
+            end
+        elseif S.project128.flag == 1 and S.showScore == strat.currentScore then
+            S.yomi = S.yomi + 20000
+            if S.milestoneFlag < 15 then
+                self:displayMessage("Selected strategy finished in (or tied for) third place. +20,000 yomi")
+            end
         end
         -- populateTourneyReport (presentation, but its loop leaves i):
         S.i = #S.results

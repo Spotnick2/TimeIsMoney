@@ -6,7 +6,8 @@ Issues [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5),
 [#8](https://github.com/Spotnick2/TimeIsMoney/issues/8) and phase two
 ([#11](https://github.com/Spotnick2/TimeIsMoney/issues/11) with
 [#12](https://github.com/Spotnick2/TimeIsMoney/issues/12), then
-[#13](https://github.com/Spotnick2/TimeIsMoney/issues/13)). This is the first port of
+[#13](https://github.com/Spotnick2/TimeIsMoney/issues/13)) and the cosmic phase's core
+([#14](https://github.com/Spotnick2/TimeIsMoney/issues/14)). This is the first port of
 the [pinned reference](README.md) into the pure-Lua simulation layer (`Sim/`). The simulation has no WoW globals, frames, clocks, I/O or native
 randomness. It is parity-tested outside the game and is **not yet in the TOC or
 the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
@@ -25,6 +26,7 @@ the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
 | Sim/Projects.lua | Projects through the planetary phase, their purchases and the first transition (#8, #11, #12) |
 | Sim/CostPow.lua | Generated: the reference profile's Math.pow for building costs where JSMath differs (#11, #12) |
 | Sim/Planet.lua | The planetary phase: drones, factories, matter, power and the swarm (#11, #12, #13) |
+| Sim/Space.lua | The cosmic phase: probe design, launches, replication, surveying, hazards, probe-built factories and drones, drift (#14) |
 
 State uses the reference global names, formulas and statement order: `clips`
 (lifetime production), `unusedClips` (spendable stock) and `unsoldClips`
@@ -122,6 +124,23 @@ State uses the reference global names, formulas and statement order: `clips`
   - buttonUpdate's phase-two flags (investment engine and WireBuyer off) and the
     factory and reboot controls, which it updates in every phase;
   - the global loop variable `x` the purchase loops leave behind.
+- **Cosmic phase (#14):**
+  - probe design: trust bought with Yomi at floor(Math.pow(trust + 1, 1.47) × 500)
+    up to maxTrust, maximum trust (+10) from honor, and the eight allocations
+    (speed, navigation, replication, hazard remediation, factories, harvesters,
+    wire drones, combat), raised only with unused trust; speed also moves
+    attackSpeed for battles;
+  - probe launches at 10¹⁷ clips;
+  - each tick, in source order: surveying (floor(probes) × 1.75e18 × speed × nav,
+    clamped to the universe's 3 × 10⁵⁵), then hazards (with Elliptic Hull Polytopes
+    halving them, and whole-probe losses from accumulated fractions), probe-built
+    factories (10⁸ clips each) and drones (2 × 10⁶), replication (with fractional
+    early growth and clip limits), drift into drifters, and war;
+  - milestone 13 ("Terrestrial resources fully utilized"), the swarm's NO RESPONSE
+    status until Reboot the Swarm, and Strategic Attachment's tournament placing
+    bonuses (+50,000, +30,000 or +20,000 Yomi);
+  - the probe-design controls, which buttonUpdate updates in every phase
+    (btnLowerProbeHaz through the browser's named access to element IDs).
 - **Reference quirks kept:**
   - when storage runs out during a shortage, nuSupply = 2·supply − demand +
     storedPower can be negative, so powMod is negative for that tick and harvesting
@@ -155,14 +174,15 @@ Reference paths outside the slice raise
 | Path | Issue |
 | --- | --- |
 | Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #20 |
-| Tournament placing bonuses (project128) | #14 |
 | Purchases of the shown later-phase projects Name the battles and Combat | #15 |
 | Quantum Temporal Reversion (confirm() then reset) | #23 |
-| Milestones 13 (space) and 14 (universal paperclips) | #14, #17 |
 | toLocaleString of negative, fractional or unsafe-integer values | #21 |
-| The cosmic phase after Space Exploration: the next tick (Strategic Attachment availability, the swarm in space, probe functions) | #14 |
+| Battles: the checkForBattles roll once drifters pass warTrigger with probes left | #15 |
+| Milestone 15 (all the universe's matter in clips, or surveyed and used up), which opens the correspondence and endings | #16 |
+| Probe formulas beyond the verified domain: Math.pow(n, 1.2), Math.pow(n, 1.47) and Math.pow(n, 1.6) for integer n > 10,000 (trust and hazard allocations); the trust purchase checks before any change | #24 |
+| Building purchases and reboots with fractional drone, farm or battery levels (probes build fractional drones in space), whose costs are not integer bases; checked before any change | #24 |
+| Memory release purchase (cosmic recovery) | #16 |
 | Building costs beyond the verified domain: Math.pow(n, 2.25) for n > 200,000 (drones, including the +1k lookahead), Math.pow(n, 2.54) and Math.pow(n, 2.78) for n > 30,000 (batteries, farms); checked before any change | #24 |
-| exploreUniverse and probe functions | #14 |
 | checkForBattleEnd with an active battle | #15 |
 | Ending sequence and dismantling clicks | #17 |
 | Reference auto-save (after 25 s) | #19 |
@@ -236,6 +256,10 @@ Reference paths outside the slice raise
     disagrees in about 10 % of cases.
   - JSMath.pow (correctly rounded) differs from this profile's Math.pow first at
     n = 181 (2.78), 683 (2.54) and 2,969 (2.25): 107 of the 260,000 bases.
+  - The cosmic phase's probe formulas (#14) use the same table for integer bases up
+    to 10,000: drift Math.pow(probeTrust, 1.2), the trust cost
+    Math.pow(probeTrust + 1, 1.47) and hazards Math.pow(probeHaz, 1.6) differ at 4, 6
+    and 3 bases there. Bases 0 and 1 are exact by definition.
   - Sim/CostPow.lua therefore pins the reference profile (Node v24.15.0, V8
     13.6.233.17-node.48, win32 x64): tests/reference/cost_pow.cjs compares every
     integer base of each domain and records the exact Math.pow value wherever
@@ -297,7 +321,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines forty-eight traces with an explicit equidistributed
+tests/reference/workshop.cjs defines fifty-five traces with an explicit equidistributed
 stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
 the trace. Longer traces use longer streams. A few investment traces use an
 offset so the 25 % purchase rolls succeed within seconds.
@@ -356,7 +380,14 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | swarmRepeatGifts | A sleeping swarm with a spent countdown: a gift every tick | match |
 | swarmSlider | Eight slider values sanitized (100, 100, 100, 99, 200, 0, 125, 100), with the work multiplier on production | match |
 | swarmRecovery | Entertain and Synchronize, each clicked twice before the next tick (creativity −5,000, Yomi −4,000), then disabled | match |
-| spaceGate | Space Exploration: dismantling with refunds, one farm at full power, spaceFlag; the next tick stops at the cosmic phase | match up to the stop (#14) |
+| spaceGate | Space Exploration: dismantling with refunds, one farm at full power, spaceFlag; the cosmic phase begins with milestone 13's message | match |
+| probeDesign | Eight trust purchases (costs 1,385 to 6,963 until Yomi runs out), every allocation, a raise past the trust before the next tick, maximum trust from honor, two launches, then the first probe ticks | match |
+| probeGrowth | 20 million probes: replication, about a million hazard losses, probe-built factories and drones, drift below warTrigger, the survey clamped at the universe's matter | match |
+| probeSurvey | Surveying below the limit adds matter to the found and available pools | match |
+| probeShortage | Replication clamped by clips; a launch refused | match |
+| spaceProjects | Strategic Attachment (eight strategies), Elliptic Hull Polytopes, Reboot the Swarm | match |
+| spaceRecovery | Every probe lost without clips for a new one: Memory release appears, enabled | match |
+| spaceWar | Drifters pass warTrigger: the battles' explicit stop | match up to the stop (#15) |
 
 The reference VM mutates fixture objects such as qChips. The host therefore
 clones fixture values, so the report records the fixture as injected and the Lua
@@ -383,7 +414,11 @@ The Node tests need Lua 5.1 (TIM_LUA, default C:\Program Files (x86)\Lua\5.1\lua
 These traces establish parity for the covered paths on the measured Windows /
 Node 24 profile. They do not establish:
 
-- full-game coverage: the cosmic phase (#14 to #16) and the endings (#17) remain;
+- full-game coverage: battles (#15), the cosmic phase's recovery and correspondence
+  (#16) and the endings (#17) remain;
+- Strategic Attachment's placing bonuses in a trace: they need eight strategies,
+  whose tournament takes about a minute of game time, so tests/test_sim.lua covers
+  them;
 - building costs on other platforms: they follow the pinned profile's pow;
 - in-game behavior: Sim/ is not loaded by the addon yet;
 - WoW's embedded Lua numeric configuration;
