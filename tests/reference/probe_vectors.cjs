@@ -33,6 +33,9 @@ function candidates() {
     for (const x of [0,-0,1e-300,Math.PI/4,823549]) list.push(["sin",x]);
     for (let n=1;n<=200;n++) list.push(["log10",n]);
     for (let i=0;i<50;i++) list.push(["log10",rnd()*Math.pow(10,Math.floor(rnd()*40-20))]);
+    // Math.log: the swarm's gift rate (#13).
+    for (let n=1;n<=200;n++) list.push(["log",n]);
+    for (let i=0;i<50;i++) list.push(["log",rnd()*Math.pow(10,Math.floor(rnd()*40-20))]);
     let t=.5;
     for (let k=0;k<50;k++) { t=t+.01; list.push(["toString",t]); }
     for (const x of [0,1,-0.5,1e21,1.5e-7,123454288.25,1/3,5e-324,1.7976931348623157e308,0.1+0.2]) list.push(["toString",x]);

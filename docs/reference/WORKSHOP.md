@@ -3,9 +3,10 @@
 Issues [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5),
 [#6](https://github.com/Spotnick2/TimeIsMoney/issues/6),
 [#7](https://github.com/Spotnick2/TimeIsMoney/issues/7),
-[#8](https://github.com/Spotnick2/TimeIsMoney/issues/8) and the planetary slice
+[#8](https://github.com/Spotnick2/TimeIsMoney/issues/8) and phase two
 ([#11](https://github.com/Spotnick2/TimeIsMoney/issues/11) with
-[#12](https://github.com/Spotnick2/TimeIsMoney/issues/12)). This is the first port of
+[#12](https://github.com/Spotnick2/TimeIsMoney/issues/12), then
+[#13](https://github.com/Spotnick2/TimeIsMoney/issues/13)). This is the first port of
 the [pinned reference](README.md) into the pure-Lua simulation layer (`Sim/`). The simulation has no WoW globals, frames, clocks, I/O or native
 randomness. It is parity-tested outside the game and is **not yet in the TOC or
 the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
@@ -23,7 +24,7 @@ the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
 | Sim/Strategy.lua | Strategic modeling and tournaments (#7) |
 | Sim/Projects.lua | Projects through the planetary phase, their purchases and the first transition (#8, #11, #12) |
 | Sim/CostPow.lua | Generated: the reference profile's Math.pow for building costs where JSMath differs (#11, #12) |
-| Sim/Planet.lua | The planetary phase: drones, factories, matter, power and the swarm's per-tick state (#11, #12) |
+| Sim/Planet.lua | The planetary phase: drones, factories, matter, power and the swarm (#11, #12, #13) |
 
 State uses the reference global names, formulas and statement order: `clips`
 (lifetime production), `unusedClips` (spendable stock) and `unsoldClips`
@@ -106,13 +107,18 @@ State uses the reference global names, formulas and statement order: `clips`
   - power: solar farm supply, drone and factory demand, battery storage, shortage
     from storage, powMod, Momentum's +0.0005 per fully powered tick, farm and
     battery purchases and reboots (which reset to 1e7 and 1e6, not the formula);
-  - the swarm's per-tick state: boredom (30,000 ticks without matter), drone-ratio
-    disorganization, their messages, swarm status and the synch/entertain button
-    states;
+  - the swarm (#13): boredom (30,000 ticks without matter), drone-ratio
+    disorganization, their messages and the Entertain and Synchronize recovery
+    actions; swarm status; the work/think slider once Swarm Computing sets
+    swarmFlag; gifts, generated while Active at log(swarm size) × sliderPos/100 per
+    tick toward the 125,000 gift period and paid as round(log10(size) × sliderPos/100)
+    (at least 1), which processors and memory then spend;
   - fifteen phase-two projects: Toth Tubule Enfolding, Power Grid, Nanoscale Wire
     Production, Harvester and Wire Drones, Clip Factories, the factory and drone
-    upgrades, Momentum, and Space Exploration and Swarm Computing as explicit
-    purchase stops;
+    upgrades, Momentum, Swarm Computing and Space Exploration;
+  - the expansion gate: Space Exploration dismantles every building with refunds,
+    keeps one farm at full power and sets spaceFlag. The next tick reaches the cosmic
+    phase, where the slice stops explicitly (#14);
   - buttonUpdate's phase-two flags (investment engine and WireBuyer off) and the
     factory and reboot controls, which it updates in every phase;
   - the global loop variable `x` the purchase loops leave behind.
@@ -122,7 +128,13 @@ State uses the reference global names, formulas and statement order: `clips`
     and wire production run backwards (planetPipeline reproduces it);
   - the +10/+100/+1k buttons enable on price sums that are 0 until the first
     purchase or reboot computes them;
-  - readouts keep innerHTML, so "&" in two drone messages reads "&amp;".
+  - readouts keep innerHTML, so "&" in two drone messages reads "&amp;";
+  - after a gift the countdown is recomputed only while the swarm is Active, so a
+    swarm that stops being Active with a spent countdown gets a gift every tick;
+  - sliderPos holds the slider's string value ("0" to "200"); a slider at "0" makes
+    the gift rate 0 and the countdown Infinity;
+  - Entertain and Synchronize do not check their costs: a second click before the
+    next tick drives creativity or Yomi negative.
 - [PROJECTS.md](PROJECTS.md) is the generated 96-project traceability checklist.
 - **Load sequence:** combat.js loading (two ship resets, 3,200 draws), then all
   seven intervals in source order.
@@ -148,8 +160,7 @@ Reference paths outside the slice raise
 | Quantum Temporal Reversion (confirm() then reset) | #23 |
 | Milestones 13 (space) and 14 (universal paperclips) | #14, #17 |
 | toLocaleString of negative, fractional or unsafe-integer values | #21 |
-| Swarm Computing purchase, the work/think slider, gifts and the Active swarm status; synchronize and entertain clicks | #13 |
-| Space Exploration purchase and the swarm in space | #14 |
+| The cosmic phase after Space Exploration: the next tick (Strategic Attachment availability, the swarm in space, probe functions) | #14 |
 | Building costs beyond the verified domain: Math.pow(n, 2.25) for n > 200,000 (drones, including the +1k lookahead), Math.pow(n, 2.54) and Math.pow(n, 2.78) for n > 30,000 (batteries, farms); checked before any change | #24 |
 | exploreUniverse and probe functions | #14 |
 | checkForBattleEnd with an active battle | #15 |
@@ -234,6 +245,14 @@ Reference paths outside the slice raise
     every purchase and reboot first checks all four price lookaheads on its
     resulting levels. Codex recommended this design over a tolerance (design consult,
     2026-10-03).
+- **Math.log (#13):** V8's base::ieee754::log is fdlibm's __ieee754_log, which
+  JSMath already used inside log10; JSMath.log exposes it. It matched V8 in
+  250,000 cases (every swarm size to 200,000 and random magnitudes);
+  jsmath.test.cjs keeps 60,000 of them.
+- **Slider values:** the host sanitizes the pinned 0..200 unit-step range input:
+  HTML decimal syntax only (no hex, leading +, empty or whitespace), otherwise the
+  midpoint 100; clamped; Math.round with ties upward; then a string. The Lua
+  sanitizer matches it on every tested value.
 - **Math.sin and Math.log10:** V8 implements both with fdlibm 5.3: the original
   `__kernel_cos` with `qx`, and the `__ieee754_log`-based log10. The FreeBSD
   revisions and the C library differ. JSMath ports exactly those routines,
@@ -278,7 +297,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines forty-three traces with an explicit equidistributed
+tests/reference/workshop.cjs defines forty-eight traces with an explicit equidistributed
 stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
 the trace. Longer traces use longer streams. A few investment traces use an
 offset so the 25 % purchase rolls succeed within seconds.
@@ -333,6 +352,11 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | planetExhaustion | The last matter is harvested (Space Exploration appears), the wire runs out, the swarm becomes bored and disorganized with both messages | match |
 | planetReboots | Every Disassemble All: refunds, recomputed price sums, reset costs and emptied storage | match |
 | planetUpgrades | Upgraded and Hyperspeed Factories, the 10²¹-clip supply chain, the three drone flocking projects; Swarm Computing appears unbought | match |
+| swarmGifts | Swarm Computing, the slider toward think, the first gift (4), processors and memory bought with gifts, then a slider at 0 (countdown Infinity) | match |
+| swarmRepeatGifts | A sleeping swarm with a spent countdown: a gift every tick | match |
+| swarmSlider | Eight slider values sanitized (100, 100, 100, 99, 200, 0, 125, 100), with the work multiplier on production | match |
+| swarmRecovery | Entertain and Synchronize, each clicked twice before the next tick (creativity −5,000, Yomi −4,000), then disabled | match |
+| spaceGate | Space Exploration: dismantling with refunds, one farm at full power, spaceFlag; the next tick stops at the cosmic phase | match up to the stop (#14) |
 
 The reference VM mutates fixture objects such as qChips. The host therefore
 clones fixture values, so the report records the fixture as injected and the Lua
@@ -359,8 +383,7 @@ The Node tests need Lua 5.1 (TIM_LUA, default C:\Program Files (x86)\Lua\5.1\lua
 These traces establish parity for the covered paths on the measured Windows /
 Node 24 profile. They do not establish:
 
-- full-phase coverage: the swarm's slider, gifts and actions (#13) and space (#14)
-  remain;
+- full-game coverage: the cosmic phase (#14 to #16) and the endings (#17) remain;
 - building costs on other platforms: they follow the pinned profile's pow;
 - in-game behavior: Sim/ is not loaded by the addon yet;
 - WoW's embedded Lua numeric configuration;

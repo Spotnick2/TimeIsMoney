@@ -193,6 +193,8 @@ function Checks.math(vectors, JSMath)
             got = JSMath.sin(x)
         elseif name == "log10" then
             got = JSMath.log10(x)
+        elseif name == "log" then
+            got = JSMath.log(x)
         elseif name == "toString" then
             got = JSMath.toString(x)
         end

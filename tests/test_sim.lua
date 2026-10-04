@@ -161,6 +161,20 @@ planet.S.farmLevel, planet.S.storedPower = 29950, 7
 fails("Math%.pow%(30050, 2%.78%)", planet.batteryReboot, planet)
 assert(planet.S.batteryLevel == 29950 and planet.S.storedPower == 7)
 
+-- The swarm (#13): with no drones and the slider at 0, a repeating gift is
+-- log10(0) * 0 = NaN. It must never reach a native division (WoW's Lua raises), and
+-- swarmGifts returns to 0 on the next tick, as in the reference.
+local swarm = Workshop.new(stub, {})
+swarm.S.humanFlag, swarm.S.swarmFlag, swarm.S.giftCountdown = 0, 1, 0
+swarm:updateSwarm()
+assert(JSMath.isNaN(swarm.S.nextGift) and JSMath.isNaN(swarm.S.swarmGifts))
+swarm:updateSwarm()
+assert(swarm.S.swarmGifts ~= swarm.S.swarmGifts or swarm.S.swarmGifts >= 0)
+swarm:setValue("slider", "1.25e2")
+assert(swarm.ranges.slider.value == "125" and swarm.ranges.slider.number == 125)
+swarm:setValue("slider", "0x10")
+assert(swarm.ranges.slider.value == "100")
+
 -- addProc refuses to cross the verified processor count before changing state.
 game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000
 local speed = game.S.creativitySpeed

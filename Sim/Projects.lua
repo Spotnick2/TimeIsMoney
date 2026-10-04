@@ -353,12 +353,34 @@ add("project40b", function(S) return S.project40.flag == 1 and S.trust < 100 end
     if S.trust < 100 then S.project40b.uses = S.project40b.uses + 1 end
     game:removeProject("project40b")
 end)
--- Space Exploration appears once the Earth's matter is gone; its purchase starts
--- the cosmic phase (#14). Math.pow(10, 27)*5 is an integer power, exact in JSMath.
+-- Space Exploration, the expansion gate: it appears once the Earth's matter is
+-- gone. The purchase dismantles every planetary building (refunding their bills),
+-- keeps one farm at full power and sets spaceFlag; the next tick reaches the cosmic
+-- phase (#14), where the slice stops explicitly. loadThrenody loads the ending's
+-- audio, whose canplaythrough listener sets threnodyLoadedBool for playThrenody;
+-- the endings and their presentation (#17) handle that, and the probe cost display
+-- belongs to space (#14). Math.pow(10, 27)*5 is an integer power, exact in JSMath.
 local spaceClips = JSMath.pow(10, 27) * 5
 add("project46", function(S) return S.humanFlag == 0 and S.availableMatter == 0 end, function(S)
     return S.operations >= 120000 and S.storedPower >= 10000000 and S.unusedClips >= spaceClips
-end, nil, "#14")
+end, function(game)
+    local S = game.S
+    S.project46.flag = 1
+    S.boredomLevel = 0
+    S.spaceFlag = 1
+    S.standardOps = S.standardOps - 120000
+    S.storedPower = S.storedPower - 10000000
+    S.unusedClips = S.unusedClips - spaceClips
+    game:displayMessage("Von Neumann Probes online")
+    game:factoryReboot()
+    game:harvesterReboot()
+    game:wireDroneReboot()
+    game:farmReboot()
+    game:batteryReboot()
+    S.farmLevel = 1
+    S.powMod = 1
+    game:removeProject("project46")
+end)
 add("project50", function(S) return S.processors >= 5 end, ops(10000), function(game)
     local S = game.S
     S.project50.flag = 1
@@ -443,9 +465,12 @@ simple("project125", function(S) return S.farmLevel >= 30 end, creat(20000),
         S.momentum = 1
         S.creativity = S.creativity - 20000
     end)
--- Swarm Computing switches on the work/think slider and gifts (#13).
-add("project126", function(S) return S.harvesterLevel + S.wireDroneLevel >= 200 end,
-    function(S) return S.yomi >= 36000 end, nil, "#13")
+-- Swarm Computing switches on the work/think slider and gifts.
+simple("project126", function(S) return S.harvesterLevel + S.wireDroneLevel >= 200 end,
+    function(S) return S.yomi >= 36000 end, { "Swarm computing online." }, function(S)
+        S.swarmFlag = 1
+        S.yomi = S.yomi - 36000
+    end)
 simple("project127", function(S) return S.tothFlag == 1 end, ops(40000), { "Power grid online." }, function(S)
     S.standardOps = S.standardOps - 40000
 end)

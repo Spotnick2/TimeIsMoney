@@ -220,6 +220,35 @@ const traces={
     planetUpgrades:{until:500,fixture:{globals:planet({factoryLevel:50,harvesterLevel:25000,wireDroneLevel:25000,
         yomi:60000,unusedClips:2e21,processors:300000})},
         commands:[...buy(20,"100","101","102","110","111","112")]},
+    // The swarm (#13). Swarm Computing makes the swarm Active and reads the slider;
+    // moving it toward "think" raises the gift rate (log of the swarm size times
+    // sliderPos/100). Near the gift period a gift arrives (round(log10(300) * 1.5) = 4),
+    // giftBits restarts, and gifts buy processors and memory.
+    swarmGifts:{until:1200,fixture:{globals:planet({harvesterLevel:150,wireDroneLevel:150,farmLevel:10,yomi:40000,
+        giftBits:124950})},commands:[click(20,"projectButton126"),value(30,"slider","150"),
+            click(400,"btnAddProc"),click(400,"btnAddMem"),value(600,"slider","0")]},
+    // After a gift, giftCountdown is only recomputed while the swarm is Active. A
+    // sleeping swarm (no power) with a spent countdown gives a gift every tick.
+    swarmRepeatGifts:{until:200,fixture:{globals:planet({harvesterLevel:150,wireDroneLevel:150,swarmFlag:1,
+        giftCountdown:0})},commands:[value(50,"slider","200")]},
+    // Slider values sanitized as the page's range input: invalid syntax takes the
+    // midpoint, values clamp and round with ties upward; sliderPos holds the string,
+    // and the work multiplier (200 - sliderPos)/100 scales harvesting and wire.
+    swarmSlider:{until:900,fixture:{globals:planet({harvesterLevel:20,wireDroneLevel:20,farmLevel:5,swarmFlag:1})},
+        commands:["99.5","","0x10","99.49","201","-1","1.25e2","42 "].map((v,i)=>value(50+i*100,"slider",v))},
+    // Recovery: Entertain and Synchronize reset boredom and disorganization. Neither
+    // checks its cost, so a second click before the next tick overspends; then the
+    // controls disable.
+    swarmRecovery:{until:400,fixture:{globals:planet({harvesterLevel:30,wireDroneLevel:5,farmLevel:5,
+        boredomFlag:1,disorgFlag:1,disorgCounter:100,creativity:25000,yomi:6000})},
+        commands:[click(20,"btnEntertainSwarm"),click(20,"btnEntertainSwarm"),click(20,"btnSynchSwarm"),
+            click(20,"btnSynchSwarm"),click(50,"btnEntertainSwarm"),click(50,"btnSynchSwarm")]},
+    // The expansion gate: with the Earth's matter gone, Space Exploration appears; its
+    // purchase dismantles every building with refunds and starts the cosmic phase,
+    // where the next tick stops explicitly (#14).
+    spaceGate:{until:200,fixture:{globals:planet({availableMatter:0,harvesterLevel:40,wireDroneLevel:40,
+        factoryLevel:5,farmLevel:20,batteryLevel:2000,storedPower:15000000,unusedClips:6e27,processors:300000,
+        harvesterBill:5e9,factoryBill:7e9,farmBill:3e9,batteryBill:2e9})},commands:[click(30,"projectButton46")]},
 };
 function make(name) {
     if (!Object.hasOwn(traces,name)) throw new Error("Unknown workshop trace: "+name);

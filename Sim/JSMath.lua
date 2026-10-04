@@ -29,6 +29,7 @@ if not (isNaN(NAN) and not isNaN(0) and not isNaN(huge)) then error("NaN detecti
 -- JavaScript relational operators: false whenever either side is NaN.
 function JSMath.lt(a, b) return not isNaN(a) and not isNaN(b) and a < b end
 function JSMath.gt(a, b) return not isNaN(a) and not isNaN(b) and a > b end
+function JSMath.le(a, b) return not isNaN(a) and not isNaN(b) and a <= b end
 
 -- Sign of zero without 1/x: the first test that tells -0 from +0 on this host.
 local signTests = {
@@ -495,6 +496,12 @@ local function ieeeLog(x)
     end
     if k == 0 then return f - s * (f - R) end
     return dk * ln2_hi - ((s * (f - R) - dk * ln2_lo) - f)
+end
+
+-- Math.log: fdlibm __ieee754_log (V8's base::ieee754::log).
+function JSMath.log(x)
+    if isNaN(x) then return NAN end
+    return ieeeLog(x)
 end
 
 function JSMath.log10(x)

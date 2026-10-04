@@ -1,5 +1,5 @@
 -- Developer probe: lua lua_math_probe.lua <cases.txt> <results.txt>
--- Each input line is "pow x y", "sin x", "log10 x", "toString x" or
+-- Each input line is "pow x y", "sin x", "log x", "log10 x", "toString x" or
 -- "formatWithCommas x [decimal]" with operands as exact
 -- "mantissa:exponent" pairs (or tokens for NaN, infinities and negative zero);
 -- each output line is the JSMath result, written the same way.
@@ -36,6 +36,8 @@ for line in io.lines(arg[1]) do
         result = JSMath.sin(read(a))
     elseif name == "log10" then
         result = JSMath.log10(read(a))
+    elseif name == "log" then
+        result = JSMath.log(read(a))
     elseif name == "toString" then
         result = "=" .. JSMath.toString(read(a))
     elseif name == "formatWithCommas" then
