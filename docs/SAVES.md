@@ -48,8 +48,10 @@ TimeIsMoneyDB = {
   count. The game state must hold every field the simulation reads, with a type it
   can hold in play (numbers, NaN included; undefined where a field starts undefined;
   the select's or slider's string for `pick` and `sliderPos`), plus every project
-  record, array, the strategy pool and the ten photonic chips. Damaged data is
-  refused, never shortened or filled in.
+  record and setup table. Nested records are checked field by field: ships (at least
+  `numShips` of them), battles, stocks, strategies (the pool, the picks and the
+  results), the ten photonic chips with their seeds, the payoff grid, and the lists of
+  numbers and names. Damaged data is refused, never shortened or filled in.
 - **Timer numbers** go through the same exact encoding as the state.
 - **Every timer needs a kind:** `Scheduler.register` refuses one without, so an
   unsaveable timer fails where it is made, not at the next save.

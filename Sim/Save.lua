@@ -162,11 +162,47 @@ local function validateState(S)
         expect(type(entry) == "table" and type(entry.flag) == "number" and type(entry.uses) == "number"
             and entry.id == project.id, "project " .. project.name)
     end
-    for i = 1, 10 do
-        local chip = S.qChips[i]
-        expect(type(chip) == "table" and type(chip.value) == "number" and type(chip.active) == "number",
-            "photonic chip " .. i)
+    -- Nested records: each entry with every field the simulation reads.
+    local function record(t, schema, what)
+        expect(type(t) == "table", what)
+        for field, kind in pairs(schema) do expect(type(t[field]) == kind, what .. "." .. field) end
     end
+    local function list(t, schema, what, kind)
+        local n = 0
+        for _ in pairs(t) do n = n + 1 end
+        expect(n == #t, what .. " (not a dense list)")
+        for i, v in ipairs(t) do
+            if schema then record(v, schema, what .. "[" .. i .. "]") else expect(type(v) == kind, what .. "[" .. i .. "]") end
+        end
+    end
+    local ship = { alive = "boolean", team = "number", framesDead = "number", gx = "number", gy = "number",
+        x = "number", y = "number", vx = "number", vy = "number", color = "string" }
+    local battle = { id = "number", clipProbes = "number", drifterProbes = "number", victory = "boolean",
+        loss = "boolean", whiteFlag = "number", territory = "number", reportCount = "number", garbageFlag = "number" }
+    local stock = { id = "number", symbol = "string", price = "number", amount = "number", total = "number",
+        profit = "number", age = "number" }
+    local strategy = { name = "string", active = "number", currentScore = "number", currentPos = "number" }
+    local chip = { waveSeed = "number", value = "number", active = "number" }
+    local project = { id = "string", flag = "number", uses = "number" }
+    list(S.ships, ship, "ships")
+    expect(#S.ships >= S.numShips, "ships (fewer than numShips)")
+    list(S.battles, battle, "battles")
+    list(S.stocks, stock, "stocks")
+    list(S.allStrats, strategy, "allStrats")
+    list(S.strats, strategy, "strats")
+    list(S.results, strategy, "results")
+    record(S.hStrat, strategy, "hStrat")
+    record(S.vStrat, strategy, "vStrat")
+    list(S.qChips, chip, "qChips")
+    expect(#S.qChips == 10, "qChips (ten chips)")
+    record(S.payoffGrid, { valueAA = "number", valueAB = "number", valueBA = "number", valueBB = "number" },
+        "payoffGrid")
+    list(S.incomeTracker, nil, "incomeTracker", "number")
+    list(S.battleNumbers, nil, "battleNumbers", "number")
+    list(S.alphabet, nil, "alphabet", "string")
+    list(S.choiceANames, nil, "choiceANames", "string")
+    list(S.choiceBNames, nil, "choiceBNames", "string")
+    list(S.activeProjects, project, "activeProjects")
 end
 
 -- A game from saved data, drawing from random. Raises "Malformed save: ..." without

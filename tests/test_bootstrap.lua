@@ -104,7 +104,18 @@ local root = {}
 for k, v in pairs(saved.company.nodes[saved.company.root]) do root[k] = v end
 root.humanFlag = nil
 damaged.company.nodes[saved.company.root] = root
-for _, bad in ipairs({ "text", { schema = "one" }, { schema = 0 }, { schema = 1, company = { nodes = 5 } }, damaged }) do
+-- And one whose first ship has lost a coordinate (a nested record).
+local shipless = { schema = 1, company = {} }
+for k, v in pairs(saved.company) do shipless.company[k] = v end
+shipless.company.nodes = {}
+for id, node in pairs(saved.company.nodes) do shipless.company.nodes[id] = node end
+local shipsNode = saved.company.nodes[saved.company.nodes[saved.company.root].ships.r]
+local firstShip = {}
+for k, v in pairs(saved.company.nodes[shipsNode[1].r]) do firstShip[k] = v end
+firstShip.x = nil
+shipless.company.nodes[shipsNode[1].r] = firstShip
+for _, bad in ipairs({ "text", { schema = "one" }, { schema = 0 }, { schema = 1, company = { nodes = 5 } }, damaged,
+    shipless }) do
     local env3, captured3 = Load(bad)
     captured3:Fire("TimeIsMoney")
     assert(env3.TimeIsMoney.Host.blocked and env3.TimeIsMoney.Host.game == nil)

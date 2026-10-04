@@ -184,6 +184,15 @@ do
     refused(function(d) d.nodes[d.root].funds = "lots" end, "state field funds")
     refused(function(d) d.nodes[d.root].ships = nil end, "state table ships")
     refused(function(d) d.nodes[d.root].project35 = nil end, "project project35")
+    -- Nested records (Codex follow-up on #55): a chip seed, a ship coordinate.
+    local function node(d, field, index)
+        local list = d.nodes[d.nodes[d.root][field].r]
+        return d.nodes[list[index].r]
+    end
+    refused(function(d) node(d, "qChips", 1).waveSeed = nil end, "qChips[1].waveSeed")
+    refused(function(d) node(d, "ships", 1).x = nil end, "ships[1].x")
+    refused(function(d) node(d, "allStrats", 1).name = nil end, "allStrats[1].name")
+    refused(function(d) d.nodes[d.root].numShips = 999 end, "ships (fewer than numShips)")
     refused(function(d) d.controls.selects.stratPicker = nil end, "select stratPicker")
     refused(function(d) d.controls.disabled.btnMakePaperclip = nil end, "control btnMakePaperclip")
     refused(function(d) d.controls.ranges.slider = "0x10" end, "range slider")
