@@ -18,10 +18,12 @@ try {
     # The embedded LibGlass comes from its checkout (LIBGLASS, else ..\LibGlass) at
     # Libs/LibGlass-1.0, exactly the files it ships.
     $libGlass = if ($env:LIBGLASS) { $env:LIBGLASS } else { Join-Path (Split-Path -Parent $repoRoot) 'LibGlass' }
-    $libFiles = @('LibGlass-1.0.xml', 'LibGlass.lua', 'LibStub/LibStub.lua', 'LICENSE') + @(
-        'bar_edge', 'bar_fill', 'bar_mask', 'body_mask', 'body_mask_small', 'gloss', 'grain', 'rim5', 'rim5_small',
-        'rim_dark5', 'rim_dark5_small', 'shadow', 'shadow_small', 'sheen2', 'track_fade' | ForEach-Object { "Media/$_.tga" }) |
-        ForEach-Object { "Libs/LibGlass-1.0/$_" }
+    # What the checkout ships: the files its XML loads, LICENSE and Media/*.tga.
+    $libXml = (Get-Content -LiteralPath (Join-Path $libGlass 'LibGlass-1.0.xml') -Raw) -replace '(?s)<!--.*?-->', ''
+    $libScripts = @([regex]::Matches($libXml, '<Script\s+file="([^"]+)"') | ForEach-Object { $_.Groups[1].Value.Replace('\', '/') })
+    $libMedia = @(Get-ChildItem -LiteralPath (Join-Path $libGlass 'Media') -Filter '*.tga' | ForEach-Object { 'Media/' + $_.Name })
+    if ($libScripts.Count -eq 0 -or $libMedia.Count -eq 0) { throw "LibGlass checkout at $libGlass lists no scripts or textures" }
+    $libFiles = @(@('LibGlass-1.0.xml', 'LICENSE') + $libScripts + $libMedia | ForEach-Object { "Libs/LibGlass-1.0/$_" })
     $deploy = Join-Path $fixture 'Tools/deploy.ps1'
     Copy-Item -LiteralPath (Join-Path $repoRoot 'Tools/deploy.ps1') -Destination $deploy
     [IO.File]::WriteAllBytes((Join-Path $fixture 'Media/Nested/probe.tga'), [byte[]](1, 2, 3, 4))

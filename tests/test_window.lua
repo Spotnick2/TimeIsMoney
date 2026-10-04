@@ -10,7 +10,22 @@ for line in io.lines("TimeIsMoney.toc") do
     end
 end
 
-local env, captured = Stubs.New(nil)
+-- The real LibGlass-1.0 when a checkout is at hand (LIBGLASS, which CI's Windows
+-- job sets to the pinned ref, else ..\LibGlass); otherwise the recording stand-in.
+local libGlass = os.getenv("LIBGLASS")
+if libGlass == "none" then
+    libGlass = nil -- forces the stand-in
+elseif not libGlass or libGlass == "" then
+    libGlass = nil
+    local probe = io.open("../LibGlass/LibGlass-1.0.xml", "rb")
+    if probe then probe:close() libGlass = "../LibGlass" end
+end
+local env, captured, libFiles = Stubs.New(nil, libGlass)
+for _, path in ipairs(libFiles or {}) do
+    local chunk = assert(loadfile(path))
+    setfenv(chunk, env)
+    chunk("TimeIsMoney", {})
+end
 local ns = {}
 for _, path in ipairs(files) do
     local chunk = assert(loadfile(path))
@@ -48,7 +63,12 @@ assert(captured.messages[#captured.messages]:find("/tim start", 1, true) and Win
 env.SlashCmdList.TIMEISMONEY("start")
 local game = Host.game
 assert(game and Window.frame and Window.frame:IsShown() and env.TimeIsMoneyWindow == Window.frame)
-assert(captured.glass.applied > 0, "drawn with the glass material")
+if libGlass then
+    local lib = env.LibStub("LibGlass-1.0")
+    assert(lib.MEDIA == [[Interface\AddOns\TimeIsMoney\Libs\LibGlass-1.0\Media\]], "embedded path")
+else
+    assert(captured.glass.applied > 0, "drawn with the glass material")
+end
 
 local function button(id)
     for _, w in ipairs(captured.widgets) do
@@ -66,6 +86,11 @@ assert(shownText("Handfuls of Copper Bolts") and shownText("Company Funds") and 
 assert(not button("btnAddProc") and not button("btnMakeClipper"))
 local make = assert(button("btnMakePaperclip"))
 assert(make.enabled and make.label.text == "Make Copper Bolts")
+-- Text sits on the glass's top layer, above the rim (LibGlass review of #56).
+assert(make.label.parent == make.glass.top, "button text above the rim")
+-- Square buttons are 32x32: sliced masks fail on boxes small in both directions.
+local raise = assert(button("btnRaisePrice"))
+assert(raise.width == 32 and raise.height == 32)
 
 -- Drawing never changes the company: the state is identical after many refreshes.
 local function digest(t, seen)
@@ -125,4 +150,5 @@ assert(make.label.text == text)
 Window.Toggle()
 assert(Window.frame:IsShown())
 
-print("window: display text, price tags, panel rules, routing, no state change from drawing, disabled labels, projects and hidden refresh passed")
+print((libGlass and "window (real LibGlass at " .. libGlass .. ")" or "window (LibGlass stand-in)")
+    .. ": display text, price tags, panel rules, routing, no state change from drawing, disabled labels, projects and hidden refresh passed")

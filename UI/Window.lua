@@ -15,6 +15,9 @@ Window.COLUMN = 236    -- column width
 Window.GAP = 8
 Window.ROW = 22        -- one line of a card
 Window.BUTTON = 24     -- button height ("small" glass: under ~40 px tall)
+-- Square buttons stay 32x32: sliced masks fail on boxes small in both directions
+-- (16-22 px measured; 32x32 known good; LibGlass GLASS-MATERIAL.md section 6).
+Window.SQUARE = 32
 
 local COPPER = { 0.85, 0.6, 0.4 }
 local MUTED = { 0.7, 0.7, 0.7 }
@@ -37,8 +40,9 @@ end
 local function NewButton(parent, id, height)
     local b = CreateFrame("Button", nil, parent)
     b:SetHeight(height or Window.BUTTON)
-    Glass.Apply(b, "small")
-    b.label = Glass.Font(b, 11, "CENTER")
+    -- Text goes on the glass's top layer, above the rim (host level + 10).
+    b.glass = Glass.Apply(b, "small")
+    b.label = Glass.Font(b.glass.top, 11, "CENTER")
     b.label:SetPoint("LEFT", b, "LEFT", 4, 0)
     b.label:SetPoint("RIGHT", b, "RIGHT", -4, 0)
     b.id = id
@@ -70,12 +74,12 @@ local function NewCard(parent, title)
     local card = setmetatable({ rows = {} }, Card)
     local f = CreateFrame("Frame", nil, parent)
     f:SetWidth(Window.COLUMN)
-    Glass.Apply(f, "large")
+    card.glass = Glass.Apply(f, "large")
     card.frame = f
     card.content = CreateFrame("Frame", nil, f)
     card.content:SetAllPoints(f)
     card.content:SetFrameLevel(Glass.ContentLevel(f))
-    card.title = Glass.Font(card.content, 12, "LEFT")
+    card.title = Glass.Font(card.glass.top, 12, "LEFT")
     card.title:SetText(title)
     card.title:SetTextColor(COPPER[1], COPPER[2], COPPER[3])
     return card
@@ -84,9 +88,9 @@ end
 -- A row: a label on the left and a value on the right.
 function Card:Stat(label, value, show)
     local row = { kind = "stat", height = Window.ROW, value = value, show = show }
-    row.label = Glass.Font(self.content, 11, "LEFT")
+    row.label = Glass.Font(self.glass.top, 11, "LEFT")
     row.label:SetText(label)
-    row.text = Glass.Font(self.content, 12, "RIGHT")
+    row.text = Glass.Font(self.glass.top, 12, "RIGHT")
     self.rows[#self.rows + 1] = row
     return row
 end
@@ -102,12 +106,12 @@ end
 -- A stat with lower and raise buttons beside its value.
 function Card:Adjust(label, value, lower, raise, show)
     local row = self:Stat(label, value, show)
-    row.kind, row.height = "adjust", Window.BUTTON + 2
-    row.raise = NewButton(self.content, raise)
-    row.raise:SetWidth(Window.BUTTON + 4)
+    row.kind, row.height = "adjust", Window.SQUARE + 2
+    row.raise = NewButton(self.content, raise, Window.SQUARE)
+    row.raise:SetWidth(Window.SQUARE)
     if lower then
-        row.lower = NewButton(self.content, lower)
-        row.lower:SetWidth(Window.BUTTON + 4)
+        row.lower = NewButton(self.content, lower, Window.SQUARE)
+        row.lower:SetWidth(Window.SQUARE)
     end
     return row
 end
@@ -164,7 +168,7 @@ function Card:Update(game, panels)
                         row.lower.label:SetText("-")
                         left = row.lower
                     end
-                    row.text:SetPoint("TOPRIGHT", left, "TOPLEFT", -6, -4)
+                    row.text:SetPoint("RIGHT", left, "LEFT", -6, 0)
                 else
                     row.text:SetPoint("TOPRIGHT", self.content, "TOPLEFT", inset + width, y - 4)
                 end
@@ -229,19 +233,19 @@ local function Build()
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", f.StartMoving)
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
-    Glass.Apply(f, "large")
+    local g = Glass.Apply(f, "large")
     local content = CreateFrame("Frame", nil, f)
     content:SetAllPoints(f)
     content:SetFrameLevel(Glass.ContentLevel(f))
     Window.frame, Window.content = f, content
 
-    local title = Glass.Font(content, 14, "LEFT")
+    local title = Glass.Font(g.top, 14, "LEFT")
     title:SetPoint("TOPLEFT", content, "TOPLEFT", Glass.Inset("large"), -Glass.Inset("large"))
     title:SetText("Time Is Money")
     title:SetTextColor(COPPER[1], COPPER[2], COPPER[3])
-    local close = NewButton(content, nil, Window.BUTTON)
-    close:SetWidth(Window.BUTTON + 4)
-    close:SetPoint("TOPRIGHT", content, "TOPRIGHT", -Glass.Inset("large"), -Glass.Inset("large") + 4)
+    local close = NewButton(content, nil, Window.SQUARE)
+    close:SetWidth(Window.SQUARE)
+    close:SetPoint("TOPRIGHT", content, "TOPRIGHT", -Glass.Inset("large"), -Glass.Inset("large"))
     close.label:SetText("x")
     close:SetScript("OnClick", function() f:Hide() end)
 
@@ -294,7 +298,7 @@ local function Build()
     Window.columns = { { production }, { sales, ledger }, { NewProjects(content) } }
 
     -- Messages: the newest reference message (the Director's strip is #22).
-    Window.message = Glass.Font(content, 11, "LEFT")
+    Window.message = Glass.Font(g.top, 11, "LEFT")
     Window.message:SetWordWrap(true)
 
     f:SetScript("OnUpdate", function(_, elapsed)
@@ -316,7 +320,7 @@ function Window.Refresh()
     local inset = Glass.Inset("large")
     local x, tallest = inset, 0
     for _, column in ipairs(Window.columns) do
-        local y, shown = -inset - 26, false
+        local y, shown = -inset - Window.SQUARE - 4, false
         for _, card in ipairs(column) do
             if card:Update(game, panels) then
                 card.frame:ClearAllPoints()

@@ -1,4 +1,5 @@
 """Validate the packager archive without extracting paths."""
+import re
 import sys
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile
@@ -7,12 +8,19 @@ ROOT = Path(__file__).resolve().parent.parent
 ADDON = "TimeIsMoney"
 
 # The embedded LibGlass-1.0 (a .pkgmeta external): its XML is the TOC line, and the
-# archive holds exactly the files it ships (LibGlass docs/GLASS-MATERIAL.md).
+# archive holds exactly what the fetched checkout ships: the files its XML loads,
+# LICENSE and Media/*.tga (so a pin bump that adds a file needs no edit here).
 LIBGLASS = "Libs/LibGlass-1.0"
-LIBGLASS_FILES = ["LibGlass-1.0.xml", "LibGlass.lua", "LibStub/LibStub.lua", "LICENSE"] + [
-    f"Media/{name}.tga" for name in (
-        "bar_edge", "bar_fill", "bar_mask", "body_mask", "body_mask_small", "gloss", "grain", "rim5",
-        "rim5_small", "rim_dark5", "rim_dark5_small", "shadow", "shadow_small", "sheen2", "track_fade")]
+
+
+def libglass_files():
+    lib = ROOT / LIBGLASS
+    xml = re.sub(r"<!--.*?-->", "", (lib / "LibGlass-1.0.xml").read_text(encoding="utf-8"), flags=re.S)
+    scripts = [f.replace("\\", "/") for f in re.findall(r'<Script\s+file="([^"]+)"', xml)]
+    media = sorted(p.relative_to(lib).as_posix() for p in (lib / "Media").glob("*.tga"))
+    if not scripts or not media:
+        raise ValueError("LibGlass checkout lists no scripts or textures")
+    return ["LibGlass-1.0.xml", "LICENSE"] + scripts + media
 
 
 def check(path):
@@ -28,7 +36,7 @@ def check(path):
             if line.startswith(LIBGLASS + "/"):
                 if line != f"{LIBGLASS}/LibGlass-1.0.xml":
                     raise ValueError(f"unexpected library TOC input: {line}")
-                inputs |= {f"{ADDON}/{LIBGLASS}/{name}" for name in LIBGLASS_FILES}
+                inputs |= {f"{ADDON}/{LIBGLASS}/{name}" for name in libglass_files()}
             else:
                 inputs.add(f"{ADDON}/{line}")
     expected = inputs | {f"{ADDON}/{ADDON}.toc", f"{ADDON}/LICENSE"}

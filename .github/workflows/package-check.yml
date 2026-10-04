@@ -170,20 +170,24 @@ jobs:
         if: steps.scope.outputs.parity == 'true'
         shell: pwsh
         run: node --test tests/reference/runner.test.cjs tests/reference/divergence.test.cjs tests/reference/jsmath.test.cjs tests/reference/workshop.test.cjs tests/reference/probe.test.cjs tests/reference/cost_pow.test.cjs
+      # The window test loads the real LibGlass and the deploy installs it: both use
+      # a checkout at the ref .pkgmeta pins.
+      - name: Fetch the pinned LibGlass
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ref = [regex]::Match((Get-Content -Raw .pkgmeta), 'Spotnick2/LibGlass\s+(?:tag|commit): (\S+)').Groups[1].Value
+          if (!$ref) { throw 'No LibGlass ref in .pkgmeta.' }
+          $lib = Join-Path $env:RUNNER_TEMP 'LibGlass'
+          if (Test-Path -LiteralPath $lib) { Remove-Item -LiteralPath $lib -Recurse -Force }
+          git clone --quiet https://github.com/Spotnick2/LibGlass $lib
+          if ($LASTEXITCODE) { throw 'LibGlass clone failed.' }
+          git -C $lib checkout --quiet $ref
+          if ($LASTEXITCODE) { throw "LibGlass ref $ref not found." }
+          "LIBGLASS=$lib" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Execute Windows test runner
         shell: pwsh
         run: ./tests/run.ps1 -Lua $env:TIM_LUA
       - name: Execute deploy tooling in temporary AddOns folder
         shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          # The deploy installs LibGlass from a checkout: the ref .pkgmeta pins.
-          $ref = [regex]::Match((Get-Content -Raw .pkgmeta), 'Spotnick2/LibGlass\s+(?:tag|commit): (\S+)').Groups[1].Value
-          if (!$ref) { throw 'No LibGlass ref in .pkgmeta.' }
-          $env:LIBGLASS = Join-Path $env:RUNNER_TEMP 'LibGlass'
-          if (Test-Path -LiteralPath $env:LIBGLASS) { Remove-Item -LiteralPath $env:LIBGLASS -Recurse -Force }
-          git clone --quiet https://github.com/Spotnick2/LibGlass $env:LIBGLASS
-          if ($LASTEXITCODE) { throw 'LibGlass clone failed.' }
-          git -C $env:LIBGLASS checkout --quiet $ref
-          if ($LASTEXITCODE) { throw "LibGlass ref $ref not found." }
-          ./tests/test_deploy.ps1
+        run: ./tests/test_deploy.ps1
