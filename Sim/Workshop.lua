@@ -65,6 +65,7 @@ for key, value in pairs(Battle.initial) do Workshop.initial[key] = value end
 -- Array-valued globals (encoded as arrays even when empty).
 Workshop.arrays = {
     incomeTracker = true, ships = true, battles = true, stocks = true, activeProjects = true, qChips = true,
+    battleNumbers = true,
 }
 
 -- Projects in projects.js registration order: {name, id, trigger, cost, effect},
@@ -121,6 +122,7 @@ function Workshop.new(random, log)
     }
     -- Range inputs (value plus a sanitize function), added by later files.
     game.ranges = {}
+    Battle.setup(S)
     for _, setup in ipairs(Workshop.setups) do setup(game, S) end
     game.draw = function(site) return random:draw(site, game.clock.now) end
 

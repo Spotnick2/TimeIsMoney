@@ -1,9 +1,11 @@
--- Always-running battle core from combat.js. The reference starts this animation
--- at load and steps it every 16 ms; its ship motion and death rolls consume the
--- shared simulation random stream, so the port keeps it even without a battle.
--- Drawing calls are omitted; framesDead still advances as in MoveShips.
--- Battles, honor and battle names (createBattle, checkForBattleEnd with an
--- active battle) belong to issue #15 and stop with an unported error.
+-- Battle core from combat.js. The reference starts this animation at load and
+-- steps it every 16 ms; its ship motion and death rolls consume the shared
+-- simulation random stream, so the port keeps it even without a battle. Drawing
+-- calls are omitted; framesDead still advances as in MoveShips. Battles (#15):
+-- createBattle sizes the two fleets from probes and drifters and restarts the
+-- ships; DoCombat charges each destroyed ship's unitSize; checkForBattleEnd awards
+-- or deducts honor once battles are named, and ends battles after the result or a
+-- timeout. Battle reports and the victory display are presentation.
 local _, ns = ...
 ns = ns or {}
 
@@ -25,7 +27,31 @@ Battle.initial = {
     drifterCount = 0, driftersKilled = 0, battleNameFlag = 0,
     -- The implicit global i: combat.js load runs for (i=0; i<battleNames.length; i++).
     i = 105,
+    -- Battles (#15).
+    battleID = 0, battleName = "foo", battleClock = 0, outcomeTimer = 150, battleEndDelay = 0,
+    battleEndTimer = 100, masterBattleClock = 0, honorCount = 0, threnodyTitle = "Durenstein 1",
+    bonusHonor = 0, honorReward = 0,
 }
+
+-- combat.js battleNames, and battleNumbers (one per name, counting each name's uses).
+local battleNames = { "Aboukir", "Abensberg", "Acre", "Alba de Tormes", "la Albuera", "Algeciras Bay", "Amstetten",
+    "Arcis-sur-Aube", "Aspern-Essling", "Jena-Auerstedt", "Arcole", "Austerlitz", "Badajoz", "Bailen", "la Barrosa",
+    "Bassano", "Bautzen", "Berezina", "Bergisel", "Borodino", "Burgos", "Bucaco", "Cadiz", "Caldiero", "Castiglione",
+    "Castlebar", "Champaubert", "Chateau-Thierry", "Copenhagen", "Corunna", "Craonne", "Dego", "Dennewitz", "Dresden",
+    "Durenstein", "Eckmuhl", "Elchingen", "Espinosa de los Monteros", "Eylau", "Cape Finisterre", "Friedland",
+    "Fuentes de Onoro", "Gevora River", "Gerona", "Hamburg", "Haslach-Jungingen", "Heilsberg", "Hohenlinden",
+    "Jena-Auerstedt", "Kaihona", "Kolberg", "Landshut", "Leipzig", "Ligny", "Lodi", "Lubeck", "Lutzen", "Marengo",
+    "Maria", "Medellin", "Medina de Rioseco", "Millesimo", "Mincio River", "Mondovi", "Montebello", "Montenotte",
+    "Montmirail", "Mount Tabor", "The Nile", "Novi", "Ocana", "Cape Ortegal", "Orthez", "Pancorbo", "Piave River",
+    "The Pyramids", "Quatre Bras", "Raab", "Raszyn", "Rivoli", "Rolica", "La Rothiere", "Rovereto", "Saalfeld",
+    "Schongrabern", "Salamanca", "Smolensk", "Somosierra", "Talavera", "Tamames", "Trafalgar", "Trebbia", "Tudela",
+    "Ulm", "Valls", "Valmaseda", "Valutino", "Vauchamps", "Vimeiro", "Vitoria", "Wagram", "Waterloo", "Wavre",
+    "Wertingen", "Zaragoza" }
+Battle.names = battleNames
+Battle.setup = function(S)
+    S.battleNumbers = {}
+    for i = 1, #battleNames do S.battleNumbers[i] = 1 end
+end
 
 -- new Ship(team): draw order and arithmetic follow combat.js lines 704-727.
 local function newShip(S, team, draw)
@@ -187,8 +213,87 @@ local function moveShips(S)
     end
 end
 
+-- endBattle: battles.splice(0, 1), a no-op on an empty list.
+local function endBattle(S)
+    S.honorCount = 0
+    S.battleClock = 0
+    S.masterBattleClock = 0
+    S.battleEndDelay = 0
+    if #S.battles > 0 then table.remove(S.battles, 1) end
+end
+
 local function checkForBattleEnd(S)
-    if #S.battles > 0 then ns.Unported("checkForBattleEnd with an active battle", "#15") end
+    if #S.battles > 0 then
+        if S.numLeftShips == 0 or S.numRightShips == 0 then
+            if S.project121.flag == 1 then
+                if S.numLeftShips == 0 then
+                    if S.honorCount == 0 then
+                        S.bonusHonor = 0
+                        S.honor = S.honor - S.battleLEFTSHIPS
+                        S.honorCount = 1
+                    end
+                    S.threnodyTitle = S.battleName
+                end
+                if S.numRightShips == 0 then
+                    if S.honorCount == 0 then
+                        S.honorReward = S.battleRIGHTSHIPS + S.bonusHonor
+                        S.honor = S.honor + S.honorReward
+                        if S.project134.flag == 1 then S.bonusHonor = S.bonusHonor + 10 end
+                        S.honorCount = 1
+                    end
+                end
+            end
+            S.battleEndDelay = S.battleEndDelay + 1
+        elseif S.numLeftShips <= 4 or S.numRightShips <= 4 then
+            S.battleClock = S.battleClock + 1
+            if S.battleClock > 2000 then endBattle(S) end
+        end
+        if S.battleEndDelay >= S.battleEndTimer then endBattle(S) end
+        S.masterBattleClock = S.masterBattleClock + 1
+        if S.masterBattleClock >= 8000 then endBattle(S) end
+    end
+end
+
+-- generateBattleName: a random name and its use count.
+local function generateBattleName(S, draw)
+    local x = floor(draw("combat.js:74:29") * #battleNames)
+    local name = battleNames[x + 1] .. " " .. ns.JSMath.toString(S.battleNumbers[x + 1])
+    S.battleNumbers[x + 1] = S.battleNumbers[x + 1] + 1
+    return name
+end
+
+-- createBattle: unitSize is how many probes or drifters one ship stands for; the
+-- fleets are random shares of each side (one ship per million, at most 200, and
+-- often fewer probe ships at full size). Battle() as a plain call restarts the
+-- ships with the new fleet sizes while the 16 ms update keeps running.
+function Battle.createBattle(S, draw)
+    S.unitSize = 0
+    if S.drifterCount >= S.probeCount then
+        S.unitSize = S.probeCount / 100
+    else
+        S.unitSize = S.drifterCount / 100
+    end
+    if S.unitSize < 1 then S.unitSize = 1 end
+    local rr = draw("combat.js:748:19") * S.drifterCount
+    if rr < 1 then rr = 1 end
+    local ss = draw("combat.js:750:19") * S.probeCount
+    if ss < 1 then ss = 1 end
+    local tt = draw("combat.js:752:19") * S.availableMatter
+    S.battleID = S.battleID + 1
+    local newBattle = { id = S.battleID, clipProbes = ss, drifterProbes = rr, victory = false, loss = false,
+        whiteFlag = 0, territory = tt, reportCount = 0, garbageFlag = 0 }
+    S.battleLEFTSHIPS = math.ceil(ss / 1000000)
+    if S.battleLEFTSHIPS > 200 then S.battleLEFTSHIPS = 200 end
+    if S.battleLEFTSHIPS == 200 then
+        local hinder = draw("combat.js:772:27")
+        if hinder < .50 then S.battleLEFTSHIPS = math.ceil(draw("combat.js:774:46") * 175) end
+    end
+    S.battleRIGHTSHIPS = math.ceil(rr / 1000000)
+    if S.battleRIGHTSHIPS > 200 then S.battleRIGHTSHIPS = 200 end
+    Battle.restart(S, draw)
+    S.battleName = "Drifter Attack " .. ns.JSMath.toString(newBattle.id)
+    if S.battleNameFlag == 1 then S.battleName = generateBattleName(S, draw) end
+    S.battles[#S.battles + 1] = newBattle
 end
 
 local function doCombat(S, draw)

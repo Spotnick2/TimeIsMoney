@@ -6,8 +6,9 @@ Issues [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5),
 [#8](https://github.com/Spotnick2/TimeIsMoney/issues/8) and phase two
 ([#11](https://github.com/Spotnick2/TimeIsMoney/issues/11) with
 [#12](https://github.com/Spotnick2/TimeIsMoney/issues/12), then
-[#13](https://github.com/Spotnick2/TimeIsMoney/issues/13)) and the cosmic phase's core
-([#14](https://github.com/Spotnick2/TimeIsMoney/issues/14)). This is the first port of
+[#13](https://github.com/Spotnick2/TimeIsMoney/issues/13)), the cosmic phase's core
+([#14](https://github.com/Spotnick2/TimeIsMoney/issues/14)) and battles
+([#15](https://github.com/Spotnick2/TimeIsMoney/issues/15)). This is the first port of
 the [pinned reference](README.md) into the pure-Lua simulation layer (`Sim/`). The simulation has no WoW globals, frames, clocks, I/O or native
 randomness. It is parity-tested outside the game and is **not yet in the TOC or
 the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
@@ -19,7 +20,7 @@ the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
 | Sim/Reference.lua | Source pins (the five lock hashes) and simulation load order |
 | Sim/JSMath.lua | JavaScript number semantics: `undefined`, Math.round, `%`, a pure-Lua Math.pow, and the fdlibm Math.sin and Math.log10 that V8 uses |
 | Sim/Scheduler.lua | The reference host's logical timer queue (due time, then a stable ordinal; intervals requeue after their callback) |
-| Sim/Battle.lua | The always-running battle core from combat.js |
+| Sim/Battle.lua | The always-running battle core from combat.js, and battles (#15) |
 | Sim/Workshop.lua | The phase-one workshop and computation, the seven reference intervals, formatWithCommas and the click and select commands |
 | Sim/Investments.lua | The investment engine (#7) |
 | Sim/Strategy.lua | Strategic modeling and tournaments (#7) |
@@ -141,6 +142,23 @@ State uses the reference global names, formulas and statement order: `clips`
     bonuses (+50,000, +30,000 or +20,000 Yomi);
   - the probe-design controls, which buttonUpdate updates in every phase
     (btnLowerProbeHaz through the browser's named access to element IDs).
+- **Battles (#15):**
+  - once drifters pass warTrigger with probes left, each tick has an even chance to
+    start a battle (one at a time);
+  - createBattle: unitSize = 1 % of the smaller side (at least 1), random shares
+    of both sides as fleets (one ship per million, at most 200; a full probe fleet
+    is cut to a random 1-175 half the time) and random territory; Battle() as a
+    plain call restarts the ships, drawing every new ship, while the 16 ms update
+    keeps running;
+  - DoCombat charges each destroyed ship's unitSize to probes or drifters;
+  - checkForBattleEnd: once battles are named, a defeat costs honor (the probe
+    fleet) and names the threnody, a victory adds the drifter fleet plus Glory's
+    bonus; the result shows for battleEndTimer updates; a battle ends anyway after
+    2,000 updates with four ships or fewer on a side, or 8,000 in all;
+  - battle names: "Drifter Attack N", or once named a random Napoleonic battle and
+    its use count;
+  - Combat, Name the battles (named engagements, battleEndTimer 200) and the OODA
+    Loop (probe speed adds to the defensive death threshold).
 - **Reference quirks kept:**
   - when storage runs out during a shortage, nuSupply = 2·supply − demand +
     storedPower can be negative, so powMod is negative for that tick and harvesting
@@ -177,7 +195,7 @@ Reference paths outside the slice raise
 | Purchases of the shown later-phase projects Name the battles and Combat | #15 |
 | Quantum Temporal Reversion (confirm() then reset) | #23 |
 | toLocaleString of negative, fractional or unsafe-integer values | #21 |
-| Battles: the checkForBattles roll once drifters pass warTrigger with probes left | #15 |
+| The monument, the threnody and Glory purchases (memorials after named battles) | #16 |
 | Milestone 15 (all the universe's matter in clips, or surveyed and used up), which opens the correspondence and endings | #16 |
 | Probe formulas beyond the verified domain: Math.pow(n, 1.2), Math.pow(n, 1.47) and Math.pow(n, 1.6) for integer n > 10,000 (trust and hazard allocations); the trust purchase checks before any change | #24 |
 | Building purchases and reboots with fractional drone, farm or battery levels (probes build fractional drones in space), whose costs are not integer bases; checked before any change | #24 |
@@ -321,7 +339,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines fifty-six traces with an explicit equidistributed
+tests/reference/workshop.cjs defines sixty traces with an explicit equidistributed
 stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
 the trace. Longer traces use longer streams. A few investment traces use an
 offset so the 25 % purchase rolls succeed within seconds.
@@ -388,7 +406,11 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | probeShortage | Replication clamped by clips; a launch refused | match |
 | spaceProjects | Strategic Attachment (eight strategies), Elliptic Hull Polytopes, Reboot the Swarm | match |
 | spaceRecovery | Every probe lost without clips for a new one: Memory release appears, enabled | match |
-| spaceWar | Drifters pass warTrigger: the battles' explicit stop | match up to the stop (#15) |
+| spaceWar | Drifters pass warTrigger: a battle starts on the even roll, and ship losses cost probes and drifters | match |
+| battleVictory | Combat and Name the battles, then named battles won (honor, the 200-update result delay, the next battle); the OODA Loop | match |
+| battleDefeat | Two probe ships against 200: defeats cost honor and name the threnody | match |
+| battleTimeout | An undecided battle ends after 8,000 updates | match |
+| battleClockTimeout | A battle down to four ships or fewer on a side ends after 2,000 more | match |
 
 The reference VM mutates fixture objects such as qChips. The host therefore
 clones fixture values, so the report records the fixture as injected and the Lua
@@ -415,8 +437,8 @@ The Node tests need Lua 5.1 (TIM_LUA, default C:\Program Files (x86)\Lua\5.1\lua
 These traces establish parity for the covered paths on the measured Windows /
 Node 24 profile. They do not establish:
 
-- full-game coverage: battles (#15), the cosmic phase's recovery and correspondence
-  (#16) and the endings (#17) remain;
+- full-game coverage: the cosmic phase's recovery, memorials and correspondence (#16)
+  and the endings (#17) remain;
 - Strategic Attachment's placing bonuses in a trace: they need eight strategies,
   whose tournament takes about a minute of game time, so tests/test_sim.lua covers
   them;

@@ -1,8 +1,8 @@
 -- The cosmic phase (#14): what runs after Space Exploration sets spaceFlag. Probe
 -- design (trust, its eight allocations and maximum trust), probe launches and
 -- replication, surveying the universe for matter, hazards, probe-built factories
--- and drones, and value drift. Battles start once drifters pass warTrigger; the
--- slice stops before that roll (#15). Source identifiers, formulas and statement
+-- and drones, and value drift. Battles start once drifters pass warTrigger
+-- (Sim/Battle.lua, #15). Source identifiers, formulas and statement
 -- order follow main.js. Extends Sim/Workshop.lua and Sim/Planet.lua.
 local _, ns = ...
 ns = ns or {}
@@ -203,11 +203,16 @@ function Game:drift()
     S.probesLostDrift = S.probesLostDrift + amount
 end
 
--- war -> checkForBattles (combat.js): a battle roll once drifters pass warTrigger.
+-- war -> checkForBattles (combat.js): once drifters pass warTrigger, an even chance
+-- each tick to start a battle (at most maxBattles at once).
 function Game:war()
     local S = self.S
     if S.drifterCount > S.warTrigger and S.probeCount > 0 and #S.battles < S.maxBattles then
-        Unported("battles (checkForBattles roll)", "#15")
+        local r = (self.draw("combat.js:57:23") * 100)
+        if r >= 50 then
+            if S.battleFlag == 0 then S.battleFlag = 1 end
+            ns.Battle.createBattle(S, self.draw)
+        end
     end
 end
 

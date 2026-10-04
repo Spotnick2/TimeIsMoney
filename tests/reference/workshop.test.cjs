@@ -18,9 +18,7 @@ for (const name of Workshop.names) test("workshop "+name+" trace agrees with the
     assert.equal(divergence,null,JSON.stringify(divergence && {kind:divergence.kind,event:divergence.event,
         field:divergence.field,difference:divergence.difference,left:divergence.left,right:divergence.right}));
     assert.deepEqual(port.source_sha256,source.index.source_sha256);
-    // The war boundary ends at the battles' explicit stop (asserted below).
-    if (name==="spaceWar") assert.match(port.error,/battles \(checkForBattles roll\) \(issue #15\)/);
-    else assert.equal(port.error,null);
+    assert.equal(port.error,null);
 });
 
 test("exact costs buy at equal funds; unaffordable clicks run no-op branches, then controls disable",()=>{
@@ -239,9 +237,9 @@ test("automatic tournaments restart from shown results; without a pick nothing i
 // Issue #8: phase-one projects and the first transition.
 const PROJECT_RUNS=["projectsProduction","projectsCreativity","projectsStrategy","projectsBusiness",
     "projectsVolition","projectsMachines","projectsRecovery","projectsLate","transition",
-    "planetChain","planetPipeline","planetUpgrades","swarmGifts","spaceGate","spaceProjects"];
+    "planetChain","planetPipeline","planetUpgrades","swarmGifts","spaceGate","spaceProjects","battleVictory"];
 const REPEATABLE=new Set(["project2","project40b","project51","project219"]);
-const STOPS=new Set(["project121","project131","project135","project217"]);
+const STOPS=new Set(["project132","project133","project134","project135","project217"]);
 test("every purchasable project is bought in a trace, with eligibility compared",()=>{
     const projected=run("projectsProduction").port.projection.state.filter(k=>/^project\d/.test(k));
     const bought=new Set();
@@ -249,7 +247,7 @@ test("every purchasable project is bought in a trace, with eligibility compared"
         for (const key of projected) if (state[key] && state[key].flag===1) bought.add(key);
     const missing=projected.filter(key=>!STOPS.has(key) && !bought.has(key));
     assert.deepEqual(missing,[]);
-    assert.equal(bought.size,70);
+    assert.equal(bought.size,73);
     assert.ok(run("projectsProduction").port.projection.disabled.includes("projectButton1"),"project buttons compared");
 });
 test("one-use projects never return after purchase (no duplicate reward)",()=>{
@@ -455,11 +453,35 @@ test("with every probe lost and too few clips, Memory release appears",()=>{
     assert.ok(end.state.activeProjects.some(p=>p.id==="projectButton135"));
     assert.equal(end.dom.projectButton135.disabled,false,"200 memory pays its 10");
 });
-test("drifters past warTrigger reach the battles' explicit stop",()=>{
-    // The stop comes inside the tick whose drift passes warTrigger, so the last
-    // checkpoint is the tick before it.
-    const {port}=run("spaceWar"), last=final(port).state;
-    assert.ok(last.drifterCount>900000 && last.drifterCount<=last.warTrigger);
+// Battles (#15).
+test("drifters past warTrigger start a battle whose ship losses cost probes and drifters",()=>{
+    const all=points(run("spaceWar").port).map(p=>p.state), end=all.at(-1);
+    assert.deepEqual([end.battleFlag,end.battleID,end.battleName],[1,1,"Drifter Attack 1"]);
+    assert.ok(end.probesLostCombat>0 && end.driftersKilled>0,"each destroyed ship costs unitSize");
+    assert.ok(all.some(s=>s.unitSize>1),"a ship stands for many probes or drifters");
+});
+test("named battles won: honor from the drifter fleet, names, the result delay and the OODA Loop",()=>{
+    const all=points(run("battleVictory").port).map(p=>p.state), end=all.at(-1);
+    assert.deepEqual([end.project121.flag,end.project131.flag,end.project120.flag,end.attackSpeedFlag,end.battleEndTimer],
+        [1,1,1,1,200]);
+    const names=new Set(all.map(s=>s.battleName));
+    assert.ok(["Fuentes de Onoro 1","Borodino 1"].every(n=>names.has(n)),[...names].join("|"));
+    assert.ok(end.honor>0,"victory honor");
+    assert.ok(all.some((s,i)=>i>0 && s.battles.length<all[i-1].battles.length),"a battle ends");
+});
+test("named battles lost: honor falls by the probe fleet and the threnody takes the battle's name",()=>{
+    const end=final(run("battleDefeat").port).state;
+    assert.ok(end.honor<0);
+    assert.equal(end.threnodyTitle,end.battleName);
+    assert.notEqual(end.threnodyTitle,"Durenstein 1");
+});
+test("undecided battles end after 8,000 updates, or 2,000 with four ships or fewer on a side",()=>{
+    for (const name of ["battleTimeout","battleClockTimeout"]) {
+        const all=points(run(name).port).map(p=>p.state);
+        assert.equal(all[1].battles.length,1,name+" starts with a battle");
+        const end=all.at(-1);
+        assert.deepEqual([end.battles.length,end.battleClock,end.honorCount],[0,0,0],name);
+    }
 });
 test("the WireBuyer switch stops and resumes automatic wire purchases",()=>{
     const {port}=run("wireBuyerToggle");
