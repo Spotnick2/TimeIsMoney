@@ -29,8 +29,9 @@ Workshop.truthy = truthy
 -- Per-game initializers registered by later simulation files (setup(game, S)).
 Workshop.setups = {}
 -- Control states later simulation files add to buttonUpdate (fn(game, S, disabled)),
--- run in registration order before probeUsedTrust.
+-- run in registration order before probeUsedTrust, and the late ones after it.
 Workshop.buttonUpdates = {}
+Workshop.lateButtonUpdates = {}
 
 -- Initial values of the ported globals (globals.js, main.js, combat.js).
 Workshop.initial = {
@@ -393,9 +394,16 @@ function Game:milestoneCheck()
             self:displayMessage(m[2] .. timeCruncher(S.ticks))
         end
     end
-    -- 13 needs spaceFlag and 14 needs the universe's matter (later phases).
-    if S.milestoneFlag == 13 and S.spaceFlag == 1 then Unported("space milestone", "#14") end
-    if S.milestoneFlag == 14 then Unported("universal paperclips milestones", "#17") end
+    if S.milestoneFlag == 13 and S.spaceFlag == 1 then
+        S.milestoneFlag = S.milestoneFlag + 1
+        self:displayMessage("Terrestrial resources fully utilized in " .. timeCruncher(S.ticks))
+    end
+    -- Milestone 15 (all the universe's matter in clips, or surveyed and used up)
+    -- opens the correspondence and the endings (#16, #17): stop before it.
+    if S.milestoneFlag == 14 and (S.clips >= S.totalMatter
+        or (S.foundMatter >= S.totalMatter and S.availableMatter < 1 and S.wire < 1)) then
+        Unported("Universal Paperclips milestone (the correspondence and endings)", "#16")
+    end
 end
 
 -- buttonUpdate: the state it changes and the slice's control eligibility.
@@ -420,6 +428,7 @@ function Game:buttonUpdate()
     end
     for _, update in ipairs(Workshop.buttonUpdates) do update(self, S, disabled) end
     S.probeUsedTrust = (S.probeSpeed + S.probeNav + S.probeRep + S.probeHaz + S.probeFac + S.probeHarv + S.probeWire + S.probeCombat)
+    for _, update in ipairs(Workshop.lateButtonUpdates) do update(self, S, disabled) end
 end
 
 -- Computation ------------------------------------------------------------
@@ -606,7 +615,7 @@ function Game:mainLoop()
     if S.humanFlag == 1 and S.wireBuyerFlag == 1 and S.wireBuyerStatus == 1 and S.wire <= 1 then
         self:buyWire()
     end
-    if S.probeCount >= 1 then Unported("exploreUniverse", "#14") end
+    if S.probeCount >= 1 then self:exploreUniverse() end -- Sim/Space.lua
     self:planetaryTick() -- Sim/Planet.lua
 
     local fbst = 1
@@ -614,7 +623,7 @@ function Game:mainLoop()
     if S.dismantle < 4 then
         self:clipClick(S.powMod * fbst * (floor(S.factoryLevel) * S.factoryRate))
     end
-    if S.spaceFlag == 1 then Unported("probe functions", "#14") end
+    if S.spaceFlag == 1 then self:probeTick() end
 
     if S.dismantle < 4 then
         self:clipClick(S.clipperBoost * (S.clipmakerLevel / 100))

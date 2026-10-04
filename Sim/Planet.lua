@@ -82,12 +82,13 @@ for _, id in ipairs({
 -- unknown, so the slice stops.
 -- A cost is a pure function of its integer base, so computed values are kept
 -- (the pure-Lua pow is slow and the price sums revisit the same bases).
-local memo = { ["2.25"] = {}, ["2.54"] = {}, ["2.78"] = {} }
+local memo = {}
 local function costPow(n, e)
     local domain = CostPow[e]
     if n ~= floor(n) or n < 1 or n > domain.limit then
         Unported("building cost Math.pow(" .. JSMath.toString(n) .. ", " .. e .. ") beyond the verified domain", "#24")
     end
+    memo[e] = memo[e] or {}
     local value = memo[e][n]
     if value == nil then
         local fix = domain.fixes[n]
@@ -390,7 +391,7 @@ function Game:updateSwarm()
         S.giftBits = 0
     end
     if S.powMod == 0 then S.swarmStatus = 6 else S.swarmStatus = 0 end
-    if S.spaceFlag == 1 then Unported("the swarm in space", "#14") end
+    if S.spaceFlag == 1 and S.project130.flag == 0 then S.swarmStatus = 9 end
     if d == 0 then
         S.swarmStatus = 7
     elseif d == 1 then

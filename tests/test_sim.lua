@@ -129,7 +129,7 @@ assert(#game.clock:describe() == 7)
 game:click("btnMakePaperclip")
 game:advanceTo(2000)
 assert(game.S.clips == 1 and game.S.ticks == 200)
-fails("Unported reference path: control btnMakeProbe", game.click, game, "btnMakeProbe")
+fails("Unported reference path: control btnFeedSwarm", game.click, game, "btnFeedSwarm")
 
 -- Planetary costs (#11, #12): the reference profile's pow where JSMath differs, and an
 -- explicit stop, before any change, beyond the verified domain.
@@ -203,11 +203,13 @@ assert(later.S.milestoneFlag == 8, tostring(later.S.milestoneFlag))
 assert(later.readouts[2] == "Full autonomy attained in 1 hour " and later.readouts[1] == "One Trillion Clips Created in 1 hour ")
 assert(JSMath.pow(10, 24) == 1e24 and JSMath.pow(10, 27) == 1e27)
 
--- The placing-bonus stop refuses before awarding Yomi.
+-- Strategic Attachment (#14): the picked strategy winning adds 50,000 Yomi after
+-- the score award.
 local tourney = Workshop.new(stub, {})
-tourney.S.pick, tourney.S.project128.flag = "0", 1
+tourney.S.pick, tourney.S.project128.flag, tourney.S.winnerPtr = "0", 1, 0
 tourney.S.results = { tourney.S.strats[1] }
 local yomiBefore = tourney.S.yomi
-fails("tournament placing bonuses %(issue #14%)", tourney.declareWinner, tourney)
-assert(tourney.S.yomi == yomiBefore and tourney.S.resultsFlag == 0)
+tourney:declareWinner()
+assert(tourney.S.yomi == yomiBefore + 50000 and tourney.S.resultsFlag == 1)
+assert(tourney.readouts[1] == "Selected strategy won the tournament (or tied for first). +50,000 yomi")
 print("simulation: JavaScript numbers, scheduler, purity and workshop smoke passed")
