@@ -590,6 +590,9 @@ local function universe(name, cost, message, apply)
         S[name].flag = 1
         apply(S)
         game.savedPrestige = { prestigeU = S.prestigeU, prestigeS = S.prestigeS }
+        -- This company is over (the reference reloads the page): the host must not
+        -- keep running it after the stop below.
+        game.restartRequested = "prestige"
         game:displayMessage(message)
         Unported("reset after a prestige choice (a new game with the saved prestige)", "#23")
     end)

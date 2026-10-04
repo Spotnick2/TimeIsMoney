@@ -174,6 +174,27 @@ do
     assert(saved == 1 and game.S.saveTimer <= 1)
 end
 
+-- A prestige choice awards and saves its prestige, then requests the restart: the
+-- old company halts, so the reward cannot be collected twice (Codex review of #54).
+for _, route in ipairs({ { "projectButton200", "prestigeU", { compFlag = 1, standardOps = 400000, memory = 400 } },
+        { "projectButton201", "prestigeS", { creativity = 400000 } } }) do
+    local Host = Load()
+    local game = Host.start({ 17, 19 })
+    local S = game.S
+    S.project147.flag = 1
+    for k, v in pairs(route[3]) do S[k] = v end
+    game:advanceTo(game.clock.now + 30) -- the project appears and its cost is met
+    assert(game.projectElements[route[1]] and not game.disabled[route[1]], route[1] .. " is offered")
+    local ok, err = Host.click(route[1])
+    assert(not ok and err:find("reset after a prestige choice", 1, true))
+    assert(not Host.running and S[route[2]] == 1 and game.savedPrestige[route[2]] == 1)
+    ok, err = Host.click(route[1])
+    assert(not ok and err:find("no running game", 1, true) and S[route[2]] == 1, "no second award")
+    local now = game.clock.now
+    Host.update(1)
+    assert(game.clock.now == now, "the old company does not run on")
+end
+
 -- Garbage: the client measured 111 MB of addon memory before the grid reuse and
 -- the log-free scheduler; ten logical seconds now allocate almost nothing.
 do

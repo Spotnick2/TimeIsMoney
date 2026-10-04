@@ -99,15 +99,20 @@ function Host.update(elapsed)
 end
 
 -- Validated commands: a known control, applied at the current logical time. A
--- control the slice refuses (an unported path) raises before changing state, so
--- the game keeps running and the refusal is reported.
+-- control the slice refuses (an unported path, a project not shown) raises before
+-- changing state, so the game keeps running and the refusal is reported. The one
+-- exception is a prestige choice: it awards and saves the prestige, then requests
+-- the restart into a new game (#23). That company is over, so the host halts it.
 function Host.click(id)
     local game = Host.game
     if not (game and Host.running) then return false, "no running game (/tim start)" end
     local known = ns.Workshop.clicks[id] or ns.Workshop.projectById[id]
     if not known then return false, "unknown control " .. tostring(id) end
     local ok, err = pcall(game.click, game, id)
-    if not ok then return false, tostring(err) end
+    if not ok then
+        if game.restartRequested then Host.halt(err) end
+        return false, tostring(err)
+    end
     return true
 end
 
