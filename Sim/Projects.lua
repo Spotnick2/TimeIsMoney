@@ -1,8 +1,8 @@
--- Projects (projects.js) through the cosmic phase's battles: availability, eligibility,
+-- Projects (projects.js) through the cosmic phase's correspondence: availability, eligibility,
 -- purchase effects, repeatable entries and the first transition (Release the
 -- HypnoDrones). Entries follow projects.js registration order; each has the
 -- reference trigger and cost and, where the ported phases can buy it, the effect.
--- Projects whose triggers need the correspondence or the endings are omitted; they
+-- Projects whose triggers need the endings are omitted; they
 -- cannot appear yet (see docs/reference/PROJECTS.md). Extends Sim/Workshop.lua.
 local _, ns = ...
 ns = ns or {}
@@ -27,6 +27,7 @@ Workshop.initial.nanoWire = 0
 Workshop.initial.revPerSecFlag = 0
 Workshop.initial.longBlinkCounter = 0
 Workshop.initial.threnodyCost = 50000
+Workshop.initial.driftKingMessageCost = 1
 
 -- project.element removal followed by
 -- activeProjects.splice(activeProjects.indexOf(project), 1): an index of -1
@@ -505,20 +506,71 @@ simple("project130", function(S) return S.spaceFlag == 1 and S.harvesterLevel + 
     end)
 simple("project131", function(S) return S.probesLostCombat >= 1 end, ops(150000), { "There is a joy in danger " },
     function(S) S.standardOps = S.standardOps - 150000 end)
--- The monument, the threnody (repeatable) and Glory are cosmic recovery and
--- memorials (#16); Glory's flag adds victory bonus honor in checkForBattleEnd.
+-- Memorials after named battles (#16): the monument, the threnody (repeatable, each
+-- time 10,000 creativity and 4,000 Yomi dearer) and Glory, whose flag adds bonus
+-- honor for consecutive victories in checkForBattleEnd. playThrenody is audio.
 local monumentClips = JSMath.pow(10, 30) * 50
-add("project132", flag("project121"), function(S)
+simple("project132", flag("project121"), function(S)
     return S.operations >= 250000 and S.creativity >= 125000 and S.unusedClips >= monumentClips
-end, nil, "#16")
+end, { "A great building must begin with the unmeasurable, must go through measurable means when it is being designed and in the end must be unmeasurable. " },
+    function(S)
+        S.standardOps = S.standardOps - 250000
+        S.creativity = S.creativity - 125000
+        S.unusedClips = S.unusedClips - monumentClips
+        S.honor = S.honor + 50000
+    end)
 add("project133", function(S) return S.project121.flag == 1 and S.probeUsedTrust == S.maxTrust end,
-    function(S) return S.yomi >= (2 * (S.threnodyCost / 5)) and S.creativity >= S.threnodyCost end, nil, "#16")
-add("project134", flag("project121"), function(S) return S.operations >= 200000 and S.yomi >= 30000 end, nil, "#16")
--- Memory release (emergency probe restart) is cosmic recovery (#16): available once
--- every probe is gone without clips for a new one.
+    function(S) return S.yomi >= (2 * (S.threnodyCost / 5)) and S.creativity >= S.threnodyCost end, function(game)
+        local S = game.S
+        S.project133.flag = 1
+        S.creativity = S.creativity - S.threnodyCost
+        S.yomi = S.yomi - (2 * (S.threnodyCost / 5))
+        S.threnodyCost = S.threnodyCost + 10000
+        S.honor = S.honor + 10000
+        game:displayMessage("Deep Listening is listening in every possible way to everything possible to hear no matter what you are doing. ")
+        S.project133.uses = (S.project133.uses + 1)
+        game:removeProject("project133")
+    end)
+simple("project134", flag("project121"), function(S) return S.operations >= 200000 and S.yomi >= 30000 end,
+    { "Never interrupt your enemy when he is making a mistake. " }, function(S)
+        S.standardOps = S.standardOps - 200000
+        S.yomi = S.yomi - 30000
+    end)
+-- Memory release, the emergency probe restart (#16): once every probe is gone
+-- without clips for a new one, 10 memory buys 10^22 clips. It stays repeatable
+-- (uses is set back to 1). Math.pow(10, 18) * 10000 is exact.
+local releaseClips = JSMath.pow(10, 18) * 10000
 add("project135", function(S)
     return S.spaceFlag == 1 and S.probeCount == 0 and S.unusedClips < S.probeCost and S.milestoneFlag < 15
-end, function(S) return S.memory >= 10 end, nil, "#16")
+end, function(S) return S.memory >= 10 end, function(game)
+    local S = game.S
+    S.project135.flag = 1
+    S.unusedClips = S.unusedClips + releaseClips
+    S.memory = S.memory - 10
+    S.project135.uses = 1
+    game:displayMessage("release the \195\184\195\184\195\184\195\184\195\184 release ")
+    game:removeProject("project135")
+end)
+-- The Emperor of Drift's correspondence (#16): seven messages, each for
+-- driftKingMessageCost Operations; their text is the projects' descriptions.
+local function message(name, trigger)
+    add(name, trigger, function(S) return S.operations >= S.driftKingMessageCost end, function(game)
+        local S = game.S
+        S.standardOps = S.standardOps - S.driftKingMessageCost
+        S[name].flag = 1
+        game:removeProject(name)
+    end)
+end
+message("project140", function(S) return S.milestoneFlag == 15 end)
+message("project141", flag("project140"))
+message("project142", flag("project141"))
+message("project143", flag("project142"))
+message("project144", flag("project143"))
+message("project145", flag("project144"))
+message("project146", flag("project145"))
+-- Accept or Reject the exile: the departure and the endings (#17).
+add("project147", flag("project146"), function(S) return S.operations >= S.driftKingMessageCost end, nil, "#17")
+add("project148", flag("project146"), function(S) return S.operations >= S.driftKingMessageCost end, nil, "#17")
 -- Restart asks confirm() and resets the game (explicit new-game control, #23).
 add("project217", function(S) return S.operations <= -10000 end, function(S) return S.operations <= -10000 end,
     function() Unported("Quantum Temporal Reversion restart (confirm and reset)", "#23") end, "#23")

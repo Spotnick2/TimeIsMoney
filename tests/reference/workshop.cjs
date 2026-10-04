@@ -288,6 +288,22 @@ const traces={
     // Every probe lost without clips for a new one: Memory release appears (its
     // purchase is cosmic recovery, #16).
     spaceRecovery:{until:200,fixture:{globals:space({probeCount:0,unusedClips:1e16})},commands:[]},
+    // The correspondence (#16): all the universe's matter in clips reaches milestone
+    // 15; the Emperor of Drift's seven messages are read one by one; Accept and
+    // Reject (the endings, #17) appear.
+    correspondence:{until:400,fixture:{globals:space({clips:Math.pow(10,54)*30,availableMatter:1e30})},
+        commands:[...buy(20,"140","141","142","143","144","145","146")]},
+    // Milestone 15's other route: the universe surveyed, no matter or wire left.
+    surveyedEnd:{until:200,fixture:{globals:space({foundMatter:Math.pow(10,54)*30,wire:0})},commands:[]},
+    // Memorials (#16) after Name the battles: the monument (50 nonillion clips, 50,000
+    // honor), the threnody twice (repeatable, each time dearer) and Glory.
+    memorials:{until:600,fixture:{globals:space({memory:300,standardOps:300000,processors:600000,
+        probesLostCombat:2e7,creativity:700000,yomi:200000,unusedClips:1e32,maxTrust:20,probeTrust:20,
+        probeSpeed:10,probeHaz:10})},commands:[...buy(20,"121","132","133","134"),click(200,"projectButton133")]},
+    // Memory release (#16): every probe lost without clips for a new one; 10 memory
+    // buys 10^22 clips.
+    memoryRelease:{until:300,fixture:{globals:space({probeCount:0,unusedClips:1e16,memory:30,standardOps:30000})},
+        commands:[click(20,"projectButton135")]},
     // Battles (#15). Drifters pass warTrigger: an even roll starts a battle; the fleets
     // are random shares of each side (a ship per million, at most 200, often fewer
     // probe ships at full size); the ships fight, each loss costing unitSize probes

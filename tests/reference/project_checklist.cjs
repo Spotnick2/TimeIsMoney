@@ -30,7 +30,7 @@ function generate() {
             const stop=ported.get(name);
             status=stop ? `trigger and eligibility; purchase stops (${stop})` : "trigger, eligibility and purchase effect";
         } else {
-            status="later slice: its trigger needs the correspondence or the endings";
+            status="later slice: its trigger needs the endings";
         }
         return `| ${index+1} | ${name} | ${project.fields.id.initial} | ${project.line} | ${status} |`;
     });
@@ -42,7 +42,7 @@ function generate() {
         "[inventory.json](inventory.json) and Sim/Projects.lua; do not edit by hand.",
         "workshop.test.cjs checks that this file is current.",
         "",
-        `The ported phases (one, two and the cosmic phase through battles) port ${counted.filter(s=>!s).length} purchase effects and`,
+        `The ported phases (one, two and the cosmic phase through the correspondence) port ${counted.filter(s=>!s).length} purchase effects and`,
         `${counted.filter(s=>s).length} explicit purchase stops. Later slices extend this table.`,
         "",
         "| # | Project | Button | projects.js line | Port |",
