@@ -1,5 +1,5 @@
--- Entry point: load, status, help and the developer commands that drive the
--- simulation until the ledger window exists (#20). Saves are #19.
+-- Entry point: load, saves, status, help and the developer commands that drive the
+-- simulation until the ledger window exists (#20).
 local ADDON = ...
 TimeIsMoney = TimeIsMoney or {}
 local TIM = TimeIsMoney
@@ -14,8 +14,11 @@ local function Status()
         .. ". API evidence: " .. TIM.API_EVIDENCE_BUILD .. ".")
     local Host = TIM.Host
     local game = Host.game
+    if Host.blocked then
+        Print("Saving is off: " .. Host.blocked .. ". TimeIsMoneyDB is left untouched.")
+    end
     if not game then
-        Print("No company yet: /tim start. Progress is not saved yet (#19).")
+        if not Host.blocked then Print("No company yet: /tim start.") end
         return
     end
     local S, stats = game.S, Host.stats
@@ -24,8 +27,10 @@ local function Status()
         Host.running and "Running" or ("Stopped (" .. tostring(Host.halted) .. ")"), seconds,
         tostring(math.floor(S.clips)), tostring(S.funds), tostring(math.floor(S.wire)), stats.steps))
     if stats.frames > 0 then
-        Print(string.format("CPU: %.2f ms per frame on average, worst %.1f ms; %.0f ms of time dropped.",
-            stats.cpu / stats.frames, stats.worst, stats.dropped))
+        Print(string.format("CPU: %.2f ms per frame on average (%.0f ms per logical second), worst %.1f ms; %.0f ms of time dropped.",
+            stats.cpu / stats.frames, stats.steps > 0 and stats.cpu / (stats.steps * Host.STEP / 1000) or 0,
+            stats.worst, stats.dropped))
+        if stats.snapshotMs then Print(string.format("Last in-memory save: %.1f ms.", stats.snapshotMs)) end
     end
 end
 
@@ -35,13 +40,19 @@ local function Slash(message)
     command = command:lower()
     local Host = TIM.Host
     if command == "help" then
-        Print("/tim status - runtime and company. /tim start - a new company (not saved yet).")
+        Print("/tim status - runtime and company. /tim start - a new company when there is none.")
         Print("Developer: /tim click <control> (e.g. btnMakePaperclip), /tim set <control> <value>.")
     elseif command == "status" or command == "" then
         Status()
     elseif command == "start" then
-        Host.start()
-        Print("A new company opens its ledger. Time is money, friend!")
+        if Host.blocked then
+            Print("Not starting: " .. Host.blocked .. ". The saved data is kept untouched.")
+        elseif Host.game then
+            Print("Your company is already open. Starting over is the new-game control (#23).")
+        else
+            Host.start()
+            Print("A new company opens its ledger. Time is money, friend!")
+        end
     elseif command == "click" then
         local ok, err = Host.click(rest)
         if not ok then Print("click refused: " .. err) end
@@ -59,11 +70,25 @@ SLASH_TIMEISMONEY1 = "/timeismoney"
 SLASH_TIMEISMONEY2 = "/tim"
 SlashCmdList.TIMEISMONEY = Slash
 
+-- Saves: TimeIsMoneyDB is read once at load and written at logout or /reload, the
+-- moment before the client writes SavedVariables to disk. A crash loses what
+-- happened since the last write; there is no automatic reload.
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
+events:RegisterEvent("PLAYER_LOGOUT")
 events:SetScript("OnEvent", function(self, event, name)
+    if event == "PLAYER_LOGOUT" then
+        local db = TIM.Host.persist()
+        if db then TimeIsMoneyDB = db end
+        return
+    end
     if name ~= ADDON then return end
     self:UnregisterEvent("ADDON_LOADED")
     TIM.loaded = true
-    -- Never create/replace TimeIsMoneyDB before its schema is designed (#19).
+    local state = TIM.Host.loadSaved(TimeIsMoneyDB)
+    if state == "restored" then
+        Print(string.format("Your company reopens its ledger at %.1f s.", TIM.Host.game.clock.now / 1000))
+    elseif state == "blocked" then
+        Print("Saving is off: " .. TIM.Host.blocked .. ". TimeIsMoneyDB is left untouched.")
+    end
 end)

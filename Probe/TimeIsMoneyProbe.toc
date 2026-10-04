@@ -16,6 +16,7 @@ Sim/Projects.lua
 Sim/CostPow.lua
 Sim/Planet.lua
 Sim/Space.lua
+Sim/Save.lua
 Vectors.lua
 Checks.lua
 Probe.lua

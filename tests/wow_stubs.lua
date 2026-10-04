@@ -22,7 +22,7 @@ local function New(saved)
         assert(kind == "Frame")
         local frame = { events = {}, scripts = {} }
         function frame:RegisterEvent(event)
-            assert(event == "ADDON_LOADED")
+            assert(event == "ADDON_LOADED" or event == "PLAYER_LOGOUT")
             self.events[event] = true
             return true
         end
@@ -42,6 +42,11 @@ local function New(saved)
             if frame.events.ADDON_LOADED then
                 frame.scripts.OnEvent(frame, "ADDON_LOADED", addonName, false)
             end
+        end
+    end
+    function captured:Logout()
+        for _, frame in ipairs(self.frames) do
+            if frame.events.PLAYER_LOGOUT then frame.scripts.OnEvent(frame, "PLAYER_LOGOUT") end
         end
     end
     return env, captured

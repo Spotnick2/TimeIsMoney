@@ -21,15 +21,15 @@ advance it.
   dropped and counted. The game slows down rather than freezing the client; it never
   runs ahead of real time.
 - **No offline production:** logical time moves only while a session runs. Saves
-  (#19) continue from the saved logical time, not from the wall clock.
+  continue from the saved logical time, not from the wall clock (docs/SAVES.md).
 
 ## Random stream
 
 L'Ecuyer's (1988) combined multiplicative congruential generator
 (m1 = 2147483563, a1 = 40014; m2 = 2147483399, a2 = 40692). Every product stays
 below 2^47, so double arithmetic is exact on every host, including WoW's Lua; the
-period is about 2.3 × 10^18; draws are in (0, 1); the state is two integers that #19
-saves. A new company is seeded from the server time and the profiler clock. Parity
+period is about 2.3 × 10^18; draws are in (0, 1); the state is two integers that the
+save stores with the draw count. A new company is seeded from the server time and the profiler clock. Parity
 traces keep using recorded streams. Cosmetic randomness (glass, the Director) must
 use a separate stream so it cannot change outcomes.
 
@@ -46,13 +46,14 @@ the simulation: the tick has partly run, so it must not continue.
 
 Until the ledger window (#20), developer slash commands drive it: `/tim start`,
 `/tim status` (logical time, clips, funds, wire, CPU per frame, dropped time),
-`/tim click <control>` and `/tim set <control> <value>`. Progress is not saved yet.
+`/tim click <control>` and `/tim set <control> <value>`. `/tim start` opens a company
+only when there is none and saving is not blocked.
 
 ## Auto-save
 
 The reference saves to browser storage every 250 slow ticks (25 s) without changing
-game state. The port keeps that timer and calls `game.onSave`, which #19 connects to
-SavedVariables.
+game state. The port keeps that timer and calls `game.onSave`, which refreshes the
+host's in-memory snapshot; the disk write happens at logout (docs/SAVES.md).
 
 ## Measured cost
 

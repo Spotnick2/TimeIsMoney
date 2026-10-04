@@ -129,16 +129,43 @@ function Workshop.new(random, log)
     -- combat.js load: new Battle() restarts, initialize() starts the 16 ms
     -- Update interval and restarts again.
     Battle.restart(S, game.draw)
-    game.clock:register(function() Battle.update(S, game.draw) end, 16, true)
+    game:schedule("battle", 16, true)
     Battle.restart(S, game.draw)
     -- main.js intervals in source registration order.
-    game.clock:register(function() game:portfolioInterval() end, 100, true)
-    game.clock:register(function() game:stockShopInterval() end, 1000, true)
-    game.clock:register(function() game:stockSellInterval() end, 2500, true)
-    game.clock:register(function() S.pick = game.selects.stratPicker.value end, 100, true)
-    game.clock:register(function() game:mainLoop() end, 10, true)
-    game.clock:register(function() game:slowLoop() end, 100, true)
+    game:schedule("portfolio", 100, true)
+    game:schedule("stockShop", 1000, true)
+    game:schedule("stockSell", 2500, true)
+    game:schedule("pick", 100, true)
+    game:schedule("main", 10, true)
+    game:schedule("slow", 100, true)
     return game
+end
+
+-- Timer callbacks by kind, so a saved game rebuilds its pending timers (#19). Each
+-- receives the game and the timer's own id (blink intervals clear themselves).
+Workshop.timers = {
+    battle = function(game) Battle.update(game.S, game.draw) end,
+    portfolio = function(game) game:portfolioInterval() end,
+    stockShop = function(game) game:stockShopInterval() end,
+    stockSell = function(game) game:stockSellInterval() end,
+    pick = function(game) game.S.pick = game.selects.stratPicker.value end,
+    main = function(game) game:mainLoop() end,
+    slow = function(game) game:slowLoop() end,
+}
+
+function Game:timerCallback(kind, id)
+    local fn = Workshop.timers[kind]
+    if not fn then error("Unknown timer kind " .. tostring(kind), 2) end
+    local game = self
+    return function() fn(game, id) end
+end
+
+function Game:schedule(kind, delay, repeating)
+    local clock = self.clock
+    local id = clock.nextId
+    local registered = clock:register(self:timerCallback(kind, id), delay, repeating, kind)
+    if registered ~= id then error("Timer ids out of order", 2) end
+    return id
 end
 
 function Game:displayMessage(msg)
@@ -164,15 +191,15 @@ Workshop.timeCruncher = timeCruncher
 -- blink(element): a 30 ms interval sharing the global blinkCounter; the element's
 -- visibility toggling is presentation.
 function Game:blink()
-    local S, clock = self.S, self.clock
-    local handle
-    handle = clock:register(function()
-        S.blinkCounter = S.blinkCounter + 1
-        if S.blinkCounter >= 12 then
-            clock:clear(handle)
-            S.blinkCounter = 0
-        end
-    end, 30, true)
+    self:schedule("blink", 30, true)
+end
+function Workshop.timers.blink(game, handle)
+    local S = game.S
+    S.blinkCounter = S.blinkCounter + 1
+    if S.blinkCounter >= 12 then
+        game.clock:clear(handle)
+        S.blinkCounter = 0
+    end
 end
 
 -- manageProjects: newly triggered projects get a button (displayProjects, which

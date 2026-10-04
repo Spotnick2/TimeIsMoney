@@ -9,12 +9,12 @@ Company funds and materials are entirely simulated.
 
 **Status: the whole game simulation runs in the client (developer commands); the
 ledger window, saves and presentation are in progress (M4).**
-Commands: /timeismoney, /tim, /tim help, /tim status, /tim start (developer, not saved).
+Commands: /timeismoney, /tim, /tim help, /tim status, /tim start (developer; the company is saved at logout).
 
 - [Implementation spec](docs/plan/Time-Is-Money-Implementation-Spec.md) and
   [creative brief](docs/plan/Time-Is-Money-Original-Plan.md); original concepts in [storyboards](docs/storyboard).
 - [Roadmap and issue catalog](docs/BACKLOG.md).
-- [Pure-Lua simulation](docs/reference/WORKSHOP.md) and its [client host adapter](docs/HOST.md).
+- [Pure-Lua simulation](docs/reference/WORKSHOP.md), its [client host adapter](docs/HOST.md) and [saved games](docs/SAVES.md).
 - [Animated goblin Director](docs/MODELS.md), using AltStable's roster pet renderer.
 - [References and evidence](docs/REFERENCES.md).
 - [Agent instructions](CLAUDE.md), also reached through [AGENTS.md](AGENTS.md).
