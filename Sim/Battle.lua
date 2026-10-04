@@ -69,7 +69,7 @@ local function newShip(S, team, draw)
     return ship
 end
 
-local function newGrid()
+function Battle.newGrid()
     local grid = {}
     for row = 0, GRID_HEIGHT - 1 do
         grid[row] = {}
@@ -82,7 +82,7 @@ end
 function Battle.restart(S, draw)
     S.numLeftShips, S.numRightShips, S.numShips = 0, 0, 0
     S.ships = {}
-    S.grid = newGrid()
+    S.grid = Battle.newGrid()
     local leftShipTurn = false
     local i = 0
     while S.numLeftShips < S.battleLEFTSHIPS or S.numRightShips < S.battleRIGHTSHIPS do

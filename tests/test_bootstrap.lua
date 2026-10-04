@@ -44,34 +44,64 @@ assert(env.TimeIsMoneyDB == future and future.schema == 999 and future.progress.
 
 assert(env.SLASH_TIMEISMONEY1 == "/timeismoney")
 assert(env.SLASH_TIMEISMONEY2 == "/tim")
+-- A save from a newer version blocks saving: reported, never replaced.
 env.SlashCmdList.TIMEISMONEY("  StAtUs  ")
 assert(captured.messages[#captured.messages - 1]:find("1.60.1.70205", 1, true))
 assert(captured.messages[#captured.messages - 1]:find("16001", 1, true))
-assert(Last():find("No company yet", 1, true))
+assert(Last():find("a save from a newer version (schema 999)", 1, true))
+env.SlashCmdList.TIMEISMONEY("start")
+assert(Last():find("Not starting", 1, true) and env.TimeIsMoney.Host.game == nil)
+captured:Logout()
+assert(env.TimeIsMoneyDB == future and future.schema == 999 and future.progress.bolts == 123)
 env.SlashCmdList.TIMEISMONEY("help")
 assert(Last():find("/tim click", 1, true))
 
 -- Host (#18): one wakeup frame, created at load and never parented, drives the
 -- simulation; a command applies at the current logical time.
-local wakeups = 0
-for _, frame in ipairs(captured.frames) do if frame.scripts.OnUpdate then wakeups = wakeups + 1 end end
+local env, captured = Load(nil)
+captured:Fire("TimeIsMoney")
+local wakeups, onUpdate = 0, nil
+for _, frame in ipairs(captured.frames) do
+    if frame.scripts.OnUpdate then wakeups, onUpdate = wakeups + 1, frame.scripts.OnUpdate end
+end
 assert(wakeups == 1, "exactly one wakeup frame")
-local onUpdate
-for _, frame in ipairs(captured.frames) do if frame.scripts.OnUpdate then onUpdate = frame.scripts.OnUpdate end end
 env.SlashCmdList.TIMEISMONEY("click btnMakePaperclip")
-assert(Last():find("no running game", 1, true))
+assert(captured.messages[#captured.messages]:find("no running game", 1, true))
 env.SlashCmdList.TIMEISMONEY("start")
-assert(Last():find("Time is money, friend!", 1, true))
+assert(captured.messages[#captured.messages]:find("Time is money, friend!", 1, true))
 for _ = 1, 30 do onUpdate(nil, 1 / 60) end -- half a second
 local game = env.TimeIsMoney.Host.game
 assert(game.clock.now == 500, "logical time follows the wakeups in 10 ms steps: " .. game.clock.now)
 env.SlashCmdList.TIMEISMONEY("click btnMakePaperclip")
 assert(game.S.clips == 1 and game.S.wire == 999)
 env.SlashCmdList.TIMEISMONEY("click btnBogus")
-assert(Last():find("unknown control btnBogus", 1, true))
+assert(captured.messages[#captured.messages]:find("unknown control btnBogus", 1, true))
 env.SlashCmdList.TIMEISMONEY("status")
-assert(Last():find("CPU:", 1, true) and captured.messages[#captured.messages - 1]:find("1 clips", 1, true))
-assert(env.TimeIsMoneyDB == future and future.progress.bolts == 123, "no save is written before #19")
+assert(captured.messages[#captured.messages]:find("CPU:", 1, true))
+assert(captured.messages[#captured.messages - 1]:find("1 clips", 1, true))
+env.SlashCmdList.TIMEISMONEY("start")
+assert(captured.messages[#captured.messages]:find("already open", 1, true), "start never replaces a company")
+assert(env.TimeIsMoneyDB == nil, "nothing is written before logout")
+
+-- Saves (#19): logout writes schema 1; the next load continues at the same logical
+-- time with the same company.
+captured:Logout()
+local saved = env.TimeIsMoneyDB
+assert(type(saved) == "table" and saved.schema == 1 and saved.company and saved.company.clock.now == 500)
+local env2, captured2 = Load(saved)
+captured2:Fire("TimeIsMoney")
+local restored = env2.TimeIsMoney.Host.game
+assert(restored and restored.clock.now == 500 and restored.S.clips == 1 and env2.TimeIsMoney.Host.running)
+assert(captured2.messages[#captured2.messages]:find("reopens its ledger at 0.5 s", 1, true))
+
+-- Unrecognized or broken saves are kept untouched.
+for _, bad in ipairs({ "text", { schema = "one" }, { schema = 0 }, { schema = 1, company = { nodes = 5 } } }) do
+    local env3, captured3 = Load(bad)
+    captured3:Fire("TimeIsMoney")
+    assert(env3.TimeIsMoney.Host.blocked and env3.TimeIsMoney.Host.game == nil)
+    captured3:Logout()
+    assert(env3.TimeIsMoneyDB == bad, "a blocked save is never replaced")
+end
 
 local fresh, freshCapture = Load(nil)
 freshCapture:Fire("TimeIsMoney")

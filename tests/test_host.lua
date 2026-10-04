@@ -195,6 +195,58 @@ for _, route in ipairs({ { "projectButton200", "prestigeU", { compFlag = 1, stan
     assert(game.clock.now == now, "the old company does not run on")
 end
 
+-- Saves (#19): what logout writes in each case.
+-- The snapshot comes on every SNAPSHOT_EVERY-th reference auto-save only.
+do
+    local Host = Load()
+    local game = Host.start({ 33, 35 })
+    for _ = 1, Host.SNAPSHOT_EVERY - 1 do
+        game.S.saveTimer = 249
+        Host.update(0.1)
+    end
+    assert(Host.snapshot == nil and Host.saves == Host.SNAPSHOT_EVERY - 1)
+    game.S.saveTimer = 249
+    Host.update(0.1)
+    assert(Host.snapshot ~= nil and Host.stats.snapshotMs ~= nil)
+end
+do
+    local Host = Load()
+    assert(Host.loadSaved(nil) == "empty" and Host.persist() == nil, "nothing to write without a company")
+    local game = Host.start({ 21, 23 })
+    Host.saves = Host.SNAPSHOT_EVERY - 1 -- the next auto-save refreshes the snapshot
+    game.S.saveTimer = 249
+    Host.update(0.1) -- the auto-save marks a snapshot, taken after the step
+    assert(Host.snapshot and Host.snapshot.clock.now == 100)
+    -- The snapshot holds the slow timer already requeued: restoring it does not
+    -- replay the slow tick that wrote it (Codex consult on #19).
+    local slow
+    for _, t in ipairs(Host.snapshot.clock.timers) do if t.kind == "slow" then slow = t end end
+    assert(slow.due == 200 and Host.snapshot.nodes[Host.snapshot.root].saveTimer == 0)
+    Host.update(0.3)
+    local db = Host.persist()
+    assert(db.schema == 1 and db.company.clock.now == 400, "a running company is saved as it is")
+    -- A tick error: the partly run tick is never saved; the last auto-save is.
+    game.clock:register(function() error("boom", 0) end, 5, false)
+    Host.update(0.01)
+    assert(not Host.running and Host.persist().company.clock.now == 100)
+    -- Saved prestige carries on; after a prestige choice only the prestige is kept.
+    local Host2 = Load()
+    assert(Host2.loadSaved({ schema = 1, prestige = { prestigeU = 2, prestigeS = 1 } }) == "empty")
+    local game2 = Host2.start({ 25, 27 })
+    game2.savedPrestige, game2.restartRequested = { prestigeU = 3, prestigeS = 1 }, "prestige"
+    local db2 = Host2.persist()
+    assert(db2.company == nil and db2.prestige.prestigeU == 3 and db2.prestige.prestigeS == 1)
+    -- A new company starts with the saved prestige (loadPrestige in the reference).
+    local Host4 = Load()
+    Host4.loadSaved({ schema = 1, prestige = { prestigeU = 2, prestigeS = 1 } })
+    local game4 = Host4.start({ 29, 31 })
+    assert(game4.S.prestigeU == 2 and game4.S.prestigeS == 1)
+    local Host3 = Load()
+    assert(Host3.loadSaved({ schema = 1, prestige = { prestigeU = 2, prestigeS = 1 } }) == "empty")
+    assert(Host3.persist().prestige.prestigeU == 2, "prestige survives a session without a company")
+    assert(Host3.loadSaved({ schema = 1, prestige = { prestigeU = "x" } }) == "blocked" and Host3.persist() == nil)
+end
+
 -- Garbage: the client measured 111 MB of addon memory before the grid reuse and
 -- the log-free scheduler; ten logical seconds now allocate almost nothing.
 do

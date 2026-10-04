@@ -160,34 +160,30 @@ function Game:calcPayoff(hm, vm)
 end
 
 -- round(roundNum): ten moves, each followed by clearGrid and the next move after
--- two chained 50 ms timeouts; then the next round.
-function Game:round(roundNum)
-    local S, clock = self.S, self.clock
-    local game = self
-    local roundLoop
-    local function clearGrid()
-        clock:register(function() roundLoop() end, 50, false)
-    end
-    local function runRound()
+-- two chained 50 ms timeouts; then the next round. The two timeouts are named
+-- timer kinds (tourneyClear, tourneyLoop) so a saved tournament continues (#19).
+function Game:roundLoop()
+    local S = self.S
+    if S.rCounter < 10 then
         S.rCounter = S.rCounter + 1
         S.hMovePrev = S.hMove
         S.vMovePrev = S.vMove
-        S.hMove = pickMove(game, S.hStrat)
-        S.vMove = pickMove(game, S.vStrat)
-        game:calcPayoff(S.hMove, S.vMove)
+        S.hMove = pickMove(self, S.hStrat)
+        S.vMove = pickMove(self, S.vStrat)
+        self:calcPayoff(S.hMove, S.vMove)
+        self:schedule("tourneyClear", 50, false)
+    else
+        S.currentRound = S.currentRound + 1
+        self:runTourney()
     end
-    roundLoop = function()
-        if S.rCounter < 10 then
-            runRound()
-            clock:register(function() clearGrid() end, 50, false)
-        else
-            S.currentRound = S.currentRound + 1
-            game:runTourney()
-        end
-    end
-    S.rCounter = 0
+end
+Workshop.timers.tourneyClear = function(game) game:schedule("tourneyLoop", 50, false) end
+Workshop.timers.tourneyLoop = function(game) game:roundLoop() end
+
+function Game:round(roundNum)
+    self.S.rCounter = 0
     self:pickStrats(roundNum)
-    roundLoop()
+    self:roundLoop()
 end
 
 function Game:pickWinner()

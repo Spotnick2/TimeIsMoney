@@ -46,8 +46,9 @@ TOC: Compat.lua -> Sim/* (Reference.files order) -> Host.lua -> TimeIsMoney.lua.
 Compat owns client adaptation and evidence build; Host.lua (docs/HOST.md) is the
 only clock/RNG/command adapter: one parentless wakeup frame, logical 10 ms steps,
 capped debt, per-frame CPU budget, halt on a tick error. The entry point handles
-load/status/help and developer commands. SavedVariables are declared but never
-initialized/replaced until the schema is designed (#19).
+load/status/help, saves and developer commands. Saves (docs/SAVES.md): schema 1,
+written only at PLAYER_LOGOUT; unknown/future/broken TimeIsMoneyDB blocks saving and
+is never replaced. Every timer registration needs a kind (Workshop.timers).
 Sim/ holds the pure-Lua simulation (docs/reference/WORKSHOP.md), parity-tested
 against the reference; all 96 projects are ported. Unported reference
 paths raise explicit errors naming their issue; never let them diverge silently.

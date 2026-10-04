@@ -14,12 +14,14 @@ function Scheduler.new(log)
     return setmetatable({ now = 0, nextId = 1, order = 0, pending = {}, log = log }, Scheduler)
 end
 
-function Scheduler:register(fn, delay, repeating)
+-- kind names the callback so a saved game can rebuild it (#19); fn is the callback.
+function Scheduler:register(fn, delay, repeating, kind)
     if type(fn) ~= "function" then error("Timer callback must be a function", 2) end
     if delay ~= delay or delay < 0 or delay == math.huge then error("Expected a finite nonnegative timer delay", 2) end
     local id = self.nextId
     self.nextId = id + 1
-    local timer = { id = id, fn = fn, delay = delay, ["repeat"] = repeating, due = self.now + delay, order = self.order }
+    local timer = { id = id, fn = fn, delay = delay, ["repeat"] = repeating, due = self.now + delay, order = self.order,
+        kind = kind }
     self.order = self.order + 1
     self.pending[id] = timer
     if self.log then
@@ -80,6 +82,44 @@ function Scheduler:advanceTo(target, after, maxCallbacks)
         if after then after(timer.id) end
     end
     self.now = target
+end
+
+-- Saved timers (#19): plain data, with the kind that rebuilds each callback.
+function Scheduler:save()
+    local timers = {}
+    for _, t in pairs(self.pending) do
+        if not t.kind then error("Timer " .. t.id .. " has no kind and cannot be saved", 2) end
+        timers[#timers + 1] = { id = t.id, kind = t.kind, delay = t.delay, ["repeat"] = t["repeat"], due = t.due,
+            order = t.order }
+    end
+    table.sort(timers, function(a, b) return a.id < b.id end)
+    return { now = self.now, nextId = self.nextId, order = self.order, timers = timers }
+end
+
+-- Rebuilds the queue from saved data; build(kind, id) returns each callback. The
+-- data is checked first: a dense list of well-formed timers with unique ids below
+-- nextId and due times not in the past, so damaged data is refused, not shortened.
+local function number(v) return type(v) == "number" and v == v and v ~= math.huge and v ~= -math.huge end
+function Scheduler.restore(saved, log, build)
+    local function expect(cond, what) if not cond then error("Malformed save: timers (" .. what .. ")", 0) end end
+    expect(type(saved) == "table" and number(saved.now) and number(saved.nextId) and number(saved.order), "counters")
+    expect(type(saved.timers) == "table", "list")
+    local count, seen = 0, {}
+    for _ in pairs(saved.timers) do count = count + 1 end
+    expect(count == #saved.timers, "not a dense list")
+    for _, t in ipairs(saved.timers) do
+        expect(type(t) == "table" and number(t.id) and type(t.kind) == "string" and number(t.delay)
+            and type(t["repeat"]) == "boolean" and number(t.due) and number(t.order), "entry")
+        expect(not seen[t.id] and t.id < saved.nextId and t.due >= saved.now and t.order < saved.order, "entry values")
+        seen[t.id] = true
+    end
+    local clock = Scheduler.new(log)
+    clock.now, clock.nextId, clock.order = saved.now, saved.nextId, saved.order
+    for _, t in ipairs(saved.timers) do
+        clock.pending[t.id] = { id = t.id, fn = build(t.kind, t.id), delay = t.delay, ["repeat"] = t["repeat"],
+            due = t.due, order = t.order, kind = t.kind }
+    end
+    return clock
 end
 
 ns.Scheduler = Scheduler

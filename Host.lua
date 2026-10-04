@@ -15,6 +15,10 @@ local floor = math.floor
 -- Logical step per advance, and the most real time owed to the simulation. A
 -- client too slow to keep up (or a loading screen) drops time beyond MAX_DEBT, so
 -- the game slows instead of freezing the frame; it never runs ahead.
+-- The in-memory snapshot (the fallback for a company halted by a tick error) costs
+-- several ms in one frame, so it is refreshed on every SNAPSHOT_EVERY-th reference
+-- auto-save (25 s each): about every 5 minutes. Disk writes happen at logout.
+Host.SNAPSHOT_EVERY = 12
 Host.STEP = 10            -- ms of logical time
 Host.MAX_DEBT = 1000      -- ms
 Host.FRAME_BUDGET = 8     -- ms of CPU per frame for the simulation
@@ -48,18 +52,117 @@ local function Report(message)
     print("|cffd9a066Time Is Money|r: " .. message)
 end
 
+local function Begin(game)
+    Host.game = game
+    Host.debt = 0
+    Host.halted = nil
+    Host.stats = { frames = 0, cpu = 0, steps = 0, dropped = 0, worst = 0 }
+    Host.running = true
+    -- The 25 s reference auto-save refreshes the in-memory save (#19). It fires
+    -- inside the slow tick, before the scheduler requeues that timer, so the snapshot
+    -- is taken after the step returns, when the queue is consistent.
+    Host.saves = 0
+    game.onSave = function()
+        Host.saves = Host.saves + 1
+        if Host.saves % Host.SNAPSHOT_EVERY == 0 then Host.snapshotDue = true end
+    end
+    Host.snapshotDue = false
+    return game
+end
+
 -- Starts a new company. seeds is optional ({s1, s2}); by default the server time
 -- and the profiler clock seed the stream.
 function Host.start(seeds)
     local s1 = seeds and seeds[1] or (GetServerTime() % (M1 - 1)) + 1
     local s2 = seeds and seeds[2] or (floor(debugprofilestop() * 1000) % (M2 - 1)) + 1
     Host.random = Host.newRandom(s1, s2)
-    Host.game = ns.Workshop.new(Host.random, false) -- no trace log in the client
-    Host.debt = 0
-    Host.halted = nil
-    Host.stats = { frames = 0, cpu = 0, steps = 0, dropped = 0, worst = 0 }
-    Host.running = true
-    return Host.game
+    Host.snapshot = nil
+    local game = ns.Workshop.new(Host.random, false) -- no trace log in the client
+    -- Saved prestige applies to a new company, as loadPrestige does in the reference.
+    if Host.prestige then
+        game.S.prestigeU, game.S.prestigeS = Host.prestige.prestigeU, Host.prestige.prestigeS
+    end
+    return Begin(game)
+end
+
+-- Saves (#19) ---------------------------------------------------------------------
+-- TimeIsMoneyDB = { schema = 1, company = <Sim/Save.lua data> or nil,
+--                   prestige = { prestigeU, prestigeS } or nil }
+-- One company per account. Logical time continues from the save: no offline time.
+
+function Host.encodeCompany()
+    return ns.Save.encode(Host.game, Host.random)
+end
+
+local function validPrestige(p)
+    return type(p) == "table" and type(p.prestigeU) == "number" and type(p.prestigeS) == "number"
+end
+
+-- Reads TimeIsMoneyDB at load. Unknown, future or broken data blocks saving so it is
+-- never replaced; it is reported and left as it is.
+function Host.loadSaved(db)
+    Host.blocked, Host.prestige = nil, nil
+    if db == nil then return "empty" end
+    if type(db) ~= "table" or type(db.schema) ~= "number" then
+        Host.blocked = "unrecognized saved data"
+        return "blocked"
+    end
+    if db.schema ~= ns.Save.SCHEMA then
+        Host.blocked = db.schema > ns.Save.SCHEMA and ("a save from a newer version (schema " .. db.schema .. ")")
+            or ("an unsupported old save (schema " .. db.schema .. ")")
+        return "blocked"
+    end
+    if db.prestige ~= nil then
+        if not validPrestige(db.prestige) then
+            Host.blocked = "unrecognized saved prestige"
+            return "blocked"
+        end
+        Host.prestige = { prestigeU = db.prestige.prestigeU, prestigeS = db.prestige.prestigeS }
+    end
+    if db.company == nil then return "empty" end
+    local ok, err = pcall(function()
+        local saved = db.company
+        local r = saved.random
+        if type(r) ~= "table" then error("Malformed save: random", 0) end
+        local random = Host.newRandom(r.s1, r.s2)
+        random.count = r.count
+        local game = ns.Save.decode(saved, random, false)
+        Host.random = random
+        Begin(game)
+        Host.snapshot = saved
+    end)
+    if not ok then
+        Host.game, Host.running = nil, false
+        Host.blocked = "the saved company could not be restored (" .. tostring(err) .. ")"
+        return "blocked"
+    end
+    return "restored"
+end
+
+-- What to store at logout, or nil to leave TimeIsMoneyDB untouched. A halted game
+-- (a tick that partly ran) keeps its last good auto-save; after a prestige choice
+-- the company is over and only the prestige carries on.
+function Host.persist()
+    if Host.blocked then return nil end
+    local game = Host.game
+    local db = { schema = ns.Save.SCHEMA, prestige = Host.prestige }
+    if game and game.restartRequested and game.savedPrestige then
+        db.prestige = { prestigeU = game.savedPrestige.prestigeU, prestigeS = game.savedPrestige.prestigeS }
+        return db
+    end
+    if game and Host.running then
+        local ok, data = pcall(Host.encodeCompany)
+        if ok then
+            db.company = data
+        else
+            Report("could not save the company (" .. tostring(data) .. "); keeping the last auto-save")
+            db.company = Host.snapshot
+        end
+    else
+        db.company = Host.snapshot
+    end
+    if db.company == nil and db.prestige == nil then return nil end
+    return db
 end
 
 -- Stops on an explicit unported path or any other error inside a tick: the tick
@@ -90,6 +193,15 @@ function Host.update(elapsed)
         end
         Host.debt = Host.debt - Host.STEP
         stats.steps = stats.steps + 1
+        if Host.snapshotDue then
+            -- The snapshot (a few ms) ends this frame's stepping; the debt carries.
+            Host.snapshotDue = false
+            local before = debugprofilestop()
+            local okSave, data = pcall(Host.encodeCompany)
+            if okSave then Host.snapshot = data end
+            stats.snapshotMs = debugprofilestop() - before
+            break
+        end
         if debugprofilestop() - start >= Host.FRAME_BUDGET then break end
     end
     local cost = debugprofilestop() - start

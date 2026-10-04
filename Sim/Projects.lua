@@ -47,15 +47,15 @@ end
 -- longBlink(hypnoDroneEventDiv): a 32 ms interval sharing longBlinkCounter; the
 -- text and display changes are presentation.
 function Game:longBlink()
-    local S, clock = self.S, self.clock
-    local handle
-    handle = clock:register(function()
-        S.longBlinkCounter = S.longBlinkCounter + 1
-        if S.longBlinkCounter >= 120 then
-            clock:clear(handle)
-            S.longBlinkCounter = 0
-        end
-    end, 32, true)
+    self:schedule("longBlink", 32, true)
+end
+function Workshop.timers.longBlink(game, handle)
+    local S = game.S
+    S.longBlinkCounter = S.longBlinkCounter + 1
+    if S.longBlinkCounter >= 120 then
+        game.clock:clear(handle)
+        S.longBlinkCounter = 0
+    end
 end
 
 local function ops(n) return function(S) return S.operations >= n end end

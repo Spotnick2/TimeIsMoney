@@ -54,6 +54,9 @@ local function sanitizeSlider(value)
     return JSMath.toString(JSMath.round(max(0, min(200, n))))
 end
 Workshop.sanitizeSlider = sanitizeSlider
+-- Range controls by id, with their sanitizer (a restored game rebuilds them, #19).
+Workshop.rangeControls = Workshop.rangeControls or {}
+Workshop.rangeControls.slider = sanitizeSlider
 Workshop.setups[#Workshop.setups + 1] = function(game)
     game.ranges.slider = { value = "0", number = 0, sanitize = sanitizeSlider }
 end

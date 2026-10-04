@@ -17,5 +17,6 @@ Sim/Projects.lua
 Sim/CostPow.lua
 Sim/Planet.lua
 Sim/Space.lua
+Sim/Save.lua
 Host.lua
 TimeIsMoney.lua

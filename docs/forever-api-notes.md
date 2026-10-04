@@ -247,6 +247,35 @@ and a half minutes):
 - The always-running battle core (400 ships every 16 ms) keeps up in real time; the
   worst frame is the 8 ms simulation budget plus overhead.
 
+## #19 saved games in the client
+
+Measured 2026-10-04 on client 1.60.1.70205 (owner session, schema 1 deployed):
+
+| Step | Result |
+| --- | --- |
+| `/tim start`, three clicks, `/tim status` | 19.9 s logical, 3 clips, $0.75 |
+| `/reload` | "Your company reopens its ledger at 37.8 s" |
+| `/tim status` after the reload | 83.8 s logical, 3 clips, $0.75: the same company, time continuing |
+| Full exit, relaunch, `/tim status` | 105.4 s logical, 3 clips, $0.75 (551 steps since the relaunch) |
+
+- **The account SavedVariables write at `PLAYER_LOGOUT` reaches disk** on both
+  `/reload` and a full exit and relaunch, and the company resumes from its saved
+  logical time.
+- **No offline time:** time spent closed or on loading screens is not simulated; the
+  1 s debt cap dropped 575-797 ms of loading-screen time.
+- **Worst frame:** 17-21 ms after the restores, against 7-9 ms before. The 25 s
+  auto-save encoded the whole game (529 tables) inside a frame: 6.5 ms per encode on
+  desktop Lua, mostly a digit-by-digit hex conversion. The words are now formatted as
+  two 16-bit halves (`%04x`, safe below 2^31 in WoW), 3.9 ms per encode, and a frame
+  that takes a snapshot stops stepping, carrying its remaining debt.
+- **The snapshot measured in WoW: 10.1 ms** (about 2.6 times desktop Lua). It still
+  set a 16 ms worst frame every 25 s, so the in-memory snapshot now comes on every
+  twelfth auto-save (about every 5 minutes): after 17 minutes of play the worst frame
+  was 12.1 ms, the snapshot frame.
+- **Running cost: 54 ms of CPU per logical second** (`/tim status`), about 5 % of
+  one core, independent of the frame rate (1.76 ms per frame at that session's frame
+  rate). Per-frame averages from different sessions are not comparable.
+
 ## Future probes
 
 Supplied API evidence: 1.60.1.70205, Interface 16001. Shared measurements from
