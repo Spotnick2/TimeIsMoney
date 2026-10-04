@@ -288,9 +288,34 @@ const traces={
     // Every probe lost without clips for a new one: Memory release appears (its
     // purchase is cosmic recovery, #16).
     spaceRecovery:{until:200,fixture:{globals:space({probeCount:0,unusedClips:1e16})},commands:[]},
-    // Drifters pass warTrigger: the next battle roll is #15, where the slice stops.
-    spaceWar:{until:400,fixture:{globals:space({probeCount:1e8,probeTrust:30,maxTrust:30,drifterCount:900000})},
-        commands:[]},
+    // Battles (#15). Drifters pass warTrigger: an even roll starts a battle; the fleets
+    // are random shares of each side (a ship per million, at most 200, often fewer
+    // probe ships at full size); the ships fight, each loss costing unitSize probes
+    // or drifters. Hazard remediation keeps the probes from wasting away meanwhile.
+    spaceWar:{until:4000,streamLength:100000,fixture:{globals:space({probeCount:3e8,probeTrust:30,maxTrust:30,
+        drifterCount:9e8,probeCombat:4,probeHaz:8})},commands:[]},
+    // Named battles won: Combat and Name the battles are bought before drift passes
+    // warTrigger; a strong probe fleet against a one-ship drifter fleet wins honor
+    // (the drifter fleet's size), the result shows for battleEndTimer (200) ticks,
+    // then the next named battle starts. The OODA Loop raises the defensive threshold.
+    battleVictory:{until:7000,streamLength:100000,fixture:{globals:space({probeCount:5e7,probeTrust:30,maxTrust:30,
+        drifterCount:900000,probeCombat:8,probeSpeed:3,probeHaz:8,probesLostCombat:2e7,creativity:300000,
+        yomi:60000,processors:300000})},commands:[...buy(20,"131","121"),click(300,"projectButton120")]},
+    // Timeouts: a battle still undecided after 8,000 updates ends (masterBattleClock),
+    // and one down to four ships on a side ends after 2,000 more (battleClock).
+    battleTimeout:{until:600,fixture:{globals:space({probeCount:1e6,drifterCount:1000,masterBattleClock:7980,
+        battles:[{id:7,clipProbes:5,drifterProbes:5,victory:false,loss:false,whiteFlag:0,territory:0,reportCount:0,
+            garbageFlag:0}]})},commands:[]},
+    battleClockTimeout:{until:600,fixture:{globals:space({probeCount:1e6,drifterCount:1000,battleClock:1990,
+        battleLEFTSHIPS:3,battleRIGHTSHIPS:3,numLeftShips:3,numRightShips:3,numShips:6,
+        ships:[{alive:true,team:0,framesDead:0,gx:0,gy:0,x:5,y:20,vx:0,vy:0,color:"#ffffff"},{alive:true,team:1,framesDead:0,gx:0,gy:0,x:305,y:20,vx:0,vy:0,color:"#000000"},{alive:true,team:0,framesDead:0,gx:0,gy:0,x:5,y:70,vx:0,vy:0,color:"#ffffff"},{alive:true,team:1,framesDead:0,gx:0,gy:0,x:305,y:70,vx:0,vy:0,color:"#000000"},{alive:true,team:0,framesDead:0,gx:0,gy:0,x:5,y:120,vx:0,vy:0,color:"#ffffff"},{alive:true,team:1,framesDead:0,gx:0,gy:0,x:305,y:120,vx:0,vy:0,color:"#000000"}],
+        battles:[{id:8,clipProbes:5,drifterProbes:5,victory:false,loss:false,whiteFlag:0,territory:0,reportCount:0,
+            garbageFlag:0}]})},commands:[]},
+    // Named battles lost: two probe ships against 200 drifter ships. The first battle
+    // starts unnamed; after it, defeats cost honor and set the threnody title.
+    battleDefeat:{until:6000,streamLength:100000,fixture:{globals:space({probeCount:2e6,probeTrust:30,maxTrust:30,
+        drifterCount:9e8,probeHaz:8,probesLostCombat:2e7,creativity:300000,processors:300000})},
+        commands:[...buy(20,"131","121")]},
 };
 function make(name) {
     if (!Object.hasOwn(traces,name)) throw new Error("Unknown workshop trace: "+name);

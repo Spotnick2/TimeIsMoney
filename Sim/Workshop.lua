@@ -65,6 +65,7 @@ for key, value in pairs(Battle.initial) do Workshop.initial[key] = value end
 -- Array-valued globals (encoded as arrays even when empty).
 Workshop.arrays = {
     incomeTracker = true, ships = true, battles = true, stocks = true, activeProjects = true, qChips = true,
+    battleNumbers = true,
 }
 
 -- Projects in projects.js registration order: {name, id, trigger, cost, effect},

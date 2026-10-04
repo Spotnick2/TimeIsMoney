@@ -1,8 +1,8 @@
--- Projects (projects.js) through the planetary phase: availability, eligibility,
+-- Projects (projects.js) through the cosmic phase's battles: availability, eligibility,
 -- purchase effects, repeatable entries and the first transition (Release the
 -- HypnoDrones). Entries follow projects.js registration order; each has the
 -- reference trigger and cost and, where the ported phases can buy it, the effect.
--- Projects whose triggers need space, battles or the ending are omitted; they
+-- Projects whose triggers need the correspondence or the endings are omitted; they
 -- cannot appear yet (see docs/reference/PROJECTS.md). Extends Sim/Workshop.lua.
 local _, ns = ...
 ns = ns or {}
@@ -26,6 +26,7 @@ Workshop.initial.nextQchip = 0
 Workshop.initial.nanoWire = 0
 Workshop.initial.revPerSecFlag = 0
 Workshop.initial.longBlinkCounter = 0
+Workshop.initial.threnodyCost = 50000
 
 -- project.element removal followed by
 -- activeProjects.splice(activeProjects.indexOf(project), 1): an index of -1
@@ -459,7 +460,22 @@ add("project119", function(S) return #S.strats >= 8 end, creat(25000), function(
     game:displayMessage("Yomi production doubled.")
     game:removeProject("project119")
 end)
-add("project121", function(S) return S.probesLostCombat >= 10000000 end, creat(225000), nil, "#15")
+-- The OODA Loop: probe speed adds to the defensive death threshold in DoCombat.
+simple("project120", function(S) return S.project131.flag == 1 and S.probesLostCombat >= 10000000 end,
+    function(S) return S.operations >= 175000 and S.yomi >= 45000 end,
+    { "OODA Loop routines uploaded. Probe Speed now affects defensive maneuvering." }, function(S)
+        S.standardOps = S.standardOps - 175000
+        S.yomi = S.yomi - 45000
+        S.attackSpeedFlag = 1
+    end)
+-- Battles (#15). Name the battles: named engagements, honor, a longer result
+-- display (battleEndTimer 200).
+simple("project121", function(S) return S.probesLostCombat >= 10000000 end, creat(225000),
+    { "What I have done up to this is nothing. I am only at the beginning of the course I must run." }, function(S)
+        S.battleNameFlag = 1
+        S.battleEndTimer = 200
+        S.creativity = S.creativity - 225000
+    end)
 simple("project125", function(S) return S.farmLevel >= 30 end, creat(20000),
     { "Activit\195\169, activit\195\169, vitesse." }, function(S)
         S.momentum = 1
@@ -487,7 +503,17 @@ simple("project130", function(S) return S.spaceFlag == 1 and S.harvesterLevel + 
     ops(100000), { "Swarm computing back online" }, function(S)
         S.standardOps = S.standardOps - 100000
     end)
-add("project131", function(S) return S.probesLostCombat >= 1 end, ops(150000), nil, "#15")
+simple("project131", function(S) return S.probesLostCombat >= 1 end, ops(150000), { "There is a joy in danger " },
+    function(S) S.standardOps = S.standardOps - 150000 end)
+-- The monument, the threnody (repeatable) and Glory are cosmic recovery and
+-- memorials (#16); Glory's flag adds victory bonus honor in checkForBattleEnd.
+local monumentClips = JSMath.pow(10, 30) * 50
+add("project132", flag("project121"), function(S)
+    return S.operations >= 250000 and S.creativity >= 125000 and S.unusedClips >= monumentClips
+end, nil, "#16")
+add("project133", function(S) return S.project121.flag == 1 and S.probeUsedTrust == S.maxTrust end,
+    function(S) return S.yomi >= (2 * (S.threnodyCost / 5)) and S.creativity >= S.threnodyCost end, nil, "#16")
+add("project134", flag("project121"), function(S) return S.operations >= 200000 and S.yomi >= 30000 end, nil, "#16")
 -- Memory release (emergency probe restart) is cosmic recovery (#16): available once
 -- every probe is gone without clips for a new one.
 add("project135", function(S)
