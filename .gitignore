@@ -10,3 +10,5 @@ dist/
 __pycache__/
 .tmp*/
 Media/Source/
+# Embedded libraries: the packager fetches them (.pkgmeta externals).
+Libs/

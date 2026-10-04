@@ -10,9 +10,18 @@ try {
     foreach ($name in 'LICENSE', 'TimeIsMoney.toc', 'Compat.lua', 'Host.lua', 'TimeIsMoney.lua') {
         Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination (Join-Path $fixture $name)
     }
-    # The simulation (#18) loads from Sim/ through the TOC.
+    # The simulation (#18) and the window (#20) load from Sim/ and UI/ through the TOC.
     Copy-Item -LiteralPath (Join-Path $repoRoot 'Sim') -Destination (Join-Path $fixture 'Sim') -Recurse
-    $simFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Sim') -File | ForEach-Object { 'Sim/' + $_.Name })
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'UI') -Destination (Join-Path $fixture 'UI') -Recurse
+    $simFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Sim') -File | ForEach-Object { 'Sim/' + $_.Name }) +
+        @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'UI') -File | ForEach-Object { 'UI/' + $_.Name })
+    # The embedded LibGlass comes from its checkout (LIBGLASS, else ..\LibGlass) at
+    # Libs/LibGlass-1.0, exactly the files it ships.
+    $libGlass = if ($env:LIBGLASS) { $env:LIBGLASS } else { Join-Path (Split-Path -Parent $repoRoot) 'LibGlass' }
+    $libFiles = @('LibGlass-1.0.xml', 'LibGlass.lua', 'LibStub/LibStub.lua', 'LICENSE') + @(
+        'bar_edge', 'bar_fill', 'bar_mask', 'body_mask', 'body_mask_small', 'gloss', 'grain', 'rim5', 'rim5_small',
+        'rim_dark5', 'rim_dark5_small', 'shadow', 'shadow_small', 'sheen2', 'track_fade' | ForEach-Object { "Media/$_.tga" }) |
+        ForEach-Object { "Libs/LibGlass-1.0/$_" }
     $deploy = Join-Path $fixture 'Tools/deploy.ps1'
     Copy-Item -LiteralPath (Join-Path $repoRoot 'Tools/deploy.ps1') -Destination $deploy
     [IO.File]::WriteAllBytes((Join-Path $fixture 'Media/Nested/probe.tga'), [byte[]](1, 2, 3, 4))
@@ -21,12 +30,12 @@ try {
     Set-Content -LiteralPath $sentinel -Value 'Leave other addons alone.'
     $sentinelHash = (Get-FileHash -LiteralPath $sentinel).Hash
 
-    & $deploy -AddOnsPath $addOns
+    & $deploy -AddOnsPath $addOns -LibGlass $libGlass
     $destination = Join-Path $addOns 'TimeIsMoney'
     $actual = @(Get-ChildItem -LiteralPath $destination -Recurse -File |
         ForEach-Object { [IO.Path]::GetRelativePath($destination, $_.FullName).Replace('\', '/') } |
         Sort-Object)
-    $expected = @(@('Compat.lua', 'Host.lua', 'LICENSE', 'Media/Nested/probe.tga', 'TimeIsMoney.lua', 'TimeIsMoney.toc') + $simFiles) | Sort-Object
+    $expected = @(@('Compat.lua', 'Host.lua', 'LICENSE', 'Media/Nested/probe.tga', 'TimeIsMoney.lua', 'TimeIsMoney.toc') + $simFiles + $libFiles) | Sort-Object
     if (($actual -join "`n") -ne ($expected -join "`n")) { throw "Unexpected deployed files: $actual" }
     foreach ($relative in @('Compat.lua', 'Host.lua', 'TimeIsMoney.lua', 'LICENSE', 'Media/Nested/probe.tga') + $simFiles) {
         if ((Get-FileHash -LiteralPath (Join-Path $fixture $relative)).Hash -ne
@@ -39,14 +48,14 @@ try {
     if (!(Get-Content -LiteralPath (Join-Path $destination 'TimeIsMoney.toc') -Raw).Contains('## Version: dev')) {
         throw 'Deployment did not substitute the development version.'
     }
-    & $deploy -AddOnsPath $addOns
+    & $deploy -AddOnsPath $addOns -LibGlass $libGlass
     if ((Get-FileHash -LiteralPath $sourceToc).Hash -ne $tocHash) { throw 'Deployment modified the source TOC.' }
     if ((Get-FileHash -LiteralPath $sentinel).Hash -ne $sentinelHash) { throw 'Deployment modified another addon.' }
 
     $installedTocHash = (Get-FileHash -LiteralPath (Join-Path $destination 'TimeIsMoney.toc')).Hash
     Add-Content -LiteralPath $sourceToc -Value 'Missing.lua'
     $rejected = $false
-    try { & $deploy -AddOnsPath $addOns } catch { $rejected = $true }
+    try { & $deploy -AddOnsPath $addOns -LibGlass $libGlass } catch { $rejected = $true }
     if (!$rejected) { throw 'A missing TOC input was accepted.' }
     if ((Get-FileHash -LiteralPath (Join-Path $destination 'TimeIsMoney.toc')).Hash -ne $installedTocHash) {
         throw 'Preflight failure changed the installed TOC.'

@@ -42,7 +42,9 @@ Node is a developer-only reference runner, never an addon runtime dependency.
 Reference script order: combat.js -> globals.js -> projects.js -> main.js.
 Preserve combat's 16 ms logical tick independently of UI refresh or drawing.
 
-TOC: Compat.lua -> Sim/* (Reference.files order) -> Host.lua -> TimeIsMoney.lua.
+TOC: Libs/LibGlass-1.0 XML -> Compat.lua -> Sim/* (Reference.files order) -> Host.lua
+-> UI/* -> TimeIsMoney.lua. UI (docs/WINDOW.md) only reads the game and routes
+controls through Host commands; View.lua is pure and tested outside WoW.
 Compat owns client adaptation and evidence build; Host.lua (docs/HOST.md) is the
 only clock/RNG/command adapter: one parentless wakeup frame, logical 10 ms steps,
 capped debt, per-frame CPU budget, halt on a tick error. The entry point handles
@@ -65,9 +67,11 @@ Tools/provision_backlog.ps1: attach issues to actual milestones; preserve issue
 bodies and owner edits. The initialization-branch Actions workflow runs this script
 with an issues-write token; normal package/test CI remains read-only.
 
-Glass: reuse ..\GlassUnitFrames main through git show main:Glass.lua, because shared
-working trees can be switched by another session. Retain attribution and add a
-drift check. Change shared material upstream first; no glass copied in M0.
+Glass: embed LibGlass-1.0 (Spotnick2/LibGlass, MIT) at Libs/LibGlass-1.0 through
+.pkgmeta externals pinned to a tag (bumped only in a release made anyway); Libs/ is
+gitignored, deploy copies ..\LibGlass (or LIBGLASS) through its Tools/deploy.ps1.
+One instance: LibStub("LibGlass-1.0"):New(). Material changes go upstream as
+LibGlass PRs; never copy Glass.lua. Our own art lives in Media/, not Glass.MEDIA.
 
 Animated goblin: adapt ..\AltStable\Plugins\Roster\AltStableRoster.lua pet rendering:
 PetFrame, ReadBox, PlacePet, MeasurePet. Keep live idle, explicit camera,

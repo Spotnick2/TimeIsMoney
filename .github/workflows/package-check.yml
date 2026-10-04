@@ -58,6 +58,16 @@ jobs:
         uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0
         with:
           args: -d
+      # check_package.py reads the TOC, whose first line is the embedded LibGlass XML:
+      # fetch the library at the ref .pkgmeta pins (after the packager, which fetches
+      # its own copy, and after the Lua checks, which cover this repo only).
+      - name: Fetch the pinned LibGlass for the package check
+        run: |
+          set -euo pipefail
+          ref=$(python3 -c "import re,pathlib; print(re.search(r'Spotnick2/LibGlass\s+(?:tag|commit): (\S+)', pathlib.Path('.pkgmeta').read_text()).group(1))")
+          git clone --quiet https://github.com/Spotnick2/LibGlass Libs/LibGlass-1.0
+          git -C Libs/LibGlass-1.0 checkout --quiet "$ref"
+          echo "LibGlass at $ref ($(git -C Libs/LibGlass-1.0 rev-parse --short HEAD))"
       - name: Verify exact package contents and version
         run: |
           set -euo pipefail
@@ -96,7 +106,7 @@ jobs:
           }
           $changed = @(git diff --name-only 'origin/${{ github.base_ref }}...HEAD')
           if ($LASTEXITCODE -ne 0) { throw 'Could not list the pull request changes.' }
-          $pattern = '^(Sim/|Probe/|Tools/reference/|Tools/paperclips_reference\.py$|tests/reference/|docs/reference/|docs/plan/|\.github/workflows/)'
+          $pattern = '^(Sim/|Probe/|Tools/reference/|Tools/paperclips_reference\.py$|Tools/make_project_text\.py$|UI/ProjectText\.lua$|tests/reference/|docs/reference/|docs/plan/|\.github/workflows/)'
           $relevant = @($changed | Where-Object { $_ -match $pattern })
           if ($relevant.Count -gt 0) {
             "Full suite: the pull request changes"
@@ -119,6 +129,10 @@ jobs:
         if: steps.scope.outputs.parity == 'true'
         shell: pwsh
         run: python Tools/paperclips_reference.py fetch
+      - name: Check the generated project text against the plan and the reference
+        if: steps.scope.outputs.parity == 'true'
+        shell: pwsh
+        run: python Tools/make_project_text.py --check
       - name: Compare reference adapter with installed Chromium
         if: steps.scope.outputs.parity == 'true'
         shell: pwsh
@@ -161,4 +175,15 @@ jobs:
         run: ./tests/run.ps1 -Lua $env:TIM_LUA
       - name: Execute deploy tooling in temporary AddOns folder
         shell: pwsh
-        run: ./tests/test_deploy.ps1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # The deploy installs LibGlass from a checkout: the ref .pkgmeta pins.
+          $ref = [regex]::Match((Get-Content -Raw .pkgmeta), 'Spotnick2/LibGlass\s+(?:tag|commit): (\S+)').Groups[1].Value
+          if (!$ref) { throw 'No LibGlass ref in .pkgmeta.' }
+          $env:LIBGLASS = Join-Path $env:RUNNER_TEMP 'LibGlass'
+          if (Test-Path -LiteralPath $env:LIBGLASS) { Remove-Item -LiteralPath $env:LIBGLASS -Recurse -Force }
+          git clone --quiet https://github.com/Spotnick2/LibGlass $env:LIBGLASS
+          if ($LASTEXITCODE) { throw 'LibGlass clone failed.' }
+          git -C $env:LIBGLASS checkout --quiet $ref
+          if ($LASTEXITCODE) { throw "LibGlass ref $ref not found." }
+          ./tests/test_deploy.ps1

@@ -1,5 +1,5 @@
--- Entry point: load, saves, status, help and the developer commands that drive the
--- simulation until the ledger window exists (#20).
+-- Entry point: load, saves, status, help, the ledger window and the developer
+-- commands that drive the simulation directly.
 local ADDON = ...
 TimeIsMoney = TimeIsMoney or {}
 local TIM = TimeIsMoney
@@ -40,9 +40,17 @@ local function Slash(message)
     command = command:lower()
     local Host = TIM.Host
     if command == "help" then
-        Print("/tim status - runtime and company. /tim start - a new company when there is none.")
+        Print("/tim - open or close the ledger. /tim status - runtime and company. /tim start - a new company when there is none.")
         Print("Developer: /tim click <control> (e.g. btnMakePaperclip), /tim set <control> <value>.")
-    elseif command == "status" or command == "" then
+    elseif command == "" then
+        if Host.game then
+            TIM.Window.Toggle()
+        elseif Host.blocked then
+            Print("Saving is off: " .. Host.blocked .. ". TimeIsMoneyDB is left untouched.")
+        else
+            Print("No company yet: /tim start.")
+        end
+    elseif command == "status" then
         Status()
     elseif command == "start" then
         if Host.blocked then
@@ -52,6 +60,7 @@ local function Slash(message)
         else
             Host.start()
             Print("A new company opens its ledger. Time is money, friend!")
+            TIM.Window.Toggle()
         end
     elseif command == "click" then
         local ok, err = Host.click(rest)

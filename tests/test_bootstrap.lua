@@ -8,7 +8,8 @@ assert(text:find("## Version: @project-version@", 1, true))
 assert(text:find("## SavedVariables: TimeIsMoneyDB", 1, true))
 for line in text:gmatch("[^\r\n]+") do
     line = line:match("^%s*(.-)%s*$")
-    if line ~= "" and line:sub(1, 1) ~= "#" then
+    -- The embedded LibGlass is the stubs' stand-in (its own repo tests the library).
+    if line ~= "" and line:sub(1, 1) ~= "#" and line:gsub("\\", "/"):sub(1, 5) ~= "Libs/" then
         assert(not line:find("..", 1, true) and not line:find(":", 1, true))
         files[#files + 1] = line
     end
