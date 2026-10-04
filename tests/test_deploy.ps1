@@ -7,9 +7,12 @@ try {
     $fixture = Join-Path $testRoot 'source'
     $addOns = Join-Path $testRoot 'AddOns'
     New-Item -ItemType Directory -Path $fixture, $addOns, (Join-Path $fixture 'Tools'), (Join-Path $fixture 'Media/Nested') -Force | Out-Null
-    foreach ($name in 'LICENSE', 'TimeIsMoney.toc', 'Compat.lua', 'TimeIsMoney.lua') {
+    foreach ($name in 'LICENSE', 'TimeIsMoney.toc', 'Compat.lua', 'Host.lua', 'TimeIsMoney.lua') {
         Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination (Join-Path $fixture $name)
     }
+    # The simulation (#18) loads from Sim/ through the TOC.
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'Sim') -Destination (Join-Path $fixture 'Sim') -Recurse
+    $simFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Sim') -File | ForEach-Object { 'Sim/' + $_.Name })
     $deploy = Join-Path $fixture 'Tools/deploy.ps1'
     Copy-Item -LiteralPath (Join-Path $repoRoot 'Tools/deploy.ps1') -Destination $deploy
     [IO.File]::WriteAllBytes((Join-Path $fixture 'Media/Nested/probe.tga'), [byte[]](1, 2, 3, 4))
@@ -23,9 +26,9 @@ try {
     $actual = @(Get-ChildItem -LiteralPath $destination -Recurse -File |
         ForEach-Object { [IO.Path]::GetRelativePath($destination, $_.FullName).Replace('\', '/') } |
         Sort-Object)
-    $expected = @('Compat.lua', 'LICENSE', 'Media/Nested/probe.tga', 'TimeIsMoney.lua', 'TimeIsMoney.toc') | Sort-Object
+    $expected = @(@('Compat.lua', 'Host.lua', 'LICENSE', 'Media/Nested/probe.tga', 'TimeIsMoney.lua', 'TimeIsMoney.toc') + $simFiles) | Sort-Object
     if (($actual -join "`n") -ne ($expected -join "`n")) { throw "Unexpected deployed files: $actual" }
-    foreach ($relative in 'Compat.lua', 'TimeIsMoney.lua', 'LICENSE', 'Media/Nested/probe.tga') {
+    foreach ($relative in @('Compat.lua', 'Host.lua', 'TimeIsMoney.lua', 'LICENSE', 'Media/Nested/probe.tga') + $simFiles) {
         if ((Get-FileHash -LiteralPath (Join-Path $fixture $relative)).Hash -ne
             (Get-FileHash -LiteralPath (Join-Path $destination $relative)).Hash) {
             throw "Deployed bytes differ: $relative"

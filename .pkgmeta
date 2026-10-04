@@ -12,8 +12,6 @@ ignore:
   - docs
   - tests
   - Tools
-  # Pure-Lua simulation: parity-tested outside WoW; not in the TOC until #18.
-  - Sim
   # Developer-only client measurement addon (#9).
   - Probe
   - AGENTS.md

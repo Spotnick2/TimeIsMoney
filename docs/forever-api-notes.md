@@ -226,6 +226,27 @@ Documented surface identical.
 No addon call, stub or fallback changes. The constant is evidence, not a measured
 claim; the 70205 measurements are the #9 and #10 sections above.
 
+## #18 host adapter in the client
+
+Measured 2026-10-04 on client 1.60.1.70205 (owner session, TimeIsMoney deployed with
+Sim/ and Host.lua; `/tim start`, a few `/tim click btnMakePaperclip`, then about two
+and a half minutes):
+
+| Build | Logical time | Dropped | CPU per frame (avg / worst) | Addon memory |
+| --- | ---: | ---: | --- | --- |
+| First deploy | 137.9 s | 0 ms | 1.18 ms / 7.7 ms | rose to about 100 MB (111.67 MB shown), then collected |
+| After the allocation fix | 151.0 s | 0 ms | 0.67 ms / 8.6 ms | flat |
+
+- The Game Menu showed TimeIsMoney at 6 % average and 34 % peak CPU on the first
+  deploy, at 29 fps overall.
+- The memory was garbage, not a leak: the battle grid built a new ship list per cell
+  every 16 ms (about 29,000 tables a second) and the scheduler built a discarded log
+  entry per timer event, about 1.16 MB per logical second in all. Reusing the cell
+  lists and skipping the log in the client brings ten logical seconds to almost no
+  allocation (tests/test_host.lua checks under 256 KB), and halved the average CPU.
+- The always-running battle core (400 ships every 16 ms) keeps up in real time; the
+  worst frame is the 8 ms simulation budget plus overhead.
+
 ## Future probes
 
 Supplied API evidence: 1.60.1.70205, Interface 16001. Shared measurements from

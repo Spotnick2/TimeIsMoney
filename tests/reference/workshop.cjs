@@ -174,6 +174,9 @@ const traces={
     // at the next tick.
     wireBuyerToggle:{until:600,fixture:{globals:{wireBuyerFlag:1,wire:0.5,funds:500}},commands:[
         click(0,"btnToggleWireBuyer"),click(300,"btnToggleWireBuyer")]},
+    // The auto-save every 250 slow ticks (25 s) writes the save and changes no game
+    // state; the timer restarts (#18; persisting it is #19).
+    autoSave:{until:800,fixture:{globals:{saveTimer:245}},commands:[]},
     // Late phase-one creativity purchases: Limerick (cont.) and AutoTourney.
     projectsLate:{until:300,fixture:{globals:rich(10,{strategyEngineFlag:1,trust:95,creativity:1100000})},
         commands:[...buy(20,"218","118")]},

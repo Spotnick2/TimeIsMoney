@@ -226,7 +226,6 @@ Reference paths outside the slice raise
 | Probe formulas beyond the verified domain: Math.pow(n, 1.2), Math.pow(n, 1.47) and Math.pow(n, 1.6) for integer n > 10,000 (trust and hazard allocations); the trust purchase checks before any change | #24 |
 | Building purchases and reboots with fractional drone, farm or battery levels (probes build fractional drones in space), whose costs are not integer bases; checked before any change | #24 |
 | Building costs beyond the verified domain: Math.pow(n, 2.25) for n > 200,000 (drones, including the +1k lookahead), Math.pow(n, 2.54) and Math.pow(n, 2.78) for n > 30,000 (batteries, farms); checked before any change | #24 |
-| Reference auto-save (after 25 s) | #19 |
 | addProc beyond 3,424 processors, where Math.pow(n, 1.1) first differs from V8 | #24 |
 | investUpgrade when the new cost's base (investLevel + 1) would pass 967; Math.pow(base, Math.E) first differs from V8 at base 968 | #24 |
 | Math.sin of arguments beyond 2²⁰·π/2 (about 1,647,099; the quantum clock reaches it after about 19 days) | #24 |
@@ -362,7 +361,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines sixty-seven traces with an explicit equidistributed
+tests/reference/workshop.cjs defines sixty-eight traces with an explicit equidistributed
 stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
 the trace. Longer traces use longer streams. A few investment traces use an
 offset so the 25 % purchase rolls succeed within seconds.
@@ -409,6 +408,7 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | projectsMachines | MegaClippers and their boosts, WireBuyer, quantum computing and three photonic chips | match |
 | projectsRecovery | Emergency wire twice, the second time after the stock sells out; Xavier re-initialization | match |
 | projectsLate | Limerick (cont.) and AutoTourney | match |
+| autoSave | The auto-save at 250 slow ticks restarts its timer and changes no game state (the host persists it, #19) | match |
 | wireBuyerToggle | WireBuyer switched off (the empty spool stays empty), then on (it buys at the next tick) | match |
 | transition | Hypno Harmonics, HypnoDrones and the release; Xavier's button is removed; the planetary phase starts fully powered (supply 0 ≥ demand 0 sets powMod 1) with a sleeping swarm | match |
 | planetChain | Toth Tubule Enfolding, Power Grid, Nanoscale Wire Production, Harvester and Wire Drones, Clip Factories | match |

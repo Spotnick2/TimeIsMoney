@@ -1,3 +1,13 @@
+Third-Party IP Notice
+
+This repository contains an original World of Warcraft addon implementation and
+associated source code released under the MIT License below.
+
+The Universal Paperclips IP, narrative text, and core game logic (translated in
+Sim/) are proprietary to Frank Lantz. This license does not grant rights to those
+third-party materials. World of Warcraft and its assets belong to Blizzard
+Entertainment.
+
 MIT License
 
 Copyright (c) 2026 Spotnick

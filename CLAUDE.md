@@ -42,11 +42,14 @@ Node is a developer-only reference runner, never an addon runtime dependency.
 Reference script order: combat.js -> globals.js -> projects.js -> main.js.
 Preserve combat's 16 ms logical tick independently of UI refresh or drawing.
 
-Current TOC: Compat.lua -> TimeIsMoney.lua. Compat owns client adaptation and
-evidence build; entry point handles load/status/help only. SavedVariables are
-declared but never initialized/replaced until the schema is designed.
-Sim/ holds the pure-Lua simulation (docs/reference/WORKSHOP.md): parity-tested
-against the reference, not in the TOC or package until #18. Unported reference
+TOC: Compat.lua -> Sim/* (Reference.files order) -> Host.lua -> TimeIsMoney.lua.
+Compat owns client adaptation and evidence build; Host.lua (docs/HOST.md) is the
+only clock/RNG/command adapter: one parentless wakeup frame, logical 10 ms steps,
+capped debt, per-frame CPU budget, halt on a tick error. The entry point handles
+load/status/help and developer commands. SavedVariables are declared but never
+initialized/replaced until the schema is designed (#19).
+Sim/ holds the pure-Lua simulation (docs/reference/WORKSHOP.md), parity-tested
+against the reference; all 96 projects are ported. Unported reference
 paths raise explicit errors naming their issue; never let them diverge silently.
 WoW's Lua raises on x/0, x%0 and NaN division, and NaN compares true: in Sim use
 JSMath.div/isNaN/lt/gt, never x ~= x or a possibly-zero divisor (forever-api-notes).
@@ -122,6 +125,6 @@ setup step; /client-update handles new build evidence. Follow global model/effor
 escalation limits; no silent stronger model/high effort or automatic delegation.
 
 Keep diffs small; stop at the authorized milestone. Ask before new dependencies.
-Confirm Paperclips reuse terms before vendoring/distributing translated source;
-public source is not a license. MIT covers original/compatible attributed code,
+Paperclips reuse terms: the owner handles them and directed (2026-10-04) to
+proceed as if approved, so Sim/ ships in the addon and package. MIT covers original/compatible attributed code,
 not Paperclips or Blizzard assets. CurseForge/webhook/releases are future owner work.
