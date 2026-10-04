@@ -190,9 +190,9 @@ war.S.battles, war.S.numRightShips, war.S.numLeftShips, war.S.battleLEFTSHIPS = 
 war.S.battleName = "Ulm 2"
 Battle.checkForBattleEnd(war.S)
 assert(war.S.honor == 6 and war.S.bonusHonor == 0 and war.S.threnodyTitle == "Ulm 2")
--- The memorials after named battles stop on purchase (#16).
-for _, id in ipairs({ "projectButton132", "projectButton133", "projectButton134" }) do
-    fails("purchase of a later%-phase project %(issue #16%)", Workshop.projectById[id].effect, war)
+-- Accepting or rejecting the exile stops on purchase (the endings, #17).
+for _, id in ipairs({ "projectButton147", "projectButton148" }) do
+    fails("purchase of a later%-phase project %(issue #17%)", Workshop.projectById[id].effect, war)
 end
 
 -- The swarm (#13): with no drones and the slider at 0, a repeating gift is

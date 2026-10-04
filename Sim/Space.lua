@@ -195,9 +195,7 @@ function Game:drift()
     local S = self.S
     local amount = S.probeCount * S.probeDriftBaseRate * probePow(S.probeTrust, "1.2")
     if amount > S.probeCount then amount = S.probeCount end
-    -- Reject (project148) needs the ending's correspondence (#16, #17) and is not
-    -- registered yet; its flag is 0 until then.
-    if S.project148 and S.project148.flag == 1 then amount = 0 end
+    if S.project148.flag == 1 then amount = 0 end
     S.probeCount = S.probeCount - amount
     S.drifterCount = S.drifterCount + amount
     S.probesLostDrift = S.probesLostDrift + amount

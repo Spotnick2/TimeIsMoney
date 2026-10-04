@@ -237,9 +237,10 @@ test("automatic tournaments restart from shown results; without a pick nothing i
 // Issue #8: phase-one projects and the first transition.
 const PROJECT_RUNS=["projectsProduction","projectsCreativity","projectsStrategy","projectsBusiness",
     "projectsVolition","projectsMachines","projectsRecovery","projectsLate","transition",
-    "planetChain","planetPipeline","planetUpgrades","swarmGifts","spaceGate","spaceProjects","battleVictory"];
-const REPEATABLE=new Set(["project2","project40b","project51","project219"]);
-const STOPS=new Set(["project132","project133","project134","project135","project217"]);
+    "planetChain","planetPipeline","planetUpgrades","swarmGifts","spaceGate","spaceProjects","battleVictory",
+    "correspondence","memorials","memoryRelease"];
+const REPEATABLE=new Set(["project2","project40b","project51","project219","project133","project135"]);
+const STOPS=new Set(["project147","project148","project217"]);
 test("every purchasable project is bought in a trace, with eligibility compared",()=>{
     const projected=run("projectsProduction").port.projection.state.filter(k=>/^project\d/.test(k));
     const bought=new Set();
@@ -247,7 +248,7 @@ test("every purchasable project is bought in a trace, with eligibility compared"
         for (const key of projected) if (state[key] && state[key].flag===1) bought.add(key);
     const missing=projected.filter(key=>!STOPS.has(key) && !bought.has(key));
     assert.deepEqual(missing,[]);
-    assert.equal(bought.size,73);
+    assert.equal(bought.size,84);
     assert.ok(run("projectsProduction").port.projection.disabled.includes("projectButton1"),"project buttons compared");
 });
 test("one-use projects never return after purchase (no duplicate reward)",()=>{
@@ -494,6 +495,27 @@ test("the WireBuyer switch stops and resumes automatic wire purchases",()=>{
     assert.deepEqual([before.wireBuyerStatus,before.wirePurchase,before.wire],[1,0,0.5],"nothing bought while off");
     const end=final(port).state;
     assert.ok(end.wirePurchase>=1 && end.wire>1,"WireBuyer resumes");
+});
+// The correspondence, memorials and recovery (#16).
+test("milestone 15 opens the Emperor of Drift's seven messages, then Accept and Reject",()=>{
+    const end=final(run("correspondence").port);
+    assert.equal(end.state.milestoneFlag,15);
+    for (let n=140;n<=146;n++) assert.equal(end.state["project"+n].flag,1,"project"+n);
+    assert.deepEqual(end.state.activeProjects.map(p=>p.id).filter(id=>/14[78]$/.test(id)),
+        ["projectButton147","projectButton148"]);
+    assert.equal(end.dom.readout1.html,"Universal Paperclips achieved in ");
+    assert.equal(final(run("surveyedEnd").port).state.milestoneFlag,15,"the surveyed, used-up universe");
+});
+test("memorials: the monument, the repeatable threnody at rising cost, and Glory",()=>{
+    const end=final(run("memorials").port).state;
+    assert.deepEqual([end.project132.flag,end.project133.flag,end.project134.flag],[1,1,1]);
+    assert.deepEqual([end.honor,end.threnodyCost],[50000+10000+10000,70000]);
+    assert.ok(end.activeProjects.some(p=>p.id==="projectButton133"),"the threnody returns");
+});
+test("Memory release trades 10 memory for 10^22 clips and stays repeatable",()=>{
+    const end=final(run("memoryRelease").port);
+    assert.deepEqual([end.state.memory,end.state.unusedClips,end.state.project135.uses],[20,1e16+1e22,1]);
+    assert.equal(end.dom.readout1.html,"release the \u00f8\u00f8\u00f8\u00f8\u00f8 release ");
 });
 test("the project traceability checklist is current",()=>{
     const Checklist=require("./project_checklist.cjs");

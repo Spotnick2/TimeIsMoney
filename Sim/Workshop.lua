@@ -410,11 +410,15 @@ function Game:milestoneCheck()
         S.milestoneFlag = S.milestoneFlag + 1
         self:displayMessage("Terrestrial resources fully utilized in " .. timeCruncher(S.ticks))
     end
-    -- Milestone 15 (all the universe's matter in clips, or surveyed and used up)
-    -- opens the correspondence and the endings (#16, #17): stop before it.
-    if S.milestoneFlag == 14 and (S.clips >= S.totalMatter
-        or (S.foundMatter >= S.totalMatter and S.availableMatter < 1 and S.wire < 1)) then
-        Unported("Universal Paperclips milestone (the correspondence and endings)", "#16")
+    -- Milestone 15: all the universe's matter in clips, or surveyed and used up. It
+    -- opens the Emperor of Drift's correspondence (#16).
+    if S.milestoneFlag == 14 and S.clips >= S.totalMatter then
+        S.milestoneFlag = S.milestoneFlag + 1
+        self:displayMessage("Universal Paperclips achieved in " .. timeCruncher(S.ticks))
+    end
+    if S.milestoneFlag == 14 and S.foundMatter >= S.totalMatter and S.availableMatter < 1 and S.wire < 1 then
+        S.milestoneFlag = S.milestoneFlag + 1
+        self:displayMessage("Universal Paperclips achieved in " .. timeCruncher(S.ticks))
     end
 end
 

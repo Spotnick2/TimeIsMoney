@@ -7,8 +7,9 @@ Issues [#5](https://github.com/Spotnick2/TimeIsMoney/issues/5),
 ([#11](https://github.com/Spotnick2/TimeIsMoney/issues/11) with
 [#12](https://github.com/Spotnick2/TimeIsMoney/issues/12), then
 [#13](https://github.com/Spotnick2/TimeIsMoney/issues/13)), the cosmic phase's core
-([#14](https://github.com/Spotnick2/TimeIsMoney/issues/14)) and battles
-([#15](https://github.com/Spotnick2/TimeIsMoney/issues/15)). This is the first port of
+([#14](https://github.com/Spotnick2/TimeIsMoney/issues/14)), battles
+([#15](https://github.com/Spotnick2/TimeIsMoney/issues/15)) and the correspondence, memorials and
+recovery ([#16](https://github.com/Spotnick2/TimeIsMoney/issues/16)). This is the first port of
 the [pinned reference](README.md) into the pure-Lua simulation layer (`Sim/`). The simulation has no WoW globals, frames, clocks, I/O or native
 randomness. It is parity-tested outside the game and is **not yet in the TOC or
 the addon archive** (.pkgmeta ignores `Sim/` until the host adapter, #18).
@@ -159,6 +160,17 @@ State uses the reference global names, formulas and statement order: `clips`
     its use count;
   - Combat, Name the battles (named engagements, battleEndTimer 200) and the OODA
     Loop (probe speed adds to the defensive death threshold).
+- **Correspondence, memorials and recovery (#16):**
+  - milestone 15 ("Universal Paperclips achieved"), on either route: all the
+    universe's matter in clips, or the universe surveyed with no matter or wire
+    left;
+  - the Emperor of Drift's seven messages (140-146), each for driftKingMessageCost
+    Operations; their text is the projects' descriptions (presentation);
+  - the monument (50 nonillion clips, +50,000 honor), the threnody (repeatable; each
+    time 10,000 creativity and 4,000 Yomi dearer, +10,000 honor; its title change
+    and audio are presentation) and Glory (+10 bonus honor per consecutive victory);
+  - Memory release: once every probe is gone without clips for one, 10 memory buys
+    10^22 clips; repeatable (its effect sets uses back to 1).
 - **Reference quirks kept:**
   - when storage runs out during a shortage, nuSupply = 2·supply − demand +
     storedPower can be negative, so powMod is negative for that tick and harvesting
@@ -194,11 +206,10 @@ Reference paths outside the slice raise
 | Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #20 |
 | Quantum Temporal Reversion (confirm() then reset) | #23 |
 | toLocaleString of negative, fractional or unsafe-integer values | #21 |
-| The monument, the threnody and Glory purchases (memorials after named battles) | #16 |
+| Accept or Reject the exile (the departure and the endings) | #17 |
 | Milestone 15 (all the universe's matter in clips, or surveyed and used up), which opens the correspondence and endings | #16 |
 | Probe formulas beyond the verified domain: Math.pow(n, 1.2), Math.pow(n, 1.47) and Math.pow(n, 1.6) for integer n > 10,000 (trust and hazard allocations); the trust purchase checks before any change | #24 |
 | Building purchases and reboots with fractional drone, farm or battery levels (probes build fractional drones in space), whose costs are not integer bases; checked before any change | #24 |
-| Memory release purchase (cosmic recovery) | #16 |
 | Building costs beyond the verified domain: Math.pow(n, 2.25) for n > 200,000 (drones, including the +1k lookahead), Math.pow(n, 2.54) and Math.pow(n, 2.78) for n > 30,000 (batteries, farms); checked before any change | #24 |
 | Ending sequence and dismantling clicks | #17 |
 | Reference auto-save (after 25 s) | #19 |
@@ -337,7 +348,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines sixty traces with an explicit equidistributed
+tests/reference/workshop.cjs defines sixty-four traces with an explicit equidistributed
 stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
 the trace. Longer traces use longer streams. A few investment traces use an
 offset so the 25 % purchase rolls succeed within seconds.
@@ -408,6 +419,10 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | battleVictory | Combat and Name the battles, then named battles won (honor, the 200-update result delay, the next battle); the OODA Loop | match |
 | battleDefeat | Two probe ships against 200: defeats cost honor and name the threnody | match |
 | battleTimeout | An undecided battle ends after 8,000 updates | match |
+| correspondence | Milestone 15 from all the matter in clips; the seven messages; Accept and Reject appear | match |
+| surveyedEnd | Milestone 15 from the surveyed, used-up universe | match |
+| memorials | Name the battles, the monument, the threnody twice and Glory | match |
+| memoryRelease | Every probe lost: 10 memory for 10^22 clips | match |
 | battleClockTimeout | A battle down to four ships or fewer on a side ends after 2,000 more | match |
 
 The reference VM mutates fixture objects such as qChips. The host therefore
@@ -435,8 +450,7 @@ The Node tests need Lua 5.1 (TIM_LUA, default C:\Program Files (x86)\Lua\5.1\lua
 These traces establish parity for the covered paths on the measured Windows /
 Node 24 profile. They do not establish:
 
-- full-game coverage: the cosmic phase's recovery, memorials and correspondence (#16)
-  and the endings (#17) remain;
+- full-game coverage: the endings (#17) remain;
 - Strategic Attachment's placing bonuses in a trace: they need eight strategies,
   whose tournament takes about a minute of game time, so tests/test_sim.lua covers
   them;
