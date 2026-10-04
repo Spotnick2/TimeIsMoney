@@ -40,7 +40,7 @@ State uses the reference global names, formulas and statement order: `clips`
   tracker.
 - **Marketing and automation:** marketing purchases; AutoClippers and
   MegaClippers with their recomputed costs; clip-rate tracking; the optional
-  WireBuyer.
+  WireBuyer and its on/off switch (#49).
 - **Trust and milestones:** Fibonacci trust targets, and milestones with
   timeCruncher text and the five message readouts.
 - **Controls:** button eligibility from buttonUpdate. A click on a disabled
@@ -321,7 +321,7 @@ runtimes.
 
 ## Differential traces
 
-tests/reference/workshop.cjs defines fifty-five traces with an explicit equidistributed
+tests/reference/workshop.cjs defines fifty-six traces with an explicit equidistributed
 stream: the fractional part of (i + offset) × 0.6180339887498949, recorded into
 the trace. Longer traces use longer streams. A few investment traces use an
 offset so the 25 % purchase rolls succeed within seconds.
@@ -368,6 +368,7 @@ labeled draw and every checkpoint, apart from the declared numeric exception abo
 | projectsMachines | MegaClippers and their boosts, WireBuyer, quantum computing and three photonic chips | match |
 | projectsRecovery | Emergency wire twice, the second time after the stock sells out; Xavier re-initialization | match |
 | projectsLate | Limerick (cont.) and AutoTourney | match |
+| wireBuyerToggle | WireBuyer switched off (the empty spool stays empty), then on (it buys at the next tick) | match |
 | transition | Hypno Harmonics, HypnoDrones and the release; Xavier's button is removed; the planetary phase starts fully powered (supply 0 ≥ demand 0 sets powMod 1) with a sleeping swarm | match |
 | planetChain | Toth Tubule Enfolding, Power Grid, Nanoscale Wire Production, Harvester and Wire Drones, Clip Factories | match |
 | planetExactCost | All five buildings bought at exactly their cost, ending at 0 clips; unaffordable clicks run no-op branches (+10 still recomputes the price sums), then the controls disable | match |

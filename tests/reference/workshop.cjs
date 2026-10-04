@@ -170,6 +170,10 @@ const traces={
         margin:.01,creativityOn:1,creativity:100000,processors:3,memory:4,standardOps:4000})},
         commands:[click(20,"projectButton2"),click(30,"btnMakePaperclip"),click(40,"btnMakePaperclip"),
             click(50,"projectButton219"),click(120,"projectButton2")]},
+    // The WireBuyer switch: off, the empty spool stays empty; on again, WireBuyer buys
+    // at the next tick.
+    wireBuyerToggle:{until:600,fixture:{globals:{wireBuyerFlag:1,wire:0.5,funds:500}},commands:[
+        click(0,"btnToggleWireBuyer"),click(300,"btnToggleWireBuyer")]},
     // Late phase-one creativity purchases: Limerick (cont.) and AutoTourney.
     projectsLate:{until:300,fixture:{globals:rich(10,{strategyEngineFlag:1,trust:95,creativity:1100000})},
         commands:[...buy(20,"218","118")]},
