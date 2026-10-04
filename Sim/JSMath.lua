@@ -497,6 +497,12 @@ local function ieeeLog(x)
     return dk * ln2_hi - ((s * (f - R) - dk * ln2_lo) - f)
 end
 
+-- Math.log: fdlibm __ieee754_log (V8's base::ieee754::log).
+function JSMath.log(x)
+    if isNaN(x) then return NAN end
+    return ieeeLog(x)
+end
+
 function JSMath.log10(x)
     local hx, lx = toWords(x)
     local k = 0

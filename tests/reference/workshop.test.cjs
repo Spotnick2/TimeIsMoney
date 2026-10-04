@@ -18,7 +18,9 @@ for (const name of Workshop.names) test("workshop "+name+" trace agrees with the
     assert.equal(divergence,null,JSON.stringify(divergence && {kind:divergence.kind,event:divergence.event,
         field:divergence.field,difference:divergence.difference,left:divergence.left,right:divergence.right}));
     assert.deepEqual(port.source_sha256,source.index.source_sha256);
-    assert.equal(port.error,null);
+    // The expansion gate ends at the cosmic phase's explicit stop (asserted below).
+    if (name==="spaceGate") assert.match(port.error,/\(issue #14\)/);
+    else assert.equal(port.error,null);
 });
 
 test("exact costs buy at equal funds; unaffordable clicks run no-op branches, then controls disable",()=>{
@@ -237,9 +239,9 @@ test("automatic tournaments restart from shown results; without a pick nothing i
 // Issue #8: phase-one projects and the first transition.
 const PROJECT_RUNS=["projectsProduction","projectsCreativity","projectsStrategy","projectsBusiness",
     "projectsVolition","projectsMachines","projectsRecovery","projectsLate","transition",
-    "planetChain","planetPipeline","planetUpgrades"];
+    "planetChain","planetPipeline","planetUpgrades","swarmGifts","spaceGate"];
 const REPEATABLE=new Set(["project2","project40b","project51","project219"]);
-const STOPS=new Set(["project121","project128","project131","project217","project46","project126"]);
+const STOPS=new Set(["project121","project128","project131","project217"]);
 test("every purchasable project is bought in a trace, with eligibility compared",()=>{
     const projected=run("projectsProduction").port.projection.state.filter(k=>/^project\d/.test(k));
     const bought=new Set();
@@ -247,7 +249,7 @@ test("every purchasable project is bought in a trace, with eligibility compared"
         for (const key of projected) if (state[key] && state[key].flag===1) bought.add(key);
     const missing=projected.filter(key=>!STOPS.has(key) && !bought.has(key));
     assert.deepEqual(missing,[]);
-    assert.equal(bought.size,65);
+    assert.equal(bought.size,67);
     assert.ok(run("projectsProduction").port.projection.disabled.includes("projectButton1"),"project buttons compared");
 });
 test("one-use projects never return after purchase (no duplicate reward)",()=>{
@@ -375,6 +377,46 @@ test("factory and drone upgrade projects multiply rates and boosts",()=>{
     assert.deepEqual([end.factoryRate,end.factoryBoost,end.harvesterRate,end.wireDroneRate,end.droneBoost,end.yomi,end.unusedClips],
         [1e9*100*1000,1000,26180337*100*1000,16180339*100*1000,2,10000,1e21]);
     assert.ok(end.activeProjects.some(p=>p.id==="projectButton126"),"Swarm Computing appears (its purchase is #13)");
+});
+// The swarm (#13).
+test("Swarm Computing reads the slider, the Active swarm earns gifts, and gifts buy capacity",()=>{
+    const {port}=run("swarmGifts"), all=points(port);
+    const bought=command(port,20,"projectButton126").state;
+    assert.deepEqual([bought.swarmFlag,bought.yomi],[1,4000]);
+    const gift=all.find(p=>p.state.swarmGifts>0).state;
+    assert.deepEqual([gift.nextGift,gift.swarmGifts,gift.sliderPos],[4,4,"150"]);
+    assert.ok(all.some(p=>p.state.swarmStatus===0),"the swarm is Active");
+    const proc=command(port,400,"btnAddProc").state, mem=command(port,400,"btnAddMem").state;
+    assert.deepEqual([proc.processors,mem.memory,mem.swarmGifts],[2,201,2]);
+    const end=final(port).state;
+    assert.equal(end.sliderPos,"0");
+    assert.equal(end.giftCountdown.$number,"Infinity","a slider at 0 makes the countdown Infinity");
+});
+test("a spent gift countdown repeats the gift every tick while the swarm is not Active",()=>{
+    const end=final(run("swarmRepeatGifts").port);
+    assert.equal(end.state.swarmStatus,6);
+    assert.ok(end.state.swarmGifts>=40,"a gift per tick");
+    assert.equal(end.dom.readout1.html,"The swarm has generated a gift of 5 additional computational capacity");
+});
+test("the slider sanitizes like the page's range input and keeps a string",()=>{
+    const {port}=run("swarmSlider");
+    assert.deepEqual(points(port).filter(p=>p.kind==="command").map(p=>p.dom.slider.value),
+        ["100","100","100","99","200","0","125","100"]);
+    assert.equal(final(port).state.sliderPos,"100");
+});
+test("Entertain and Synchronize recover the swarm without checking their costs",()=>{
+    const {port}=run("swarmRecovery");
+    const once=command(port,20,"btnEntertainSwarm").state, twice=command(port,20,"btnEntertainSwarm",1).state;
+    assert.deepEqual([once.creativity,once.entertainCost,once.boredomFlag],[15000,20000,0]);
+    assert.deepEqual([twice.creativity,twice.entertainCost],[-5000,30000]);
+    assert.deepEqual([command(port,20,"btnSynchSwarm",1).state.yomi,command(port,20,"btnSynchSwarm",1).state.disorgFlag],[-4000,0]);
+    for (const id of ["btnEntertainSwarm","btnSynchSwarm"]) assert.equal(command(port,50,id).dom[id].disabled,true,id);
+});
+test("Space Exploration dismantles the planet with refunds and opens the cosmic phase",()=>{
+    const {port}=run("spaceGate"), bought=command(port,30,"projectButton46").state;
+    assert.deepEqual([bought.spaceFlag,bought.farmLevel,bought.powMod,bought.storedPower,bought.harvesterLevel,
+        bought.batteryLevel,bought.harvesterBill,bought.batteryBill],[1,1,1,0,0,0,0,0]);
+    assert.equal(command(port,30,"projectButton46").dom.readout1.html,"Von Neumann Probes online");
 });
 test("the project traceability checklist is current",()=>{
     const Checklist=require("./project_checklist.cjs");

@@ -1,9 +1,9 @@
--- Planetary phase (#11, #12): what runs after Release the HypnoDrones, before space.
--- Harvester drones, wire drones and clip factories with their costs, the matter
--- pools (available -> acquired -> wire), solar farms and battery towers with power
--- supply, demand, storage and momentum, and the swarm's per-tick state (boredom,
--- disorganization, status). The work/think slider, gifts and swarm actions are #13;
--- space is #14. Source identifiers, formulas and statement order follow main.js.
+-- Planetary phase (#11, #12, #13): what runs after Release the HypnoDrones, before
+-- space. Harvester drones, wire drones and clip factories with their costs, the
+-- matter pools (available -> acquired -> wire), solar farms and battery towers with
+-- power supply, demand, storage and momentum, and the swarm: the work/think slider,
+-- gifts, boredom and disorganization with their recovery actions, and status. Space
+-- is #14. Source identifiers, formulas and statement order follow main.js.
 -- Extends Sim/Workshop.lua; Sim/CostPow.lua loads first.
 local _, ns = ...
 ns = ns or {}
@@ -11,6 +11,10 @@ ns = ns or {}
 local JSMath, Workshop, CostPow = ns.JSMath, ns.Workshop, ns.CostPow
 local Game, Unported = Workshop.Game, ns.Unported
 local floor, max, min = math.floor, math.max, math.min
+local isNaN, toNumber = JSMath.isNaN, JSMath.toNumber
+
+-- JavaScript `x <= 0`: false for NaN (WoW's Lua compares NaN as true).
+local function atMostZero(x) return not isNaN(x) and x <= 0 end
 
 -- globals.js / main.js initial values.
 local initial = {
@@ -34,6 +38,23 @@ local initial = {
 -- Math.pow(10, 24)*6000: an integer power, exact in JSMath.pow.
 initial.availableMatter = JSMath.pow(10, 24) * 6000
 for key, value in pairs(initial) do Workshop.initial[key] = value end
+
+-- The swarm slider (index2.html: range 0..200, step 1, value "0"). Setting it
+-- sanitizes as the host does: HTML decimal syntax only, otherwise the midpoint;
+-- clamped, then rounded with ties upward. Its value stays a string.
+local function sanitizeSlider(value)
+    value = tostring(value)
+    local mantissa, exponent = value:match("^(%-?%d*%.?%d*)(.*)$")
+    local valid = mantissa and mantissa:find("%d") and not mantissa:find("%.$")
+        and (exponent == "" or exponent:find("^[eE][+-]?%d+$")) and true or false
+    local n = valid and toNumber(value) or JSMath.NAN
+    if isNaN(n) or n == math.huge or n == -math.huge then n = 100 end
+    return JSMath.toString(JSMath.round(max(0, min(200, n))))
+end
+Workshop.sanitizeSlider = sanitizeSlider
+Workshop.setups[#Workshop.setups + 1] = function(game)
+    game.selects.slider = { value = "0", sanitize = sanitizeSlider }
+end
 
 for _, id in ipairs({
     "btnMakeFactory", "btnHarvesterReboot", "btnWireDroneReboot", "btnFactoryReboot",
@@ -304,12 +325,12 @@ end
 
 -- Swarm ----------------------------------------------------------------------
 
--- updateSwarm's per-tick state. The slider (read once Swarm Computing sets
--- swarmFlag), gifts and the Active status that generates them are #13.
+-- updateSwarm: the slider (read once Swarm Computing sets swarmFlag), boredom,
+-- disorganization, gifts and status.
 function Game:updateSwarm()
     local S, disabled = self.S, self.disabled
-    if JSMath.isNaN(S.swarmGifts) or S.swarmGifts < 0 then S.swarmGifts = 0 end
-    if S.swarmFlag == 1 then Unported("the swarm work/think slider", "#13") end
+    if isNaN(S.swarmGifts) or S.swarmGifts < 0 then S.swarmGifts = 0 end
+    if S.swarmFlag == 1 then S.sliderPos = self.selects.slider.value end
     disabled.btnSynchSwarm = S.yomi < S.synchCost
     disabled.btnEntertainSwarm = S.creativity < S.entertainCost
     if S.availableMatter == 0 and (S.harvesterLevel + S.wireDroneLevel) >= 1 then
@@ -342,8 +363,19 @@ function Game:updateSwarm()
         end
     end
     local d = floor(S.harvesterLevel + S.wireDroneLevel)
-    -- giftCountdown changes only while the swarm is Active, which needs swarmFlag.
-    if S.giftCountdown <= 0 then Unported("swarm gifts", "#13") end
+    -- giftCountdown is recomputed only while the swarm is Active, so after a gift it
+    -- stays at or below 0, and the gift repeats every tick, until the swarm is
+    -- Active again (reference behavior).
+    if atMostZero(S.giftCountdown) then
+        S.nextGift = JSMath.round((JSMath.log10(d)) * toNumber(S.sliderPos) / 100)
+        if atMostZero(S.nextGift) then S.nextGift = 1 end
+        S.swarmGifts = S.swarmGifts + S.nextGift
+        if S.milestoneFlag < 15 then
+            self:displayMessage("The swarm has generated a gift of " .. JSMath.toString(S.nextGift) ..
+                " additional computational capacity")
+        end
+        S.giftBits = 0
+    end
     if S.powMod == 0 then S.swarmStatus = 6 else S.swarmStatus = 0 end
     if S.spaceFlag == 1 then Unported("the swarm in space", "#14") end
     if d == 0 then
@@ -354,7 +386,31 @@ function Game:updateSwarm()
     if S.swarmFlag == 0 then S.swarmStatus = 6 end
     if S.boredomFlag == 1 then S.swarmStatus = 3 end
     if S.disorgFlag == 1 then S.swarmStatus = 5 end
-    if S.swarmStatus == 0 then Unported("swarm gift generation", "#13") end
+    if S.swarmStatus == 0 then
+        -- d >= 2 here (0 and 1 have their own statuses), so the log is positive; a
+        -- slider at 0 makes the rate 0 and the countdown Infinity.
+        S.giftBitGenerationRate = JSMath.log(d) * (toNumber(S.sliderPos) / 100)
+        S.giftBits = S.giftBits + S.giftBitGenerationRate
+        S.giftCountdown = JSMath.div(S.giftPeriod - S.giftBits, S.giftBitGenerationRate)
+    end
+end
+
+-- Recovery actions. Neither checks its cost; the disabled control does.
+function Game:synchSwarm()
+    local S = self.S
+    S.yomi = S.yomi - S.synchCost
+    S.disorgFlag = 0
+    S.disorgCounter = 0
+    S.disorgMsg = 0
+end
+
+function Game:entertainSwarm()
+    local S = self.S
+    S.creativity = S.creativity - S.entertainCost
+    S.entertainCost = S.entertainCost + 10000
+    S.boredomFlag = 0
+    S.boredomLevel = 0
+    S.boredomMsg = 0
 end
 
 -- Matter ---------------------------------------------------------------------
@@ -365,7 +421,7 @@ function Game:acquireMatter()
         local dbsth = 1
         if S.droneBoost > 1 then dbsth = S.droneBoost * floor(S.harvesterLevel) end
         local mtr = S.powMod * dbsth * floor(S.harvesterLevel) * S.harvesterRate
-        mtr = mtr * ((200 - S.sliderPos) / 100)
+        mtr = mtr * ((200 - toNumber(S.sliderPos)) / 100)
         if mtr > S.availableMatter then mtr = S.availableMatter end
         S.availableMatter = S.availableMatter - mtr
         S.acquiredMatter = S.acquiredMatter + mtr
@@ -378,7 +434,7 @@ function Game:processMatter()
         local dbstw = 1
         if S.droneBoost > 1 then dbstw = S.droneBoost * floor(S.wireDroneLevel) end
         local a = S.powMod * dbstw * floor(S.wireDroneLevel) * S.wireDroneRate
-        a = a * ((200 - S.sliderPos) / 100)
+        a = a * ((200 - toNumber(S.sliderPos)) / 100)
         if a > S.acquiredMatter then a = S.acquiredMatter end
         S.acquiredMatter = S.acquiredMatter - a
         S.wire = S.wire + a
@@ -426,7 +482,7 @@ end
 for id, amount in pairs({ btnMakeBattery = 1, btnBatteryx10 = 10, btnBatteryx100 = 100 }) do
     clicks[id] = function(game) game:makeBattery(amount) end
 end
-clicks.btnSynchSwarm = function() Unported("synchSwarm", "#13") end
-clicks.btnEntertainSwarm = function() Unported("entertainSwarm", "#13") end
+clicks.btnSynchSwarm = Game.synchSwarm
+clicks.btnEntertainSwarm = Game.entertainSwarm
 
 return Workshop

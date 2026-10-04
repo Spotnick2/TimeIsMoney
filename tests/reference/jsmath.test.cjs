@@ -1,5 +1,5 @@
 "use strict";
-// Measures Sim/JSMath.lua against V8 in this Node profile. Math.sin and Math.log10
+// Measures Sim/JSMath.lua against V8 in this Node profile. Math.sin, Math.log and Math.log10
 // (fdlibm ports) must match exactly. Math.pow integer exponents (costs, marketing)
 // and processor counts up to the verified bound must match exactly; other
 // fractional exponents may differ by one binary64 step only where V8 itself is not
@@ -75,7 +75,7 @@ test("pure-Lua Math.pow matches V8 for integer exponents and specials, within V8
     }
 });
 
-test("fdlibm Math.sin and Math.log10 match V8 exactly, including the quantum clock and wire price",t=>{
+test("fdlibm Math.sin, Math.log and Math.log10 match V8 exactly, including the quantum clock, wire price and swarm",t=>{
     let seed=777;
     const rnd=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648;};
     const list=[], seeds=[.1,.2,.3,.4,.5,.6,.7,.8,.9,1];
@@ -99,6 +99,11 @@ test("fdlibm Math.sin and Math.log10 match V8 exactly, including the quantum clo
     for (let n=1;n<=20000;n++) list.push(["log10",n]);
     for (let i=0;i<20000;i++) list.push(["log10",rnd()*Math.pow(10,Math.floor(rnd()*600-300))]);
     for (const x of [0,-0,-1,1,10,0.1,5e-324,2.2250738585072014e-308,1e308,Infinity,-Infinity,NaN]) list.push(["log10",x]);
+    // Math.log: the swarm's gift rate takes the log of the swarm size (#13); 250,000
+    // cases (every size to 200,000 and random magnitudes) matched in development.
+    for (let n=1;n<=50000;n++) list.push(["log",n]);
+    for (let i=0;i<10000;i++) list.push(["log",rnd()*Math.pow(10,Math.floor(rnd()*600-300))]);
+    for (const x of [0,-0,-1,1,Math.E,0.5,5e-324,2.2250738585072014e-308,1e308,Infinity,-Infinity,NaN]) list.push(["log",x]);
     const results=luaMath(list);
     for (const [i,[name,x]] of list.entries()) {
         const expected=Math[name](x);

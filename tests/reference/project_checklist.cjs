@@ -42,7 +42,7 @@ function generate() {
         "[inventory.json](inventory.json) and Sim/Projects.lua; do not edit by hand.",
         "workshop.test.cjs checks that this file is current.",
         "",
-        `Phase one and the planetary slice (#11, #12) port ${counted.filter(s=>!s).length} purchase effects and`,
+        `Phases one and two port ${counted.filter(s=>!s).length} purchase effects and`,
         `${counted.filter(s=>s).length} explicit purchase stops. Later slices extend this table.`,
         "",
         "| # | Project | Button | projects.js line | Port |",

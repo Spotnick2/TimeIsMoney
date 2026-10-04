@@ -721,10 +721,14 @@ function Game:addOption(id, value)
 end
 
 -- Setting a select to a value without a matching option leaves it empty, as in
--- the browser.
+-- the browser. A control with its own sanitize (the swarm slider) uses that.
 function Game:setValue(id, value)
     local select = self.selects[id]
     if not select then Unported("value control " .. tostring(id), "a later slice") end
+    if select.sanitize then
+        select.value = select.sanitize(value)
+        return
+    end
     select.value = ""
     for _, option in ipairs(select.options) do
         if option == value then select.value = value end
