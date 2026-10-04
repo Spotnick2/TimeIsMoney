@@ -16,8 +16,7 @@ TimeIsMoneyDB = {
         nodes = { [id] = { key = value, ... }, ... },
         clock = { now, nextId, order, timers = { { id, kind, delay, repeat, due, order }, ... } },
         random = { s1, s2, count },            -- the host's L'Ecuyer stream
-        controls = { disabled, projectElements, readouts, selects, ranges },
-        savedPrestige = { prestigeU, prestigeS } or nil,
+        controls = { disabled, projectElements, readouts, selects, ranges, resultsTableDisplay },
     },
     prestige = { prestigeU = n, prestigeS = n } or nil,   -- carried into the next company
 }
@@ -40,9 +39,16 @@ TimeIsMoneyDB = {
   `tourneyLoop`). Loading rebuilds each callback from its kind, keeping its id, due
   time and stable order, so timer order continues exactly. A tournament saved between
   its chained timeouts carries on.
-- **Validated on load:** the timer list must be dense, with well-formed entries,
-  unique ids below `nextId` and due times not in the past, and each of the seven
-  reference intervals exactly once. Damaged data is refused, never shortened.
+- **Validated on load:** the timer list must be dense, with well-formed entries
+  (unique integer ids below `nextId`, nonnegative delays, a repeating timer above 0,
+  due times not in the past), every kind at its fixed cadence (the main loop every
+  10 ms, battles every 16 ms, ...), and each of the seven reference intervals exactly
+  once. Every control part must be present (each control's state, the five messages,
+  both selects, a sanitized slider value), and the random stream needs a whole draw
+  count. Damaged data is refused, never shortened or filled in.
+- **Timer numbers** go through the same exact encoding as the state.
+- **Every timer needs a kind:** `Scheduler.register` refuses one without, so an
+  unsaveable timer fails where it is made, not at the next save.
 - **Outside the state table:** the controls' states, the shown project buttons, the
   messages, the select and slider values, and the results table's display state
   (`autoTourney` waits for it) are saved with the company.
@@ -54,10 +60,12 @@ TimeIsMoneyDB = {
 - **Logout and `/reload`:** `PLAYER_LOGOUT` writes the company just before the
   client writes SavedVariables to disk. This is the only write that reaches disk.
 - **The reference auto-save** (every 25 s) keeps its timer; every twelfth one (about
-  every 5 minutes) refreshes an in-memory snapshot, which costs about 10 ms in one
-  frame in WoW. It is the fallback below, not a disk save. It fires inside the slow tick, before the
-  scheduler requeues that timer, so the host takes the snapshot after the step
-  returns; a restored snapshot never replays the tick that wrote it.
+  every 5 minutes) refreshes an in-memory snapshot, which costs about 10 ms in WoW. It
+  is the fallback below, not a disk save. It fires inside the slow tick, before the
+  scheduler requeues that timer, so the host takes the snapshot first thing in the
+  next frame, before any step: a restored snapshot never replays the tick that wrote
+  it, and that frame spends at most its budget. A snapshot that fails is reported at
+  once ("SAVING FAILED"), with the point logout will keep.
 - **A company halted by an error inside a tick** is never saved from its partly run
   tick: logout keeps the last auto-save snapshot.
 - **After a prestige choice** the company is over (the reference reloads the page):

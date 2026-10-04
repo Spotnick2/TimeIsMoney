@@ -34,9 +34,10 @@ end
 
 local function encodeNumber(x)
     if not JSMath.isNaN(x) and x == floor(x) and x > -PLAIN and x < PLAIN then
+        if x ~= 0 then return x end
         -- -0 keeps its sign below (toWords gives its high word signed or unsigned).
         local hi = JSMath.toWords(x)
-        if not (x == 0 and (hi < 0 or hi >= 0x80000000)) then return x end
+        if not (hi < 0 or hi >= 0x80000000) then return x end
     end
     local hi, lo = JSMath.toWords(x)
     return { w = hex8(hi) .. hex8(lo) }
@@ -55,6 +56,19 @@ local function checkKey(k)
     if t == "string" then return k end
     if t == "number" and k == floor(k) and k > -SAFE and k < SAFE then return k end
     error("Unsaveable table key " .. tostring(k), 0)
+end
+
+-- The scheduler's numbers go through the same exact encoding as the state.
+local CLOCK_FIELDS, TIMER_FIELDS = { "now", "nextId", "order" }, { "id", "delay", "due", "order" }
+local function mapClock(clock, f)
+    local out = { timers = {} }
+    for _, k in ipairs(CLOCK_FIELDS) do out[k] = f(clock[k]) end
+    for i, t in ipairs(clock.timers) do
+        local copy = { kind = t.kind, ["repeat"] = t["repeat"] }
+        for _, k in ipairs(TIMER_FIELDS) do copy[k] = f(t[k]) end
+        out.timers[i] = copy
+    end
+    return out
 end
 
 -- The game as plain data. random is the host's stream state ({s1, s2, count}).
@@ -101,18 +115,23 @@ function Save.encode(game, random)
         source = ns.Reference.source_sha256["main.js"],
         root = root.r,
         nodes = nodes,
-        clock = game.clock:save(),
+        clock = mapClock(game.clock:save(), encodeNumber),
         random = random and { s1 = random.s1, s2 = random.s2, count = random.count } or nil,
         controls = controls,
-        savedPrestige = game.savedPrestige and {
-            prestigeU = encodeNumber(game.savedPrestige.prestigeU),
-            prestigeS = encodeNumber(game.savedPrestige.prestigeS) } or nil,
     }
 end
 
 local function expect(cond, what)
     if not cond then error("Malformed save: " .. what, 0) end
 end
+
+-- Timer cadences that never change (a damaged save is refused, not run off-beat).
+local SHAPES = {
+    battle = { 16, true }, portfolio = { 100, true }, stockShop = { 1000, true }, stockSell = { 2500, true },
+    pick = { 100, true }, main = { 10, true }, slow = { 100, true }, blink = { 30, true }, longBlink = { 32, true },
+    tourneyClear = { 50, false }, tourneyLoop = { 50, false },
+}
+
 
 -- A game from saved data, drawing from random. Raises "Malformed save: ..." without
 -- touching anything when the data does not hold together.
@@ -145,38 +164,65 @@ function Save.decode(saved, random, log)
     S.grid = Battle.newGrid()
     local game = setmetatable({}, Game)
     game.S = S
-    game.clock = Scheduler.restore(saved.clock, log, function(kind, id)
+    expect(type(saved.clock.timers) == "table", "timers")
+    local entries = 0
+    for k, t in pairs(saved.clock.timers) do
+        expect(type(k) == "number" and type(t) == "table", "timer entry")
+        entries = entries + 1
+    end
+    expect(entries == #saved.clock.timers, "timers (not a dense list)")
+    local clock = mapClock(saved.clock, value)
+    game.clock = Scheduler.restore(clock, log, function(kind, id)
         expect(Workshop.timers[kind] ~= nil, "timer kind " .. tostring(kind))
         return game:timerCallback(kind, id)
-    end)
+    end, SHAPES)
     -- The seven reference intervals never stop: each must be there exactly once.
     local base = { battle = 0, portfolio = 0, stockShop = 0, stockSell = 0, pick = 0, main = 0, slow = 0 }
     for _, t in pairs(game.clock.pending) do
         if base[t.kind] then base[t.kind] = base[t.kind] + 1 end
     end
     for kind, n in pairs(base) do expect(n == 1, "interval " .. kind) end
+    -- Controls: every part must be there; nothing is filled in by default.
     local controls = saved.controls
+    expect(type(controls.disabled) == "table" and type(controls.projectElements) == "table"
+        and type(controls.readouts) == "table" and type(controls.selects) == "table"
+        and type(controls.ranges) == "table", "controls")
     game.disabled, game.projectElements, game.readouts = {}, {}, {}
-    for id, v in pairs(controls.disabled or {}) do game.disabled[id] = v end
-    for id, v in pairs(controls.projectElements or {}) do game.projectElements[id] = v end
-    for i = 1, 5 do game.readouts[i] = (controls.readouts or {})[i] or "" end
+    for _, id in ipairs(Workshop.buttons) do
+        expect(type(controls.disabled[id]) == "boolean", "control " .. id)
+    end
+    for id, v in pairs(controls.disabled) do
+        expect(type(id) == "string" and type(v) == "boolean", "control state")
+        game.disabled[id] = v
+    end
+    for id, v in pairs(controls.projectElements) do
+        expect(type(id) == "string" and v == true, "project button")
+        game.projectElements[id] = v
+    end
+    for i = 1, 5 do
+        expect(type(controls.readouts[i]) == "string", "message " .. i)
+        game.readouts[i] = controls.readouts[i]
+    end
     game.selects = {}
-    for id, select in pairs(controls.selects or {}) do
+    for _, id in ipairs({ "investStrat", "stratPicker" }) do
+        local select = controls.selects[id]
+        expect(type(select) == "table" and type(select.options) == "table" and type(select.value) == "string",
+            "select " .. id)
         local options = {}
-        for i, o in ipairs(select.options) do options[i] = o end
+        for i, o in ipairs(select.options) do
+            expect(type(o) == "string", "select option")
+            options[i] = o
+        end
         game.selects[id] = { options = options, value = select.value }
     end
     game.ranges = {}
     for id, sanitize in pairs(Workshop.rangeControls) do
-        local v = (controls.ranges or {})[id]
-        local text = type(v) == "string" and sanitize(v) or sanitize("0")
-        game.ranges[id] = { value = text, number = JSMath.toNumber(text), sanitize = sanitize }
+        local v = controls.ranges[id]
+        expect(type(v) == "string" and sanitize(v) == v, "range " .. id)
+        game.ranges[id] = { value = v, number = JSMath.toNumber(v), sanitize = sanitize }
     end
+    expect(controls.resultsTableDisplay == nil or type(controls.resultsTableDisplay) == "string", "results display")
     game.resultsTableDisplay = controls.resultsTableDisplay
-    if saved.savedPrestige then
-        game.savedPrestige = { prestigeU = value(saved.savedPrestige.prestigeU),
-            prestigeS = value(saved.savedPrestige.prestigeS) }
-    end
     game.draw = function(site) return random:draw(site, game.clock.now) end
     return game
 end

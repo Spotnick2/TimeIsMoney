@@ -100,21 +100,23 @@ local interval
 interval = clock:register(function()
     seen[#seen + 1] = "interval@" .. clock.now
     if clock.now == 20 then clock:clear(interval) end
-end, 10, true)
+end, 10, true, "test")
 clock:register(function()
     seen[#seen + 1] = "first@" .. clock.now
-    clock:register(function() seen[#seen + 1] = "nested@" .. clock.now end, 0, false)
-end, 10, false)
-local cancelled = clock:register(function() seen[#seen + 1] = "cancelled" end, 10, false)
+    clock:register(function() seen[#seen + 1] = "nested@" .. clock.now end, 0, false, "test")
+end, 10, false, "test")
+local cancelled = clock:register(function() seen[#seen + 1] = "cancelled" end, 10, false, "test")
 clock:clear(cancelled)
-clock:register(function() seen[#seen + 1] = "second@" .. clock.now end, 10, false)
+clock:register(function() seen[#seen + 1] = "second@" .. clock.now end, 10, false, "test")
 clock:advanceTo(30)
 assert(table.concat(seen, ",") == "interval@10,first@10,second@10,nested@10,interval@20", table.concat(seen, ","))
 assert(next(clock.pending) == nil)
 assert(log[1].action == "register" and log[1]["repeat"] == true and log[1].due == 10)
 fails("forward", clock.advanceTo, clock, 29)
-clock:register(function() end, 0, true)
+clock:register(function() end, 0, true, "test")
 fails("budget", clock.advanceTo, clock, 31, nil, 4)
+-- A timer without a kind could not be saved (#19): refused where it is made.
+fails("Every timer needs a kind", clock.register, clock, function() end, 10, false)
 
 -- The restricted simulation runs the workshop and battle with a stub stream.
 local draws = 0

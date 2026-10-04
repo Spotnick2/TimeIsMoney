@@ -94,6 +94,24 @@ function Host.encodeCompany()
     return ns.Save.encode(Host.game, Host.random)
 end
 
+-- Refreshes the in-memory snapshot. A failure means the company can no longer be
+-- saved: it is reported at once (not only at logout), with what the player keeps.
+function Host.takeSnapshot()
+    local before = debugprofilestop()
+    local ok, data = pcall(Host.encodeCompany)
+    Host.stats.snapshotMs = debugprofilestop() - before
+    if ok then
+        Host.snapshot = data
+        Host.saveFailed = nil
+    elseif not Host.saveFailed then
+        Host.saveFailed = tostring(data)
+        local at = Host.snapshot and Host.snapshot.clock.now
+        Report("SAVING FAILED: " .. Host.saveFailed .. ". Logging out keeps the company as of "
+            .. (type(at) == "number" and string.format("%.0f s", at / 1000) or "its last load")
+            .. "; please report this.")
+    end
+end
+
 local function validPrestige(p)
     return type(p) == "table" and type(p.prestigeU) == "number" and type(p.prestigeS) == "number"
 end
@@ -124,6 +142,9 @@ function Host.loadSaved(db)
         local saved = db.company
         local r = saved.random
         if type(r) ~= "table" then error("Malformed save: random", 0) end
+        if not (type(r.count) == "number" and r.count >= 0 and r.count == floor(r.count)) then
+            error("Malformed save: random count", 0)
+        end
         local random = Host.newRandom(r.s1, r.s2)
         random.count = r.count
         local game = ns.Save.decode(saved, random, false)
@@ -185,7 +206,13 @@ function Host.update(elapsed)
     end
     local start = debugprofilestop()
     local game = Host.game
-    while Host.debt >= Host.STEP do
+    -- A snapshot marked by the last frame's auto-save comes first, so this frame
+    -- spends at most its budget: the snapshot, then steps if time is left.
+    if Host.snapshotDue then
+        Host.snapshotDue = false
+        Host.takeSnapshot()
+    end
+    while Host.debt >= Host.STEP and debugprofilestop() - start < Host.FRAME_BUDGET do
         local ok, err = pcall(game.advanceTo, game, game.clock.now + Host.STEP)
         if not ok then
             Host.halt(err)
@@ -193,15 +220,8 @@ function Host.update(elapsed)
         end
         Host.debt = Host.debt - Host.STEP
         stats.steps = stats.steps + 1
-        if Host.snapshotDue then
-            -- The snapshot (a few ms) ends this frame's stepping; the debt carries.
-            Host.snapshotDue = false
-            local before = debugprofilestop()
-            local okSave, data = pcall(Host.encodeCompany)
-            if okSave then Host.snapshot = data end
-            stats.snapshotMs = debugprofilestop() - before
-            break
-        end
+        -- An auto-save marks the snapshot for the next frame.
+        if Host.snapshotDue then break end
         if debugprofilestop() - start >= Host.FRAME_BUDGET then break end
     end
     local cost = debugprofilestop() - start

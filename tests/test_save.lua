@@ -169,6 +169,26 @@ do
     assert(not ok and err:find("Malformed save", 1, true), tostring(err))
 end
 
+-- Damaged parts are refused, never filled in (review of #55).
+do
+    local game = Workshop.new(newRandom(5, 6), false)
+    local function refused(damage, why)
+        local saved = roundTrip(Save.encode(game, nil))
+        damage(saved)
+        local ok, err = pcall(Save.decode, saved, newRandom(5, 6), false)
+        assert(not ok and tostring(err):find(why, 1, true), why .. ": " .. tostring(err))
+    end
+    refused(function(d) d.controls.selects.stratPicker = nil end, "select stratPicker")
+    refused(function(d) d.controls.disabled.btnMakePaperclip = nil end, "control btnMakePaperclip")
+    refused(function(d) d.controls.ranges.slider = "0x10" end, "range slider")
+    refused(function(d)
+        for _, t in ipairs(d.clock.timers) do if t.kind == "main" then t.delay = 1000 end end
+    end, "cadence of main")
+    refused(function(d)
+        for _, t in ipairs(d.clock.timers) do if t.kind == "main" then t.delay = 0 end end
+    end, "entry values")
+end
+
 -- Malformed saves are refused without partial results.
 for _, bad in ipairs({ "text", {}, { schema = 2 }, { schema = 1, nodes = {}, root = 1, clock = {}, controls = {} },
     { schema = 1, nodes = { [1] = { x = { r = 9 } } }, root = 1, clock = { now = 0, nextId = 1, order = 0, timers = {} },

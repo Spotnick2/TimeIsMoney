@@ -140,7 +140,7 @@ end
 do
     local Host, _, _, messages = Load()
     local game = Host.start({ 3, 3 })
-    game.clock:register(function() error("boom", 0) end, 25, false)
+    game.clock:register(function() error("boom", 0) end, 25, false, "test")
     Host.update(0.1)
     assert(not Host.running and Host.halted == "boom" and messages[#messages]:find("simulation stopped: boom", 1, true))
     local now = game.clock.now
@@ -207,6 +207,8 @@ do
     assert(Host.snapshot == nil and Host.saves == Host.SNAPSHOT_EVERY - 1)
     game.S.saveTimer = 249
     Host.update(0.1)
+    assert(Host.snapshot == nil and Host.snapshotDue, "marked during the step")
+    Host.update(0) -- taken first thing in the next frame, before any step
     assert(Host.snapshot ~= nil and Host.stats.snapshotMs ~= nil)
 end
 do
@@ -215,7 +217,8 @@ do
     local game = Host.start({ 21, 23 })
     Host.saves = Host.SNAPSHOT_EVERY - 1 -- the next auto-save refreshes the snapshot
     game.S.saveTimer = 249
-    Host.update(0.1) -- the auto-save marks a snapshot, taken after the step
+    Host.update(0.1) -- the auto-save marks a snapshot for the next frame
+    Host.update(0)
     assert(Host.snapshot and Host.snapshot.clock.now == 100)
     -- The snapshot holds the slow timer already requeued: restoring it does not
     -- replay the slow tick that wrote it (Codex consult on #19).
@@ -226,7 +229,7 @@ do
     local db = Host.persist()
     assert(db.schema == 1 and db.company.clock.now == 400, "a running company is saved as it is")
     -- A tick error: the partly run tick is never saved; the last auto-save is.
-    game.clock:register(function() error("boom", 0) end, 5, false)
+    game.clock:register(function() error("boom", 0) end, 5, false, "test")
     Host.update(0.01)
     assert(not Host.running and Host.persist().company.clock.now == 100)
     -- Saved prestige carries on; after a prestige choice only the prestige is kept.
@@ -245,6 +248,21 @@ do
     assert(Host3.loadSaved({ schema = 1, prestige = { prestigeU = 2, prestigeS = 1 } }) == "empty")
     assert(Host3.persist().prestige.prestigeU == 2, "prestige survives a session without a company")
     assert(Host3.loadSaved({ schema = 1, prestige = { prestigeU = "x" } }) == "blocked" and Host3.persist() == nil)
+end
+
+-- A save with a damaged random stream is refused at load, not halted later; a
+-- snapshot that fails is reported at once (review of #55).
+do
+    local Host = Load()
+    local game = Host.start({ 41, 43 })
+    local data = Host.encodeCompany()
+    data.random.count = nil
+    assert(Host.loadSaved({ schema = 1, company = data }) == "blocked" and Host.blocked:find("random count", 1, true))
+    local Host2, _, _, messages = Load()
+    local game2 = Host2.start({ 45, 47 })
+    game2.S.badKey = { [0.5] = 1 } -- unsaveable: a fractional key
+    Host2.takeSnapshot()
+    assert(Host2.saveFailed and messages[#messages]:find("SAVING FAILED", 1, true))
 end
 
 -- Garbage: the client measured 111 MB of addon memory before the grid reuse and
