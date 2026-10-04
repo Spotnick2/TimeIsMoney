@@ -38,8 +38,11 @@ use a separate stream so it cannot change outcomes.
 `Host.click(id)` and `Host.setValue(id, value)` accept only known controls and apply
 them at the current logical time, between scheduler callbacks. A control the game
 refuses (an unported path, a project button not shown) raises before changing state;
-the host reports it and the game keeps running. An error inside a tick halts the
-simulation: the tick has partly run, so it must not continue.
+the host reports it and the game keeps running. The one exception is a prestige
+choice: it awards and saves the prestige (`game.savedPrestige`) and requests the
+restart into a new game (`game.restartRequested`, #23); that company is over, so the
+host halts it and the reward cannot be collected twice. An error inside a tick halts
+the simulation: the tick has partly run, so it must not continue.
 
 Until the ledger window (#20), developer slash commands drive it: `/tim start`,
 `/tim status` (logical time, clips, funds, wire, CPU per frame, dropped time),
