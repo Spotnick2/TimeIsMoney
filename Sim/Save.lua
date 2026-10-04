@@ -133,6 +133,42 @@ local SHAPES = {
 }
 
 
+-- The decoded state must hold every field the simulation reads, with a type it can
+-- hold in play: numbers stay numbers (NaN included); fields that start as undefined
+-- may be undefined or numbers; pick and sliderPos may hold their control's string;
+-- flags that start false may be booleans or numbers; and the tables the game builds
+-- at setup (projects, arrays, strategies, chips) must be tables.
+local BECOMES_STRING = { pick = true, sliderPos = true }
+local SETUP_TABLES = { "activeProjects", "allStrats", "alphabet", "battles", "choiceANames", "choiceBNames",
+    "hStrat", "incomeTracker", "payoffGrid", "qChips", "results", "ships", "stocks", "strats", "vStrat" }
+local function validateState(S)
+    for key, initial in pairs(Workshop.initial) do
+        local v = S[key]
+        local ok
+        if initial == JSMath.undefined then
+            ok = v == JSMath.undefined or type(v) == "number"
+        elseif type(initial) == "number" then
+            ok = type(v) == "number" or (BECOMES_STRING[key] and type(v) == "string")
+        elseif type(initial) == "boolean" then
+            ok = type(v) == "boolean" or type(v) == "number"
+        else
+            ok = type(v) == type(initial)
+        end
+        expect(ok, "state field " .. key)
+    end
+    for _, key in ipairs(SETUP_TABLES) do expect(type(S[key]) == "table", "state table " .. key) end
+    for _, project in ipairs(Workshop.projects) do
+        local entry = S[project.name]
+        expect(type(entry) == "table" and type(entry.flag) == "number" and type(entry.uses) == "number"
+            and entry.id == project.id, "project " .. project.name)
+    end
+    for i = 1, 10 do
+        local chip = S.qChips[i]
+        expect(type(chip) == "table" and type(chip.value) == "number" and type(chip.active) == "number",
+            "photonic chip " .. i)
+    end
+end
+
 -- A game from saved data, drawing from random. Raises "Malformed save: ..." without
 -- touching anything when the data does not hold together.
 function Save.decode(saved, random, log)
@@ -161,6 +197,7 @@ function Save.decode(saved, random, log)
         for k, x in pairs(node) do t[k] = value(x) end
     end
     local S = tables[saved.root]
+    validateState(S)
     S.grid = Battle.newGrid()
     local game = setmetatable({}, Game)
     game.S = S

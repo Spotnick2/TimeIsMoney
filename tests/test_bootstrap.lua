@@ -94,8 +94,17 @@ local restored = env2.TimeIsMoney.Host.game
 assert(restored and restored.clock.now == 500 and restored.S.clips == 1 and env2.TimeIsMoney.Host.running)
 assert(captured2.messages[#captured2.messages]:find("reopens its ledger at 0.5 s", 1, true))
 
--- Unrecognized or broken saves are kept untouched.
-for _, bad in ipairs({ "text", { schema = "one" }, { schema = 0 }, { schema = 1, company = { nodes = 5 } } }) do
+-- Unrecognized or broken saves are kept untouched, including a schema 1 company
+-- missing a state field (Codex review of #55).
+local damaged = { schema = 1, company = {} }
+for k, v in pairs(saved.company) do damaged.company[k] = v end
+damaged.company.nodes = {}
+for id, node in pairs(saved.company.nodes) do damaged.company.nodes[id] = node end
+local root = {}
+for k, v in pairs(saved.company.nodes[saved.company.root]) do root[k] = v end
+root.humanFlag = nil
+damaged.company.nodes[saved.company.root] = root
+for _, bad in ipairs({ "text", { schema = "one" }, { schema = 0 }, { schema = 1, company = { nodes = 5 } }, damaged }) do
     local env3, captured3 = Load(bad)
     captured3:Fire("TimeIsMoney")
     assert(env3.TimeIsMoney.Host.blocked and env3.TimeIsMoney.Host.game == nil)

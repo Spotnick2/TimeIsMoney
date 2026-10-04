@@ -45,7 +45,11 @@ TimeIsMoneyDB = {
   10 ms, battles every 16 ms, ...), and each of the seven reference intervals exactly
   once. Every control part must be present (each control's state, the five messages,
   both selects, a sanitized slider value), and the random stream needs a whole draw
-  count. Damaged data is refused, never shortened or filled in.
+  count. The game state must hold every field the simulation reads, with a type it
+  can hold in play (numbers, NaN included; undefined where a field starts undefined;
+  the select's or slider's string for `pick` and `sliderPos`), plus every project
+  record, array, the strategy pool and the ten photonic chips. Damaged data is
+  refused, never shortened or filled in.
 - **Timer numbers** go through the same exact encoding as the state.
 - **Every timer needs a kind:** `Scheduler.register` refuses one without, so an
   unsaveable timer fails where it is made, not at the next save.

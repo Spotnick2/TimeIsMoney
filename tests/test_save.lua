@@ -178,6 +178,12 @@ do
         local ok, err = pcall(Save.decode, saved, newRandom(5, 6), false)
         assert(not ok and tostring(err):find(why, 1, true), why .. ": " .. tostring(err))
     end
+    -- Missing or mistyped state fields (Codex review of #55).
+    refused(function(d) d.nodes[d.root].humanFlag = nil end, "state field humanFlag")
+    refused(function(d) d.nodes[d.root].clips = nil end, "state field clips")
+    refused(function(d) d.nodes[d.root].funds = "lots" end, "state field funds")
+    refused(function(d) d.nodes[d.root].ships = nil end, "state table ships")
+    refused(function(d) d.nodes[d.root].project35 = nil end, "project project35")
     refused(function(d) d.controls.selects.stratPicker = nil end, "select stratPicker")
     refused(function(d) d.controls.disabled.btnMakePaperclip = nil end, "control btnMakePaperclip")
     refused(function(d) d.controls.ranges.slider = "0x10" end, "range slider")
