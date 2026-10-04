@@ -237,7 +237,8 @@ end
 -- the restart into a new game (#23). That company is over, so the host halts it.
 function Host.click(id)
     local game = Host.game
-    if not (game and Host.running) then return false, "no running game (/tim start)" end
+    if not game then return false, "no company (/tim start)" end
+    if not Host.running then return false, "the company stopped: " .. tostring(Host.halted) .. " (/tim status)" end
     local known = ns.Workshop.clicks[id] or ns.Workshop.projectById[id]
     if not known then return false, "unknown control " .. tostring(id) end
     local ok, err = pcall(game.click, game, id)
@@ -250,7 +251,8 @@ end
 
 function Host.setValue(id, value)
     local game = Host.game
-    if not (game and Host.running) then return false, "no running game (/tim start)" end
+    if not game then return false, "no company (/tim start)" end
+    if not Host.running then return false, "the company stopped: " .. tostring(Host.halted) .. " (/tim status)" end
     if not (game.selects[id] or game.ranges[id]) then return false, "unknown value control " .. tostring(id) end
     local ok, err = pcall(game.setValue, game, id, value)
     if not ok then return false, tostring(err) end

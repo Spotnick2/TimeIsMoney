@@ -59,9 +59,14 @@ local function NewButton(parent, id, height)
     return b
 end
 
-local function SetButton(b, text, enabled)
+local function SetButton(b, text, enabled, short)
     b:SetEnabled(enabled)
-    b.label:SetText(enabled and text or (text .. " (not yet)"))
+    -- Square buttons have no room for words: "(+)" marks them unavailable.
+    if short then
+        b.label:SetText(enabled and text or ("(" .. text .. ")"))
+    else
+        b.label:SetText(enabled and text or (text .. " (not yet)"))
+    end
     if enabled then b.label:SetTextColor(1, 1, 1) else b.label:SetTextColor(MUTED[1], MUTED[2], MUTED[3]) end
 end
 
@@ -143,8 +148,13 @@ function Card:Update(game, panels)
     local any = false
     for _, row in ipairs(self.rows) do
         local visible = not row.show or row.show(S, panels)
-        local regions = { row.label, row.text, row.button, row.lower, row.raise, row.bar }
-        for _, r in pairs(regions) do r:SetShown(visible) end
+        if not row.regions then
+            row.regions = {}
+            for _, r in pairs({ row.label, row.text, row.button, row.lower, row.raise, row.bar }) do
+                row.regions[#row.regions + 1] = r
+            end
+        end
+        for _, r in ipairs(row.regions) do r:SetShown(visible) end
         if visible then
             any = true
             if row.kind == "action" then
@@ -158,14 +168,12 @@ function Card:Update(game, panels)
                 if row.kind == "adjust" then
                     row.raise:ClearAllPoints()
                     row.raise:SetPoint("TOPRIGHT", self.content, "TOPLEFT", inset + width, y)
-                    SetButton(row.raise, "+", not game.disabled[row.raise.id])
-                    row.raise.label:SetText("+")
+                    SetButton(row.raise, "+", not game.disabled[row.raise.id], true)
                     local left = row.raise
                     if row.lower then
                         row.lower:ClearAllPoints()
                         row.lower:SetPoint("TOPRIGHT", row.raise, "TOPLEFT", -4, 0)
-                        SetButton(row.lower, "-", not game.disabled[row.lower.id])
-                        row.lower.label:SetText("-")
+                        SetButton(row.lower, "-", not game.disabled[row.lower.id], true)
                         left = row.lower
                     end
                     row.text:SetPoint("RIGHT", left, "LEFT", -6, 0)

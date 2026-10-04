@@ -41,12 +41,15 @@ View.TERMS = {
 
 -- A count for display: whole, with thousands separators. Display only: the
 -- simulation keeps every fraction (rounding here never decides anything).
+-- NaN first, through JSMath: in WoW's Lua NaN compares equal to everything, so
+-- x ~= x never catches it and x == math.huge would.
+local isNaN = ns.JSMath.isNaN
 function View.count(x)
-    if x ~= x then return "NaN" end
+    if isNaN(x) then return "NaN" end
     if x == math.huge then return "Infinity" end
     if x == -math.huge then return "-Infinity" end
-    local negative = x < 0
     local whole = math.floor(math.abs(x) + 0.5)
+    local negative = x < 0 and whole > 0 -- no "-0" once rounded
     local text
     if whole < 1e15 then
         text = string.format("%.0f", whole):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
@@ -59,9 +62,9 @@ end
 -- Company funds: one reference unit is one silver (0.25 shows as 25c). Coin
 -- presentation with icons and threshold tooltips is #21; this is its text form.
 function View.coins(x)
-    if x ~= x or x == math.huge or x == -math.huge then return View.count(x) end
-    local negative = x < 0
+    if isNaN(x) or x == math.huge or x == -math.huge then return View.count(x) end
     local copper = math.floor(math.abs(x) * 100 + 0.5)
+    local negative = x < 0 and copper > 0 -- no "-0c" once rounded
     local gold, silver = math.floor(copper / 10000), math.floor(copper / 100) % 100
     copper = copper % 100
     local parts = {}
@@ -79,7 +82,12 @@ local UNITS = {
 }
 local function computedTag(name, S)
     if name == "project40b" then return "($" .. View.count(S.bribe) .. ")" end
-    if name == "project51" then return "(" .. View.count(S.qChipCost) .. " ops)" end
+    -- project51: toLocaleString at first; after a purchase the reference rebuilds the
+    -- tag by plain concatenation, without separators.
+    if name == "project51" then
+        local cost = S.project51.flag == 1 and ns.JSMath.toString(S.qChipCost) or View.count(S.qChipCost)
+        return "(" .. cost .. " ops)"
+    end
     if name == "project133" then
         return "(" .. View.count(S.threnodyCost) .. " creat, " .. View.count(2 * (S.threnodyCost / 5)) .. " yomi)"
     end

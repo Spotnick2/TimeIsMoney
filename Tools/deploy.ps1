@@ -33,16 +33,32 @@ foreach ($relative in $inputs) {
     }
     if (!(Test-Path -LiteralPath $source -PathType Leaf)) { throw "Missing input: $relative" }
 }
+# The library first: its own preflight refuses an incomplete checkout before
+# anything of ours is copied. A child process reports its real result (an inner
+# git exit code is not the script's).
+if ($libLines.Count -gt 0) {
+    $pkgmeta = Join-Path $repoRoot '.pkgmeta'
+    $pinned = if (Test-Path -LiteralPath $pkgmeta) {
+        [regex]::Match((Get-Content -Raw $pkgmeta), 'Spotnick2/LibGlass\s+(?:tag|commit): (\S+)').Groups[1].Value
+    } else { '' }
+    $head = git -C $LibGlass rev-parse HEAD 2>$null
+    $pinnedCommit = git -C $LibGlass rev-parse --verify --quiet "$pinned^{commit}" 2>$null
+    if (!$pinned) {
+        Write-Warning 'No LibGlass pin found in .pkgmeta.'
+    } elseif (!$pinnedCommit) {
+        Write-Warning "LibGlass checkout has no '$pinned' (the .pkgmeta pin): what you test may differ from the package."
+    } elseif ($head -ne $pinnedCommit) {
+        Write-Warning "LibGlass checkout is not at '$pinned' (the .pkgmeta pin): what you test may differ from the package."
+    }
+    pwsh -NoProfile -File $libDeploy -Addon 'TimeIsMoney' -AddOnsPath $AddOnsPath
+    if ($LASTEXITCODE -ne 0) { throw "LibGlass deploy failed ($LASTEXITCODE); nothing of TimeIsMoney was copied" }
+}
 New-Item -ItemType Directory -Force -Path $destination | Out-Null
 $uniqueInputs = @($inputs | Select-Object -Unique)
 foreach ($relative in $uniqueInputs) {
     $target = Join-Path $destination $relative
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
     Copy-Item -LiteralPath (Join-Path $repoRoot $relative) -Destination $target -Force
-}
-if ($libLines.Count -gt 0) {
-    & $libDeploy -Addon 'TimeIsMoney' -AddOnsPath $AddOnsPath
-    if ($LASTEXITCODE) { throw "LibGlass deploy failed ($LASTEXITCODE)" }
 }
 (Get-Content -LiteralPath $toc -Raw).Replace('## Version: @project-version@', '## Version: dev') |
     Set-Content -LiteralPath (Join-Path $destination 'TimeIsMoney.toc') -Encoding utf8 -NoNewline

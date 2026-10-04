@@ -68,6 +68,20 @@ try {
     try { & $deploy -AddOnsPath $addOns } catch { $rejected = $true }
     if (!$rejected) { throw 'A TOC input outside the source folder was accepted.' }
 
+    # An incomplete LibGlass checkout is refused before anything of ours is copied.
+    $brokenLib = Join-Path $testRoot 'BrokenLibGlass'
+    Copy-Item -LiteralPath $libGlass -Destination $brokenLib -Recurse
+    Remove-Item -LiteralPath (Join-Path $brokenLib 'Media/gloss.tga')
+    $cleanAddOns = Join-Path $testRoot 'CleanAddOns'
+    New-Item -ItemType Directory -Path $cleanAddOns | Out-Null
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'TimeIsMoney.toc') -Destination $sourceToc -Force
+    $rejected = $false
+    try { & $deploy -AddOnsPath $cleanAddOns -LibGlass $brokenLib 2>$null } catch { $rejected = $true }
+    if (!$rejected) { throw 'An incomplete LibGlass checkout was accepted.' }
+    if (Test-Path -LiteralPath (Join-Path $cleanAddOns 'TimeIsMoney/TimeIsMoney.lua')) {
+        throw 'A failed LibGlass deploy left TimeIsMoney files behind.'
+    }
+
     # Developer probe (#9): exact folder from Probe/ and Sim/, nothing else touched.
     $probeAddOns = Join-Path $testRoot 'ProbeAddOns'
     New-Item -ItemType Directory -Path $probeAddOns | Out-Null

@@ -67,7 +67,7 @@ for _, frame in ipairs(captured.frames) do
 end
 assert(wakeups == 1, "exactly one wakeup frame")
 env.SlashCmdList.TIMEISMONEY("click btnMakePaperclip")
-assert(captured.messages[#captured.messages]:find("no running game", 1, true))
+assert(captured.messages[#captured.messages]:find("no company (/tim start)", 1, true))
 env.SlashCmdList.TIMEISMONEY("start")
 assert(captured.messages[#captured.messages]:find("Time is money, friend!", 1, true))
 for _ = 1, 30 do onUpdate(nil, 1 / 60) end -- half a second

@@ -41,11 +41,17 @@ assert(View.coins(1.5) == "1s 50c" and View.coins(-0.05) == "-5c")
 assert(View.count(1234567.4) == "1,234,567" and View.count(-12) == "-12" and View.count(0 / 0) == "NaN")
 assert(View.count(1e300):find("e%+300"))
 -- Price tags in Time Is Money terms, the reference's computed ones included.
-local S0 = { bribe = 1000000, qChipCost = 10000, threnodyCost = 50000, standardOps = 1234 }
+local S0 = { bribe = 1000000, qChipCost = 10000, threnodyCost = 50000, standardOps = 1234, project51 = { flag = 0 } }
 assert(View.priceTag("project1", S0) == "(750 Operations)")
 assert(View.priceTag("project2", S0) == "(1 Board Trust)")
 assert(View.priceTag("project40b", S0) == "(10,000g)")
 assert(View.priceTag("project51", S0) == "(10,000 Operations)")
+-- After a chip purchase the reference rebuilds project51's tag without separators.
+S0.project51 = { flag = 1 }
+S0.qChipCost = 15000
+assert(View.priceTag("project51", S0) == "(15000 Operations)")
+-- Rounded to zero shows no sign.
+assert(View.count(-0.3) == "0" and View.coins(-0.001) == "0c")
 assert(View.priceTag("project133", S0) == "(50,000 Ingenuity, 20,000 Cunning)")
 assert(View.priceTag("project216", S0) == "(1,234 Operations)")
 -- Panels follow buttonUpdate, including its strict comparisons: creativityOn is a
@@ -91,6 +97,11 @@ assert(make.label.parent == make.glass.top, "button text above the rim")
 -- Square buttons are 32x32: sliced masks fail on boxes small in both directions.
 local raise = assert(button("btnRaisePrice"))
 assert(raise.width == 32 and raise.height == 32)
+-- Disabled square buttons say so with a symbol, not only colour.
+game.S.margin = 0.01
+Host.update(0.02)
+Window.Refresh()
+assert(button("btnLowerPrice").label.text == "(-)" and button("btnRaisePrice").label.text == "+")
 
 -- Drawing never changes the company: the state is identical after many refreshes.
 local function digest(t, seen)
