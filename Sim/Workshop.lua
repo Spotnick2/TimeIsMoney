@@ -709,7 +709,16 @@ function Game:slowLoop()
         end
     end
     S.saveTimer = S.saveTimer + 1
-    if S.saveTimer >= 250 then Unported("reference auto-save", "#19") end
+    if S.saveTimer >= 250 then
+        self:save()
+        S.saveTimer = 0
+    end
+end
+
+-- save(): the reference serializes the game to browser storage every 25 s without
+-- changing any game state. The host persists through game.onSave (#19).
+function Game:save()
+    if self.onSave then self:onSave() end
 end
 
 -- formatWithCommas (main.js), used in messages: Number::toString, expanded e+

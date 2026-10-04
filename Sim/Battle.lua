@@ -105,7 +105,10 @@ local function updateGrid(S)
     local grid = S.grid
     for row = 0, GRID_HEIGHT - 1 do
         for col = 0, GRID_WIDTH - 1 do
-            grid[row][col].ships = {}
+            -- ships.length = 0: emptied in place (a new table per cell every 16 ms
+            -- would be about 29,000 tables a second of garbage in the client).
+            local ships = grid[row][col].ships
+            for i = #ships, 1, -1 do ships[i] = nil end
             grid[row][col].numShips = 0
         end
     end

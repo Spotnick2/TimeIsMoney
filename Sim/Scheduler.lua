@@ -7,9 +7,11 @@ ns = ns or {}
 local Scheduler = {}
 Scheduler.__index = Scheduler
 
--- log receives register/cancel/fire events in the runner-neutral trace form.
+-- log receives register/cancel/fire events in the runner-neutral trace form; false
+-- (the client host) records nothing, so no event tables are created.
 function Scheduler.new(log)
-    return setmetatable({ now = 0, nextId = 1, order = 0, pending = {}, log = log or {} }, Scheduler)
+    if log == nil then log = {} end
+    return setmetatable({ now = 0, nextId = 1, order = 0, pending = {}, log = log }, Scheduler)
 end
 
 function Scheduler:register(fn, delay, repeating)
@@ -20,12 +22,16 @@ function Scheduler:register(fn, delay, repeating)
     local timer = { id = id, fn = fn, delay = delay, ["repeat"] = repeating, due = self.now + delay, order = self.order }
     self.order = self.order + 1
     self.pending[id] = timer
-    self.log[#self.log + 1] = { action = "register", at = self.now, id = id, delay = delay, ["repeat"] = repeating, due = timer.due }
+    if self.log then
+        self.log[#self.log + 1] = { action = "register", at = self.now, id = id, delay = delay, ["repeat"] = repeating, due = timer.due }
+    end
     return id
 end
 
 function Scheduler:clear(id)
-    self.log[#self.log + 1] = { action = "cancel", at = self.now, id = id, existed = self.pending[id] ~= nil }
+    if self.log then
+        self.log[#self.log + 1] = { action = "cancel", at = self.now, id = id, existed = self.pending[id] ~= nil }
+    end
     self.pending[id] = nil
 end
 
@@ -64,7 +70,7 @@ function Scheduler:advanceTo(target, after, maxCallbacks)
         if count > maxCallbacks then error("Callback budget exceeded", 2) end
         self.now = timer.due
         if not timer["repeat"] then self.pending[timer.id] = nil end
-        self.log[#self.log + 1] = { action = "fire", at = self.now, id = timer.id }
+        if self.log then self.log[#self.log + 1] = { action = "fire", at = self.now, id = timer.id } end
         timer.fn()
         if timer["repeat"] and self.pending[timer.id] then
             timer.due = self.now + timer.delay
