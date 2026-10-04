@@ -113,6 +113,14 @@ After these changes, in the client:
 
 Models were measured separately in #10 (below).
 
+**Re-run with phase two loaded (#13, 2026-10-03, client 1.60.1.70205, full client
+restart for the new Sim files):**
+- `/timprobe math`: exact, 1,473 cases in 83 ms, including 250 Math.log cases (log
+  250, pow 528, log10 250, sin 335, toString 110).
+- `/timprobe sim`: digest `954f5f4b` (9,198 draws, 250 ticks, 847 ms) and the zero-price
+  run's digest `6db9b825` both match offline Lua with the planetary phase, the cost
+  table and the swarm loaded.
+
 ## #10 goblin model probe
 
 `/timprobe target` (Probe/Goblin.lua) reads the targeted NPC's ID from its GUID. It
