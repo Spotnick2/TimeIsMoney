@@ -461,6 +461,15 @@ test("drifters past warTrigger reach the battles' explicit stop",()=>{
     const {port}=run("spaceWar"), last=final(port).state;
     assert.ok(last.drifterCount>900000 && last.drifterCount<=last.warTrigger);
 });
+test("the WireBuyer switch stops and resumes automatic wire purchases",()=>{
+    const {port}=run("wireBuyerToggle");
+    const off=command(port,0,"btnToggleWireBuyer").state;
+    assert.deepEqual([off.wireBuyerStatus,off.wirePurchase],[0,0]);
+    const before=command(port,300,"btnToggleWireBuyer").state;
+    assert.deepEqual([before.wireBuyerStatus,before.wirePurchase,before.wire],[1,0,0.5],"nothing bought while off");
+    const end=final(port).state;
+    assert.ok(end.wirePurchase>=1 && end.wire>1,"WireBuyer resumes");
+});
 test("the project traceability checklist is current",()=>{
     const Checklist=require("./project_checklist.cjs");
     assert.equal(require("node:fs").readFileSync(Checklist.OUTPUT,"utf8"),Checklist.generate());

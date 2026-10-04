@@ -80,6 +80,7 @@ Workshop.projectById = {}
 Workshop.buttons = {
     "btnMakePaperclip", "btnBuyWire", "btnMakeClipper", "btnExpandMarketing",
     "btnLowerPrice", "btnRaisePrice", "btnMakeMegaClipper", "btnAddProc", "btnAddMem", "btnQcompute",
+    "btnToggleWireBuyer",
 }
 
 local Game = {}
@@ -205,6 +206,16 @@ function Game:adjustWirePrice()
         S.wirePriceCounter = S.wirePriceCounter + 1
         local wireAdjust = 6 * (JSMath.sin(S.wirePriceCounter))
         S.wireCost = ceil(S.wireBasePrice + wireAdjust)
+    end
+end
+
+-- The WireBuyer switch (the status text is presentation).
+function Game:toggleWireBuyer()
+    local S = self.S
+    if S.wireBuyerStatus == 1 then
+        S.wireBuyerStatus = 0
+    else
+        S.wireBuyerStatus = 1
     end
 end
 
@@ -711,6 +722,7 @@ end
 local clicks = {
     btnMakePaperclip = function(game) game:clipClick(1) end,
     btnBuyWire = Game.buyWire,
+    btnToggleWireBuyer = Game.toggleWireBuyer,
     btnMakeClipper = Game.makeClipper,
     btnExpandMarketing = Game.buyAds,
     btnLowerPrice = Game.lowerPrice,
