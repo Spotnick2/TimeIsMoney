@@ -1,5 +1,6 @@
 -- English (enUS): the Director's beats and the company's reports. Keys are stable;
--- other locales translate the values. %s marks a value the game fills in.
+-- other locales translate the values. {name} marks a value the game fills in (any
+-- order); key.one / key.other are plural forms (a locale may add few, many, ...).
 local _, ns = ...
 
 ns.Locale.Register("enUS", {
@@ -7,7 +8,8 @@ ns.Locale.Register("enUS", {
     ["speaker.director"] = "Director",
     ["speaker.ledger"] = "The Ledger",
     ["speaker.unlisted"] = "The Unlisted Director",
-    ["speaker.credits"] = "Credits",
+    -- The original game's credits, shown as written inside this line (attribution).
+    ["credits.line"] = "Credits: {text}",
 
     -- The plan's dialogue beats (Original Plan section 3).
     ["beat.greeting"] = "Time is money, friend!",
@@ -95,10 +97,10 @@ ns.Locale.Register("enUS", {
     ["msg.crystalAdded"] = "Arcane Crystal added.",
     ["msg.foundries100"] = "Foundry upgrades complete: bolt output 100 times faster.",
     ["msg.foundries1000"] = "Foundries synchronized at full speed: bolt output 1,000 times faster.",
-    ["msg.foundryNetwork"] = "Self-correcting foundries online: each one added multiplies every foundry's output 1,000 times.",
+    ["msg.foundryNetwork"] = "Self-correcting foundries online: every foundry's output now grows with the number of foundries.",
     ["msg.droneRepulsion"] = "Collision-free scheduling: Reapers and Converters work 100 times faster.",
     ["msg.droneAlignment"] = "Company-wide alignment: Reapers and Converters work 1,000 times faster.",
-    ["msg.droneCohesion"] = "Competitive cooperation online: each drone added doubles every drone's output.",
+    ["msg.droneCohesion"] = "Competitive cooperation online: Reapers and Converters now work faster the more of them there are.",
     ["msg.autoTourney"] = "Negotiations now run themselves.",
     ["msg.cunningDoubled"] = "Cunning production doubled.",
     ["msg.powerOnline"] = "Gold Power Core grid online.",
@@ -142,23 +144,22 @@ ns.Locale.Register("enUS", {
     ["msg.tourneyThird"] = "The backed strategy finished third (or tied): +20,000 Cunning.",
     ["msg.tourneyFirst"] = "The backed strategy won the tournament (or tied): +50,000 Cunning.",
     -- Messages with a value the game fills in.
-    ["msg.boltsMilestone"] = "%s handfuls of bolts made in %s",
-    ["msg.boltsMilestoneBig"] = "One %s handfuls of bolts made in %s",
-    ["msg.autonomy"] = "Full autonomy attained in %s",
-    ["msg.azerothUsed"] = "Azeroth fully utilized in %s",
-    ["msg.universal"] = "Every handful accounted for in %s",
-    ["msg.investUpgrade"] = "Cartel Investments upgraded: expected profit/loss ratio now %s",
-    ["msg.investReport"] = "Lifetime investment revenue report: %s",
-    ["msg.swarmGift"] = "The Company Network produced a breakthrough: %s more computing capacity.",
-    ["msg.wireSupply"] = "Better metal rolling: %s bars' worth from every shipment.",
-    ["msg.strategyAdded"] = "%s added to the negotiation strategies.",
-    ["msg.tourneyResult"] = "%s scored %s and beat %s %s. Cunning increased by %s.",
-    -- Durations and number words inside reports.
-    ["time.hour"] = "%s hour", ["time.hours"] = "%s hours", ["time.minute"] = "%s minute",
-    ["time.minutes"] = "%s minutes", ["time.second"] = "%s second", ["time.seconds"] = "%s seconds",
+    ["msg.boltsMilestone"] = "{count} handfuls of bolts made in {time}",
+    ["msg.boltsMilestoneBig"] = "One {word} handfuls of bolts made in {time}",
+    ["msg.autonomy"] = "Full autonomy attained in {time}",
+    ["msg.azerothUsed"] = "Azeroth fully utilized in {time}",
+    ["msg.universal"] = "Every handful accounted for in {time}",
+    ["msg.investUpgrade"] = "Cartel Investments upgraded: expected profit/loss ratio now {ratio}",
+    ["msg.investReport"] = "Lifetime investment revenue report: {amount}",
+    ["msg.swarmGift"] = "The Company Network produced a breakthrough: {amount} more computing capacity.",
+    ["msg.wireSupply"] = "Better metal rolling: {amount} bars' worth from every shipment.",
+    ["msg.strategyAdded"] = "{name} added to the negotiation strategies.",
+    ["msg.tourneyResult"] = "{name} scored {score} and beat {beaten} {strategies}. Cunning increased by {gain}.",
+    -- Durations, number words and counted nouns inside reports (plural forms).
+    ["time.hour.one"] = "{n} hour", ["time.hour.other"] = "{n} hours",
+    ["time.minute.one"] = "{n} minute", ["time.minute.other"] = "{n} minutes",
+    ["time.second.one"] = "{n} second", ["time.second.other"] = "{n} seconds",
+    ["word.strategy.one"] = "strategy", ["word.strategy.other"] = "strategies",
     ["word.trillion"] = "trillion", ["word.quadrillion"] = "quadrillion", ["word.quintillion"] = "quintillion",
     ["word.sextillion"] = "sextillion", ["word.septillion"] = "septillion", ["word.octillion"] = "octillion",
-    ["word.strategy"] = "strategy", ["word.strategies"] = "strategies",
-    -- The original game's credits stay as written (attribution).
-    ["msg.credit"] = "%s",
 })

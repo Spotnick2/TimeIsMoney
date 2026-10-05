@@ -183,7 +183,7 @@ function Director.Update(speaker, line, width, report, isCredit)
     strip.speaker:SetText(string.upper(L[speaker]))
     strip.line:SetText(L[line])
     strip.report:SetShown(report ~= nil)
-    if report then strip.report:SetText(isCredit and (L["speaker.credits"] .. ": " .. report) or report) end
+    if report then strip.report:SetText(report) end
     if speaker == ns.Dialogue.DIRECTOR then
         if Director.modelEnabled then ShowModel() elseif Director.state ~= "portrait" then ShowPortrait() end
     else

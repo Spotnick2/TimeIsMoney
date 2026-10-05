@@ -54,7 +54,11 @@ says("The swarm has generated a gift of 3 additional computational capacity",
     "The Company Network produced a breakthrough: 3 more computing capacity.")
 -- Credits stay as written (attribution), marked as credits.
 local text, isCredit = Messages.Translate("a game by Frank Lantz")
-assert(text == "a game by Frank Lantz" and isCredit)
+assert(text == "Credits: a game by Frank Lantz" and isCredit)
+-- Effects as the simulation applies them: proportional to the count, in the plan's
+-- names (no "drone") (consult on #22).
+assert(not Messages.Translate("Adversarial cohesion online. Each drone added to the flock increases every drone's output 2x."):lower():find("drone"))
+assert(Messages.Translate("Self-correcting factories online. Each factory added to the network increases every factory's output 1,000x."):find("grows with the number of foundries", 1, true))
 -- Nothing in the reference's wording slips through.
 assert(Messages.Translate("Welcome to Universal Paperclips") == nil and Messages.Translate("") == nil)
 
@@ -65,12 +69,34 @@ for _, beat in ipairs(ns.Dialogue.BEATS) do
     assert(not L[beat[1]]:find("^%[") and not L[beat[2]]:find("^%["), beat[2])
 end
 
+-- A translation can put values in any order ({name} placeholders), use its own
+-- plural rule for durations and counts, and its own number separators (consult on
+-- #22).
+ns.Locale.Register("xxXX", {
+    ["msg.boltsMilestone"] = "After {time}, {count} handfuls were made",
+    ["msg.tourneyResult"] = "+{gain} Cunning: {name} ({score}) beat {beaten} {strategies}",
+    plural = function(n) return (n % 10 == 1 and n % 100 ~= 11) and "one" or ((n % 10 >= 2 and n % 10 <= 4) and "few" or "many") end,
+    ["time.second.one"] = "{n} sekunda", ["time.second.few"] = "{n} sekundy", ["time.second.many"] = "{n} sekund",
+    ["word.strategy.one"] = "strategie", ["word.strategy.few"] = "strategie2", ["word.strategy.many"] = "strategie5",
+    group = ".", decimal = ",",
+})
+assert(ns.Locale.Use("xxXX") == "xxXX")
+says("1,000 clips created in 2 seconds", "After 2 sekundy, 1.000 handfuls were made")
+says("1,000 clips created in 5 seconds", "After 5 sekund, 1.000 handfuls were made")
+says("1,000 clips created in 21 seconds", "After 21 sekunda, 1.000 handfuls were made")
+says("GREEDY scored 1,200 and beat 3 strats. Yomi increased by 1,200", "+1.200 Cunning: GREEDY (1.200) beat 3 strategie2")
+says("Investment engine upgraded, expected profit/loss ratio now 0.51",
+    "Cartel Investments upgraded: expected profit/loss ratio now 0,51")
+-- A value with "%" or "{" is used as written, never read as a placeholder.
+assert(ns.Locale.Format("msg.strategyAdded", { name = "50% {name}" }) == "50% {name} added to the negotiation strategies.")
+ns.Locale.Use("enUS")
+
 -- Localization: another locale's strings win; a key it lacks falls back to English.
 ns.Locale.Register("frFR", { ["beat.greeting"] = "Le temps, c'est de l'argent, l'ami !", ["time.minutes"] = "%s minutes" })
 assert(ns.Locale.Use("frFR") == "frFR")
 assert(ns.L["beat.greeting"] == "Le temps, c'est de l'argent, l'ami !")
 assert(ns.L["beat.welcome"]:find("Welcome aboard", 1, true), "English fills what a locale lacks")
-assert(ns.Locale.Use("xxXX") == "enUS", "an unknown locale uses English")
+assert(ns.Locale.Use("zzZZ") == "enUS", "an unknown locale uses English")
 ns.Locale.Use("enUS")
 
 -- In the window: the newest message shows as the company's report under the beat.

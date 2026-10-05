@@ -126,15 +126,23 @@ Messages.CREDITS = {
 }
 
 -- Durations come from the simulation's timeCruncher in English ("1 hour 2 minutes 3
--- seconds"); they are re-read and written again in the active locale.
-local UNITS = { hour = "time.hour", hours = "time.hours", minute = "time.minute", minutes = "time.minutes",
-    second = "time.second", seconds = "time.seconds" }
+-- seconds"); they are re-read and written again in the active locale, each unit in
+-- the plural form its count takes there.
+local UNITS = { hour = "time.hour", hours = "time.hour", minute = "time.minute", minutes = "time.minute",
+    second = "time.second", seconds = "time.second" }
+local Locale = ns.Locale
+local function fill(template, values)
+    return (template:gsub("{(%w+)}", function(name)
+        local v = values[name]
+        return v ~= nil and tostring(v) or ("{" .. name .. "}")
+    end))
+end
 function Messages.Duration(text)
-    local L = ns.L
     local parts = {}
     for n, unit in text:gmatch("(%S+) (%a+)") do
-        local key = UNITS[unit]
-        parts[#parts + 1] = key and string.format(L[key], n) or (n .. " " .. unit)
+        local key, count = UNITS[unit], tonumber(n)
+        parts[#parts + 1] = (key and count) and fill(Locale.Plural(key, count), { n = Locale.Number(n) })
+            or (n .. " " .. unit)
     end
     return table.concat(parts, " ")
 end
@@ -142,41 +150,47 @@ end
 local NUMBER_WORDS = { Trillion = "word.trillion", Quadrillion = "word.quadrillion", Quintillion = "word.quintillion",
     Sextillion = "word.sextillion", Septillion = "word.septillion", Octillion = "word.octillion" }
 
--- Patterns for messages with values: { Lua pattern, key, transform(captures) -> values }.
+-- A number captured from a message, in the locale's separators.
+local N = function(text) return Locale.Number(text) end
+
+-- Patterns for messages with values: { Lua pattern, key, values(captures) -> named
+-- values for the line's {placeholders} }.
 Messages.PATTERNS = {
-    { "^([%d,]+) clips created in (.*)$", "msg.boltsMilestone", function(n, t) return n, Messages.Duration(t) end },
+    { "^([%d,]+) clips created in (.*)$", "msg.boltsMilestone",
+        function(n, t) return { count = N(n), time = Messages.Duration(t) } end },
     { "^One (%a+) Clips Created in (.*)$", "msg.boltsMilestoneBig", function(word, t)
-        return NUMBER_WORDS[word] and ns.L[NUMBER_WORDS[word]] or word, Messages.Duration(t) end },
-    { "^Full autonomy attained in (.*)$", "msg.autonomy", function(t) return Messages.Duration(t) end },
-    { "^Terrestrial resources fully utilized in (.*)$", "msg.azerothUsed", function(t) return Messages.Duration(t) end },
-    { "^Universal Paperclips achieved in (.*)$", "msg.universal", function(t) return Messages.Duration(t) end },
-    { "^Investment engine upgraded, expected profit/loss ratio now (.*)$", "msg.investUpgrade" },
+        return { word = NUMBER_WORDS[word] and ns.L[NUMBER_WORDS[word]] or word, time = Messages.Duration(t) } end },
+    { "^Full autonomy attained in (.*)$", "msg.autonomy", function(t) return { time = Messages.Duration(t) } end },
+    { "^Terrestrial resources fully utilized in (.*)$", "msg.azerothUsed",
+        function(t) return { time = Messages.Duration(t) } end },
+    { "^Universal Paperclips achieved in (.*)$", "msg.universal", function(t) return { time = Messages.Duration(t) } end },
+    { "^Investment engine upgraded, expected profit/loss ratio now (.*)$", "msg.investUpgrade",
+        function(r) return { ratio = N(r) } end },
     { "^Lifetime investment revenue report: %$(.*)$", "msg.investReport", function(n)
         local value = tonumber((n:gsub(",", "")))
-        return value and ns.View.coins(value) or ("$" .. n) end },
-    { "^The swarm has generated a gift of (.*) additional computational capacity$", "msg.swarmGift" },
-    { "^.* we now get ([%d,]+) supply from every spool$", "msg.wireSupply" },
-    { "^Wire extrusion technique %a+, ([%d,]+) supply from every spool$", "msg.wireSupply" },
-    { "^(.*) added to strategy pool$", "msg.strategyAdded" },
-    { "^(.*) scored (.*) and beat (.*) (strats?)%. Yomi increased by (.*)$", "msg.tourneyResult",
-        function(name, score, beat, w, gain)
-            return name, score, beat, ns.L[w == "strat" and "word.strategy" or "word.strategies"], gain
+        return { amount = value and ns.View.coins(value) or N(n) } end },
+    { "^The swarm has generated a gift of (.*) additional computational capacity$", "msg.swarmGift",
+        function(n) return { amount = N(n) } end },
+    { "^.* we now get ([%d,]+) supply from every spool$", "msg.wireSupply", function(n) return { amount = N(n) } end },
+    { "^Wire extrusion technique %a+, ([%d,]+) supply from every spool$", "msg.wireSupply",
+        function(n) return { amount = N(n) } end },
+    { "^(.*) added to strategy pool$", "msg.strategyAdded", function(name) return { name = name } end },
+    { "^(.*) scored (.*) and beat (.*) strats?%. Yomi increased by (.*)$", "msg.tourneyResult",
+        function(name, score, beaten, gain)
+            return { name = name, score = N(score), beaten = N(beaten), gain = N(gain),
+                strategies = Locale.Plural("word.strategy", tonumber(beaten) or 0) }
         end },
 }
 
 -- The localized line for a reference message, and whether it is a credit.
 function Messages.Translate(message)
     if message == nil or message == "" then return nil end
-    local L = ns.L
-    if Messages.CREDITS[message] then return message, true end
+    if Messages.CREDITS[message] then return Locale.Format("credits.line", { text = message }), true end
     local key = Messages.EXACT[message]
-    if key then return L[key] end
+    if key then return ns.L[key] end
     for _, p in ipairs(Messages.PATTERNS) do
         local captures = { message:match(p[1]) }
-        if captures[1] then
-            local values = p[3] and { p[3](unpack(captures)) } or captures
-            return string.format(L[p[2]], unpack(values))
-        end
+        if captures[1] then return Locale.Format(p[2], p[3](unpack(captures))) end
     end
     -- An unmapped message is never shown in the reference's wording (tests list
     -- every message the simulation can post).
