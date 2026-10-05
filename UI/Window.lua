@@ -22,7 +22,7 @@ Window.BUTTON = 24     -- button height ("small" glass: under ~40 px tall)
 Window.SQUARE = 32
 -- Room under the cards: the Director's strip (#22). The reference's messages are not
 -- shown in their own wording.
-Window.MESSAGE = 4
+Window.MESSAGE = 10
 
 local COPPER = { 0.85, 0.6, 0.4 }
 local MUTED = { 0.7, 0.7, 0.7 }
@@ -560,7 +560,9 @@ end
 Window.PROJECT = 40       -- one project button and its gap
 Window.CHROME = 200       -- window title, card title, paging row and margins
 function Window.ProjectsPerPage()
-    return math.max(3, math.floor((UIParent:GetHeight() - Window.CHROME) / Window.PROJECT))
+    -- The Director's strip takes its share of the screen too.
+    local chrome = Window.CHROME + ns.Director.MIN_STRIP + Window.GAP
+    return math.max(3, math.floor((UIParent:GetHeight() - chrome) / Window.PROJECT))
 end
 
 local function NewProjects(parent)
@@ -917,11 +919,12 @@ local function Build()
         { cosmos, design, combat }, { NewProjects(content) } }
 
     -- The Director's strip under the cards.
-    Window.strip = ns.Director.Build(content, function(size, justify) return Glass.Font(g.top, size, justify) end)
+    Window.strip = ns.Director.Build(content, function(frame, size, justify) return Glass.Font(frame, size, justify) end)
 
     f:SetScript("OnUpdate", function(_, elapsed)
         Window.elapsed = (Window.elapsed or 0) + elapsed
         Window.battleElapsed = (Window.battleElapsed or 0) + elapsed
+        ns.Director.Tick(elapsed) -- the Director's box poll, only while shown
         if Window.elapsed >= Window.REFRESH then
             Window.elapsed, Window.battleElapsed = 0, 0
             Window.Refresh()
@@ -948,7 +951,9 @@ function Window.Refresh()
     -- window never gets taller than UIParent (the projects card pages itself).
     local top = -inset - Window.SQUARE - 4
     local speaker, line = ns.Dialogue.Current(game.S)
-    local stripHeight = speaker and (ns.Director.STRIP + Window.GAP) or 0
+    -- Columns leave room for the strip at its smallest; its real height (a long line
+    -- wraps further) is measured once laid out.
+    local stripHeight = speaker and (ns.Director.MIN_STRIP + Window.GAP) or 0
     local limit = UIParent:GetHeight() - Window.MESSAGE - stripHeight - inset
     local x, tallest = inset, 0
     for _, column in ipairs(Window.columns) do
@@ -972,7 +977,8 @@ function Window.Refresh()
     local width = math.max(x - Window.GAP + inset, Window.COLUMN + 2 * inset)
     Window.strip:ClearAllPoints()
     Window.strip:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
-    ns.Director.Update(speaker, line, width - 2 * inset)
+    local drawn = ns.Director.Update(speaker, line, width - 2 * inset)
+    if speaker then stripHeight = drawn + Window.GAP end
     Window.UpdateLiveTip()
     local height = tallest + stripHeight + Window.MESSAGE + inset
     f:SetSize(width, height)

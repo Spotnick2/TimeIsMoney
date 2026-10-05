@@ -289,3 +289,11 @@ profession/spell icon, optional creature model, reload and full exit/relaunch.
 Goblin probe (#10): texture/framing/idle/emotes/loading/input/frame time.
 Later: all project assets, hidden-window timers/performance, coin/large-number
 display, schema migration/continuation and endings.
+
+## #22 Director strip — 2026-10-05, 1.60.1.70205 (owner)
+
+- **The live model:** Gazlowe (display 7052) renders textured in the window's
+  96x72 strip, using the #10 recipe and the 0.40 / 1.15 crop. The head and
+  shoulders are framed, inside the glass.
+- **The 2D portrait:** `SetPortraitTextureFromCreatureDisplayID` with the same
+  display renders as a round portrait in the same place.

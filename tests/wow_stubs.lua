@@ -57,6 +57,11 @@ local function New(saved, libGlass)
     function Widget:GetText() return self.text end
     -- About 6 px per character at the window's sizes (stubs cannot measure text).
     function Widget:GetStringWidth() return #tostring(self.text or "") * 6 end
+    -- Wrapped height: 14 px per line at the set width (stubs cannot measure text).
+    function Widget:GetStringHeight()
+        local perLine = math.max(1, math.floor((self.width or 1000) / 6))
+        return 14 * math.max(1, math.ceil(#tostring(self.text or "") / perLine))
+    end
     function Widget:SetPoint(...) self.point = { ... } end
     function Widget:SetAlpha(a) self.alpha = a end
     function Widget:SetTexture(t) self.texture = t end
