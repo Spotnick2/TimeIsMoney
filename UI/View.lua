@@ -223,7 +223,7 @@ function View.projects(game, money)
         local entry = ns.Workshop.projectById[project.id]
         local text = ns.ProjectText[entry.name]
         list[#list + 1] = {
-            id = project.id, title = text.title, priceTag = View.priceTag(entry.name, game.S, money),
+            id = project.id, name = entry.name, title = text.title, priceTag = View.priceTag(entry.name, game.S, money),
             purpose = text.purpose, enabled = not game.disabled[project.id],
         }
     end

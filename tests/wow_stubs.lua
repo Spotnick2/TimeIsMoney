@@ -15,7 +15,7 @@ local function New(saved, libGlass)
         GetServerTime = function() return 1790000000 end,
         debugprofilestop = function() captured.clock = (captured.clock or 0) + 0.01 return captured.clock end,
     }
-    local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true }
+    local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true }
     setmetatable(env, { __index = function(_, key)
         if allowedNil[key] then return nil end
         error("Unvalidated global: " .. tostring(key), 2)
@@ -31,7 +31,7 @@ local function New(saved, libGlass)
         "AddMaskTexture", "Play", "SetBlendMode", "SetClipsChildren",
         "SetDuration", "SetFont", "SetFromAlpha", "SetGradient", "SetHorizTile", "SetMinMaxValues",
         "SetOffset", "SetShadowColor", "SetShadowOffset", "SetSmoothing", "SetStartDelay",
-        "SetStatusBarTexture", "SetTexture", "SetTextureSliceMargins", "SetTextureSliceMode", "SetToAlpha",
+        "SetStatusBarTexture", "SetTextureSliceMargins", "SetTextureSliceMode", "SetToAlpha",
         "SetValue", "SetVertTile", "SetVertexColor", "Stop",
     }
     for _, m in ipairs(methods) do Widget[m] = function() end end
@@ -52,8 +52,11 @@ local function New(saved, libGlass)
     function Widget:IsEnabled() return self.enabled end
     function Widget:SetText(t) self.text = t end
     function Widget:GetText() return self.text end
+    -- About 6 px per character at the window's sizes (stubs cannot measure text).
+    function Widget:GetStringWidth() return #tostring(self.text or "") * 6 end
     function Widget:SetPoint(...) self.point = { ... } end
     function Widget:SetAlpha(a) self.alpha = a end
+    function Widget:SetTexture(t) self.texture = t end
     function Widget:SetColorTexture(r, g, b, a) self.colorTexture = { r, g, b, a } end
     function Widget:SetTextColor(r, g, b) self.color = { r, g, b } end
     local function child(kind)
@@ -83,6 +86,21 @@ local function New(saved, libGlass)
     function env.GameTooltip:SetOwner() end
     function env.GameTooltip:AddLine() end
     captured.glass = { applied = 0 }
+    -- Icons (#21): the client resolves item icons once their data is loaded; tests
+    -- choose which items are known (captured.itemIcons) and fire the load result.
+    captured.itemIcons, captured.requested = {}, {}
+    env.C_Item = {
+        GetItemIconByID = function(id) return captured.itemIcons[id] end,
+        RequestLoadItemDataByID = function(id) captured.requested[#captured.requested + 1] = id end,
+    }
+    env.C_Spell = { GetSpellTexture = function(id) return 100000 + id end }
+    captured.now = 0
+    env.GetTime = function() return captured.now end
+    function captured:ItemLoaded(id, success)
+        for _, frame in ipairs(self.frames) do
+            if frame.events.ITEM_DATA_LOAD_RESULT then frame.scripts.OnEvent(frame, "ITEM_DATA_LOAD_RESULT", id, success) end
+        end
+    end
     if libGlass then
         -- The real library: what it needs beyond the widgets above.
         env._G, env.strmatch, env.assert, env.rawget = env, string.match, assert, rawget
@@ -133,7 +151,7 @@ local function New(saved, libGlass)
         end
         local frame = { events = {}, scripts = {} }
         function frame:RegisterEvent(event)
-            assert(event == "ADDON_LOADED" or event == "PLAYER_LOGOUT")
+            assert(event == "ADDON_LOADED" or event == "PLAYER_LOGOUT" or event == "ITEM_DATA_LOAD_RESULT")
             self.events[event] = true
             return true
         end

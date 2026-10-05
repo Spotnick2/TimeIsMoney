@@ -30,7 +30,7 @@ end
 local future = { schema = 999, progress = { bolts = 123 } }
 local env, captured = Load(future)
 local function EventFrame(c)
-    for _, frame in ipairs(c.frames) do if frame.scripts.OnEvent then return frame end end
+    for _, frame in ipairs(c.frames) do if frame.scripts.OnEvent and frame.events.PLAYER_LOGOUT then return frame end end
 end
 local function Last() return captured.messages[#captured.messages] end
 assert(env.TimeIsMoney.loaded == nil)

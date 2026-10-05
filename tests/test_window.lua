@@ -51,6 +51,8 @@ local button, shownText, digest = h.button, h.shownText, h.digest
 
 -- The opening: production and sales; no computing, no projects yet.
 assert(shownText("Handfuls of Copper Bolts") and shownText("Company Funds"))
+-- The reference's messages are not shown (the Director's strip, #22, presents them).
+assert(not shownText("Welcome to Universal Paperclips"))
 -- Board Trust lives inside the computing panel (trustDiv in compDiv): not yet.
 assert(not shownText("Board Trust"))
 assert(not button("btnAddProc") and not button("btnMakeClipper"))

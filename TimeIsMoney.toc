@@ -21,6 +21,7 @@ Sim/Space.lua
 Sim/Save.lua
 Host.lua
 UI/ProjectText.lua
+UI/Assets.lua
 UI/View.lua
 UI/Window.lua
 TimeIsMoney.lua
