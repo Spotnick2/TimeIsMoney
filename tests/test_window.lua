@@ -149,6 +149,39 @@ assert(button("btnMakeClipper"), "gizmos show once affordable")
 local project = assert(button("projectButton1"), "Precision Dies on offer")
 assert(project.label.text:find("Precision Dies", 1, true) and project.label.text:find("750 Operations", 1, true))
 
+-- A long offer list on a short screen: the window stays within the screen and
+-- paging reaches every offer (Codex review of #56).
+env.UIParent.height = 500
+local saved = game.S.activeProjects
+local offers = {}
+for i = 1, 19 do
+    local entry = ns.Workshop.projects[i]
+    offers[i] = game.S[entry.name]
+end
+game.S.activeProjects = offers
+Window.Refresh()
+assert(Window.frame.height <= 500, "window taller than the screen: " .. tostring(Window.frame.height))
+local reached, pages = {}, 0
+local function nav(label)
+    for _, w in ipairs(captured.widgets) do
+        if w.kind == "Button" and w.shown and w.label and w.label.text and w.label.text:find(label, 1, true) then return w end
+    end
+end
+repeat
+    pages = pages + 1
+    for _, w in ipairs(captured.widgets) do
+        if w.kind == "Button" and w.shown and w.id and w.id:find("^projectButton") then reached[w.id] = true end
+    end
+    local nextPage = nav("Next")
+    local more = nextPage and nextPage.enabled
+    if more then nextPage.scripts.OnClick(nextPage) end
+until not more or pages > 10
+for i = 1, 19 do assert(reached[offers[i].id], "unreachable offer " .. offers[i].id) end
+assert(pages > 1 and pages <= 10)
+game.S.activeProjects = saved
+env.UIParent.height = 768
+Window.Refresh()
+
 -- Hidden: the window stops drawing, the company keeps running.
 Window.Toggle()
 assert(not Window.frame:IsShown())

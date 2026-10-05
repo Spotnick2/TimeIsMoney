@@ -67,7 +67,7 @@ local function New(saved, libGlass)
         return fs
     end
     captured.fontStrings, captured.widgets = {}, {}
-    env.UIParent = setmetatable({ scripts = {}, shown = true }, { __index = Widget })
+    env.UIParent = setmetatable({ scripts = {}, shown = true, height = 768 }, { __index = Widget })
     env.GameTooltip = setmetatable({ scripts = {}, shown = false }, { __index = Widget })
     function env.GameTooltip:SetOwner() end
     function env.GameTooltip:AddLine() end

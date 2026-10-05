@@ -196,16 +196,41 @@ function Card:Update(game, panels)
 end
 
 -- Projects: one button per project on offer, reference order, title and price tag.
+-- Offers stay while the player defers them, so the list can outgrow the screen:
+-- it shows a page that fits UIParent's height, with Prev/Next to reach the rest.
+Window.PROJECT = 40       -- one project button and its gap
+Window.CHROME = 200       -- window title, card title, paging row and message line
+function Window.ProjectsPerPage()
+    return math.max(3, math.floor((UIParent:GetHeight() - Window.CHROME) / Window.PROJECT))
+end
+
 local function NewProjects(parent)
     local card = NewCard(parent, "Projects")
-    card.buttons = {}
+    card.buttons, card.page = {}, 1
+    local function turn(step)
+        card.page = card.page + step
+        Window.Refresh()
+    end
+    card.prev = NewButton(card.content, nil)
+    card.prev:SetWidth(64)
+    card.prev:SetScript("OnClick", function() turn(-1) end)
+    card.next = NewButton(card.content, nil)
+    card.next:SetWidth(64)
+    card.next:SetScript("OnClick", function() turn(1) end)
+    card.pageText = Glass.Font(card.glass.top, 11, "CENTER")
     function card:Update(game, panels)
         local inset = Glass.Inset("large")
         local list = panels.projects and View.projects(game) or {}
+        local perPage = Window.ProjectsPerPage()
+        local pages = math.max(1, math.ceil(#list / perPage))
+        self.page = math.max(1, math.min(self.page, pages))
+        local first = (self.page - 1) * perPage
         self.title:ClearAllPoints()
         self.title:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, -inset)
         local y = -inset - 18
-        for i, project in ipairs(list) do
+        local shown = 0
+        for i = 1, math.min(perPage, #list - first) do
+            local project = list[first + i]
             local b = self.buttons[i]
             if not b then
                 b = NewButton(self.content, nil, 36)
@@ -219,9 +244,26 @@ local function NewProjects(parent)
             b:SetWidth(Window.COLUMN - 2 * inset)
             SetButton(b, project.title .. "\n" .. project.priceTag, project.enabled)
             b:Show()
-            y = y - 40
+            y = y - Window.PROJECT
+            shown = i
         end
-        for i = #list + 1, #self.buttons do self.buttons[i]:Hide() end
+        for i = shown + 1, #self.buttons do self.buttons[i]:Hide() end
+        local paging = pages > 1
+        self.prev:SetShown(paging)
+        self.next:SetShown(paging)
+        self.pageText:SetShown(paging)
+        if paging then
+            self.prev:ClearAllPoints()
+            self.prev:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, y)
+            self.next:ClearAllPoints()
+            self.next:SetPoint("TOPRIGHT", self.content, "TOPLEFT", Window.COLUMN - inset, y)
+            self.pageText:ClearAllPoints()
+            self.pageText:SetPoint("TOP", self.content, "TOPLEFT", Window.COLUMN / 2, y - 6)
+            self.pageText:SetText(self.page .. " / " .. pages .. " (" .. #list .. " offers)")
+            SetButton(self.prev, "Prev", self.page > 1)
+            SetButton(self.next, "Next", self.page < pages)
+            y = y - Window.BUTTON - 4
+        end
         self.frame:SetHeight(-y + inset)
         self.frame:SetShown(#list > 0)
         return #list > 0

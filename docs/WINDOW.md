@@ -22,7 +22,11 @@ the embedded LibGlass-1.0 material.
 - **Display rounding never decides anything.** Counts are whole numbers with
   separators. Funds show as coins, one reference unit per silver (0.25 shows as 25c,
   1,000,000 as 10,000g). Coin icons and threshold tooltips are #21.
-- **Disabled controls say so** in their label ("(not yet)"), not only in colour.
+- **Disabled controls say so** in their label, not only in colour: "(not yet)" on
+  wide buttons, "(+)" / "(-)" on the 32x32 square ones.
+- **The window fits the screen.** Offers stay while the player defers them, so the
+  projects card shows a page sized to UIParent's height, with Prev/Next and a page
+  count to reach the rest.
 
 ## Project text
 

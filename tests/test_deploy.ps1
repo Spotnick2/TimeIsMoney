@@ -78,6 +78,10 @@ try {
     $rejected = $false
     try { & $deploy -AddOnsPath $cleanAddOns -LibGlass $brokenLib 2>$null } catch { $rejected = $true }
     if (!$rejected) { throw 'An incomplete LibGlass checkout was accepted.' }
+    # The expected failure was LibGlass's own (exit 1); clear it so the caller (the
+    # Actions wrapper exits with $LASTEXITCODE) does not inherit it as a failure.
+    if ($LASTEXITCODE -ne 1) { throw "LibGlass deploy refusal exited $LASTEXITCODE, not 1." }
+    $global:LASTEXITCODE = 0
     if (Test-Path -LiteralPath (Join-Path $cleanAddOns 'TimeIsMoney/TimeIsMoney.lua')) {
         throw 'A failed LibGlass deploy left TimeIsMoney files behind.'
     }
