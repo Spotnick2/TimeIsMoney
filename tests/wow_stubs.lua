@@ -28,7 +28,7 @@ local function New(saved, libGlass)
         "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing",
         "SetMotionScriptsWhileDisabled", "SetJustifyH", "SetWordWrap", "SetStatusBarColor",
         -- What LibGlass-1.0 r1 calls (its own test_methods checks them against the dump).
-        "AddMaskTexture", "Play", "SetAlpha", "SetBlendMode", "SetClipsChildren", "SetColorTexture",
+        "AddMaskTexture", "Play", "SetBlendMode", "SetClipsChildren", "SetColorTexture",
         "SetDuration", "SetFont", "SetFromAlpha", "SetGradient", "SetHorizTile", "SetMinMaxValues",
         "SetOffset", "SetShadowColor", "SetShadowOffset", "SetSmoothing", "SetStartDelay",
         "SetStatusBarTexture", "SetTexture", "SetTextureSliceMargins", "SetTextureSliceMode", "SetToAlpha",
@@ -49,6 +49,7 @@ local function New(saved, libGlass)
     function Widget:SetEnabled(v) self.enabled = not not v end
     function Widget:IsEnabled() return self.enabled end
     function Widget:SetText(t) self.text = t end
+    function Widget:SetAlpha(a) self.alpha = a end
     function Widget:SetTextColor(r, g, b) self.color = { r, g, b } end
     local function child(kind)
         return setmetatable({ kind = kind, scripts = {}, shown = true }, { __index = Widget })

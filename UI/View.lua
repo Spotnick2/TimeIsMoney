@@ -36,7 +36,7 @@ View.TERMS = {
     funds = "Company Funds", price = "Price per Handful", unsold = "Unsold Bolts",
     marketing = "Sales Campaigns", autoClippers = "Whirring Bronze Gizmos", megaClippers = "Thorium Widgets",
     trust = "Board Trust", processors = "Copper Modulators", memory = "White Punch Cards",
-    operations = "Operations", creativity = "Ingenuity", yomi = "Cunning",
+    operations = "Operations", creativity = "Ingenuity", yomi = "Cunning", chips = "Arcane Crystals",
 }
 
 -- A count for display: whole, with thousands separators. Display only: the
@@ -118,35 +118,86 @@ function View.projects(game)
     return list
 end
 
--- The Negotiation Simulator's text, as the reference shows it: while a tournament
--- runs, its round, the two strategies and the payoff grid (with the move names the
--- grid drew); afterwards, the results by score, the picked strategy marked.
-function View.tournament(game)
-    local S = game.S
+-- The picked strategy as the reference reads it: strats[pick] (the pool, in
+-- purchase order), only when pick < 10; nil otherwise.
+function View.picked(S)
+    local pick = tonumber(S.pick)
+    if not pick or pick >= 10 or pick < 0 or pick ~= math.floor(pick) then return nil end
+    return S.strats[pick + 1]
+end
+
+-- The Negotiation Simulator, as the reference shows it:
+-- - tourneyDisplay: its initial text, "Round n" while rounds play, then the results
+--   heading (kept on the game as presentation by the simulation);
+-- - the two strategies of the current round (vertStrat/horizStrat);
+-- - the payoff grid with the move names it drew, unless the results replaced it;
+--   rolling over the results shows the grid again.
+function View.tournament(game, revealGrid)
+    local S, T = game.S, View.TERMS
     local lines = {}
-    if S.tourneyInProg == 1 then
-        -- Run stays disabled while the rounds play (roundSetup reports roundNum + 1).
-        if game.disabled.btnRunTournament then
-            lines[1] = "Round " .. View.count(math.min(S.currentRound + 1, S.rounds)) .. " of " .. View.count(S.rounds) .. ": "
-                .. S.hStrat.name .. " vs " .. S.vStrat.name
-        else
-            lines[1] = "Pick a strategy, run the tournament, gain " .. View.TERMS.yomi
-        end
-        local label = game.gridLabel
-        local a = label and S.choiceANames[label] or "Move A"
-        local b = label and S.choiceBNames[label] or "Move B"
-        local grid = S.payoffGrid
-        lines[2] = a .. "/" .. a .. ": " .. grid.valueAA .. "," .. grid.valueAA
-            .. "   " .. a .. "/" .. b .. ": " .. grid.valueAB .. "," .. grid.valueBA
-        lines[3] = b .. "/" .. a .. ": " .. grid.valueBA .. "," .. grid.valueAB
-            .. "   " .. b .. "/" .. b .. ": " .. grid.valueBB .. "," .. grid.valueBB
-    elseif S.resultsFlag == 1 then
-        lines[1] = "Tournament results"
-        local picked = S.allStrats[(tonumber(S.pick) or -1) + 1]
+    local report = game.tourneyReport
+    if not report or report.kind == "pick" then
+        lines[1] = "Pick strategy, run tournament, gain " .. T.yomi
+    elseif report.kind == "round" then
+        lines[1] = "Round " .. report.round
+    else
+        lines[1] = "TOURNAMENT RESULTS (roll over for " .. report.grid .. ")"
+    end
+    if game.matchup then lines[#lines + 1] = game.matchup.h .. " vs " .. game.matchup.v end
+    -- The grid table shows unless displayTourneyReport swapped in the results (both
+    -- tables start shown, the results one empty).
+    if S.resultsFlag == 1 and game.resultsTableDisplay == "" and not revealGrid then
+        local picked = View.picked(S)
         for i, strat in ipairs(S.results) do
             if i > 8 then break end
             local mark = (picked and strat.name == picked.name) and "> " or ""
             lines[#lines + 1] = mark .. i .. ". " .. strat.name .. ": " .. View.count(strat.currentScore)
+        end
+    else
+        local label = game.gridLabel
+        local a = label and S.choiceANames[label] or "Move A"
+        local b = label and S.choiceBNames[label] or "Move B"
+        local grid = S.payoffGrid
+        -- One cell per line (row move / column move: row payoff, column payoff).
+        lines[#lines + 1] = a .. " / " .. a .. ": " .. grid.valueAA .. ", " .. grid.valueAA
+        lines[#lines + 1] = a .. " / " .. b .. ": " .. grid.valueAB .. ", " .. grid.valueBA
+        lines[#lines + 1] = b .. " / " .. a .. ": " .. grid.valueBA .. ", " .. grid.valueAB
+        lines[#lines + 1] = b .. " / " .. b .. ": " .. grid.valueBB .. ", " .. grid.valueBB
+    end
+    return lines
+end
+
+-- The Resonance Calculator's result: nil before any compute, else the reference's
+-- text with the plan's name for the chips.
+function View.qComp(game)
+    local result = game.qCompResult
+    if result == nil then return nil end
+    if result == false then return "Need " .. View.TERMS.chips end
+    return "qOps: " .. View.count(result)
+end
+
+-- The stock table: two lines per stock, the reference's whole numbers (Math.ceil),
+-- in five slots. The reference clears the slots after the last stock starting one
+-- too late (main.js "Frank Fix"), so the slot just after the last stock keeps what
+-- it last showed; slots carries that between redraws (window state, not saved).
+function View.stockLines(S, slots)
+    local n = math.min(5, #S.stocks)
+    for i = 1, 5 do
+        local stock = S.stocks[i]
+        if i <= n then
+            slots[i] = {
+                stock.symbol .. "  x" .. View.count(math.ceil(stock.amount)) .. " @ " .. View.coins(math.ceil(stock.price)),
+                "    = " .. View.coins(math.ceil(stock.total)) .. "   P/L " .. View.coins(math.ceil(stock.profit)),
+            }
+        elseif i > n + 1 then
+            slots[i] = nil
+        end
+    end
+    local lines = {}
+    for i = 1, 5 do
+        if slots[i] then
+            lines[#lines + 1] = slots[i][1]
+            lines[#lines + 1] = slots[i][2]
         end
     end
     return lines

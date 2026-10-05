@@ -31,15 +31,32 @@ the embedded LibGlass-1.0 material.
 ## Selects and presentation state
 
 - **Selects** (risk, strategy) are buttons showing the selected option. A click
-  picks the next option through `Host.setValue`, as choosing it in the reference
-  would.
-- **Presentation-only state lives on the game, not in the state, and is never
-  saved:**
-  - `game.gridLabel` is the move-name pair the payoff grid drew. The simulation
-    consumes the same draw as before.
-  - `game.qCompText` is the Resonance Calculator's result line.
+  opens the list of options. Choosing one sets it through `Host.setValue` in a
+  single step, as choosing it in the reference does; no option in between is ever
+  set.
+- **Presentation-only values live on the game, never in the state or the save.**
+  The simulation keeps them where the reference writes display text, and consumes
+  the same draws as before:
+  - `game.gridLabel`: the move-name pair the payoff grid drew.
+  - `game.tourneyReport`: `tourneyDisplay`. It starts as the reference's opening
+    text, shows "Round n" while rounds play, then the results heading.
+  - `game.matchup`: `vertStrat`/`horizStrat`, the current round's two strategies.
+  - `game.qCompResult`: the Compute result. `false` means no chips; otherwise it
+    holds the unclamped qOps.
 
-  After a reload, both read empty, or as "Move A/B", until the next grid or compute.
+  After a reload they read as at the start, until the next tournament or compute.
+- **The View builds the text** with the plan's terms ("Need Arcane Crystals",
+  "gain Cunning"). The Compute line fades with `S.qFade`, as the reference's opacity
+  does.
+- **Tournament grid and results:** both tables start shown, the results one empty.
+  After a tournament the results replace the grid, with the picked strategy
+  (`strats[pick]`) marked. Rolling over them shows the grid again.
+- **Stocks** show the reference's whole numbers (`Math.ceil`), two lines per stock.
+  After a sale, the slot just past the last stock keeps what it showed. This
+  reproduces the reference's off-by-one clear (the "Frank Fix" comment); later
+  slots are blank.
+- **Tall columns continue in the next column**, so the window stays within the
+  screen with every engine open.
 
 ## Project text
 
@@ -59,8 +76,8 @@ number in the tag when `project215` is bought; it is display only.
    newest message line (#56).
 2. **This slice:** Cartel Investments (risk, cash, stocks, deposit, withdraw, the
    engine upgrade), the Negotiation Simulator (Cunning, strategy picker, new and
-   run tournament, auto tournaments, round, payoff grid and results) and the
-   Resonance Calculator (the ten chips, Compute and its result).
+   run tournament, auto tournaments, the report line, matchup, payoff grid and
+   results) and the Resonance Calculator (the ten chips, Compute and its result).
 3. Phase II: the planetary pipeline, power and the Company Network.
 4. Phase III: the probe design, combat view and allocations.
 5. The liquidation sequence, closing the panels in order until only manual

@@ -18,6 +18,7 @@ Window.BUTTON = 24     -- button height ("small" glass: under ~40 px tall)
 -- Square buttons stay 32x32: sliced masks fail on boxes small in both directions
 -- (16-22 px measured; 32x32 known good; LibGlass GLASS-MATERIAL.md section 6).
 Window.SQUARE = 32
+Window.MESSAGE = 30    -- the message line under the cards
 
 local COPPER = { 0.85, 0.6, 0.4 }
 local MUTED = { 0.7, 0.7, 0.7 }
@@ -131,32 +132,40 @@ function Card:Meter(label, value, show)
     return row
 end
 
--- A select control: a button showing the selected option's label; a click picks
--- the next option through the host (Host.setValue), as choosing it would.
+-- A select control: a button showing the selected option. A click opens the list
+-- of options below it; choosing one sets it through the host (Host.setValue) in a
+-- single step, as choosing it in the reference does. caption(value, S) labels both.
 function Card:Select(id, caption, show)
-    local row = { kind = "select", height = Window.BUTTON + 4, id = id, caption = caption, show = show }
+    local row = { kind = "select", height = Window.BUTTON + 4, id = id, caption = caption, show = show,
+        choices = {} }
     row.button = NewButton(self.content, nil)
     row.button:SetScript("OnClick", function()
-        local game = ns.Host.game
-        local select = game and game.selects[id]
-        if not select or #select.options == 0 then return end
-        local nextIndex = 1
-        for i, option in ipairs(select.options) do
-            if option == select.value then nextIndex = i % #select.options + 1 end
-        end
-        local ok, err = ns.Host.setValue(id, select.options[nextIndex])
-        if not ok then Report("not done: " .. tostring(err)) end
+        row.open = not row.open
         Window.Refresh()
     end)
+    row.choose = function(value)
+        row.open = false
+        local ok, err = ns.Host.setValue(id, value)
+        if not ok then Report("not done: " .. tostring(err)) end
+        Window.Refresh()
+    end
     self.rows[#self.rows + 1] = row
     return row
 end
 
--- Up to max lines of text; lines(S, game) returns them (fewer take less room).
-function Card:Lines(max, lines, show)
-    local row = { kind = "lines", height = 0, lines = lines, show = show, strings = {} }
+-- Up to max lines of text; lines(S, game, row) returns them (fewer take less room).
+-- alpha(S), when given, fades them; hover makes the lines a mouse area that sets
+-- row.hovered (the reference's roll-over).
+function Card:Lines(max, lines, show, alpha, hover)
+    local row = { kind = "lines", height = 0, lines = lines, show = show, strings = {}, alpha = alpha }
     for i = 1, max do
         row.strings[i] = Glass.Font(self.glass.top, 10, "LEFT")
+    end
+    if hover then
+        row.mouse = CreateFrame("Frame", nil, self.content)
+        row.mouse:EnableMouse(true)
+        row.mouse:SetScript("OnEnter", function() row.hovered = true Window.Refresh() end)
+        row.mouse:SetScript("OnLeave", function() row.hovered = false Window.Refresh() end)
     end
     self.rows[#self.rows + 1] = row
     return row
@@ -195,12 +204,16 @@ function Card:Update(game, panels)
         local visible = not row.show or row.show(S, panels)
         if not row.regions then
             row.regions = {}
-            for _, r in pairs({ row.label, row.text, row.button, row.lower, row.raise, row.bar }) do
+            for _, r in pairs({ row.label, row.text, row.button, row.lower, row.raise, row.bar, row.mouse }) do
                 row.regions[#row.regions + 1] = r
             end
             for _, r in ipairs(row.strings or row.cells or {}) do row.regions[#row.regions + 1] = r end
         end
         for _, r in ipairs(row.regions) do r:SetShown(visible) end
+        if not visible and row.choices then
+            row.open = false
+            for _, choice in ipairs(row.choices) do choice:Hide() end
+        end
         if visible then
             any = true
             if row.kind == "action" then
@@ -208,11 +221,29 @@ function Card:Update(game, panels)
                 row.button:SetWidth(width)
                 SetButton(row.button, row.caption(S), not game.disabled[row.id])
             elseif row.kind == "select" then
+                local select = game.selects[row.id]
                 place(row.button, self, y - 2, inset)
                 row.button:SetWidth(width)
-                SetButton(row.button, row.caption(game.selects[row.id].value, S), true)
+                SetButton(row.button, row.caption(select.value, S) .. (row.open and "  ^" or "  v"), true)
+                row.height = Window.BUTTON + 4
+                for i, option in ipairs(row.open and select.options or {}) do
+                    local choice = row.choices[i]
+                    if not choice then
+                        choice = NewButton(self.content, nil)
+                        choice:SetScript("OnClick", function(b) row.choose(b.value) end)
+                        row.choices[i] = choice
+                    end
+                    choice.value = option
+                    place(choice, self, y - 2 - row.height, inset + 12)
+                    choice:SetWidth(width - 12)
+                    SetButton(choice, row.caption(option, S), true)
+                    choice:Show()
+                    row.height = row.height + Window.BUTTON + 2
+                end
+                for i = (row.open and #select.options or 0) + 1, #row.choices do row.choices[i]:Hide() end
             elseif row.kind == "lines" then
-                local lines = row.lines(S, game)
+                local lines = row.lines(S, game, row)
+                local alpha = row.alpha and math.max(0, math.min(1, row.alpha(S))) or 1
                 row.height = 0
                 for i, fs in ipairs(row.strings) do
                     local text = lines[i]
@@ -221,8 +252,13 @@ function Card:Update(game, panels)
                         place(fs, self, y - 2 - (i - 1) * 14, inset)
                         fs:SetWidth(width)
                         fs:SetText(text)
+                        fs:SetAlpha(alpha)
                         row.height = i * 14 + 4
                     end
+                end
+                if row.mouse then
+                    place(row.mouse, self, y, inset)
+                    row.mouse:SetSize(width, math.max(row.height, 14))
                 end
             elseif row.kind == "chips" then
                 for i, cell in ipairs(row.cells) do
@@ -418,21 +454,14 @@ local function Build()
     local investing = function(_, p) return p.investments end
     local invest = NewCard(content, "Cartel Investments")
     local RISK = { low = "Low Risk", med = "Med Risk", hi = "High Risk" }
-    invest:Select("investStrat", function(value) return "Risk: " .. (RISK[value] or value) end, investing)
+    invest:Select("investStrat", function(value) return RISK[value] or value end, investing)
     invest:Stat("Cash", function(S) return View.coins(S.bankroll) end, investing)
     invest:Stat("Stocks", function(S) return View.coins(S.secTotal) end, investing)
     invest:Stat("Total", function(S) return View.coins(S.portTotal) end, investing)
     invest:Action("btnInvest", function() return "Deposit" end, investing)
     invest:Action("btnWithdraw", function() return "Withdraw" end, investing)
-    invest:Lines(5, function(S)
-        local lines = {}
-        for i = 1, math.min(5, #S.stocks) do
-            local stock = S.stocks[i]
-            lines[i] = string.format("%s  x%s @ %s  = %s  (%s)", stock.symbol, View.count(stock.amount),
-                View.coins(stock.price), View.coins(stock.total), View.coins(stock.profit))
-        end
-        return lines
-    end, investing)
+    local slots = {}
+    invest:Lines(10, function(S) return View.stockLines(S, slots) end, investing)
     invest:Stat("Engine Level", function(S) return View.count(S.investLevel) end, investing)
     invest:Action("btnImproveInvestments", function(S)
         return "Upgrade Engine (" .. View.count(S.investUpgradeCost) .. " " .. T.yomi .. ")"
@@ -442,10 +471,11 @@ local function Build()
     local strategy = function(_, p) return p.strategy end
     local negotiate = NewCard(content, "Negotiation Simulator")
     negotiate:Stat(T.yomi, function(S) return View.count(S.yomi) end, strategy)
+    -- The options' text is the strategy each was added for (allStrats[index]).
     negotiate:Select("stratPicker", function(value, S)
-        if value == "10" then return "Pick a Strategy" end
+        if value == "10" then return "Pick a Strat" end
         local strat = S.allStrats[(tonumber(value) or -1) + 1]
-        return "Strategy: " .. (strat and strat.name or value)
+        return strat and strat.name or value
     end, strategy)
     negotiate:Action("btnNewTournament", function(S)
         return "New Tournament (" .. View.count(S.tourneyCost) .. " " .. T.operations .. ")"
@@ -454,14 +484,14 @@ local function Build()
     negotiate:Action("btnToggleAutoTourney", function(S)
         return "Auto Tournaments: " .. (S.autoTourneyStatus == 1 and "ON" or "OFF")
     end, function(S, p) return p.strategy and S.autoTourneyFlag == 1 end)
-    negotiate:Lines(9, function(S, game) return View.tournament(game) end, strategy)
+    negotiate:Lines(10, function(_, game, row) return View.tournament(game, row.hovered) end, strategy, nil, true)
 
     -- Resonance Calculator: the photonic chips and the compute button.
     local quantum = function(_, p) return p.quantum end
     local resonance = NewCard(content, "Resonance Calculator")
     resonance:Chips(quantum)
     resonance:Action("btnQcompute", function() return "Compute" end, quantum)
-    resonance:Lines(1, function(_, game) return { game.qCompText } end, quantum)
+    resonance:Lines(1, function(_, game) return { View.qComp(game) } end, quantum, function(S) return S.qFade end)
 
     Window.columns = { { production }, { sales, ledger }, { invest, negotiate, resonance }, { NewProjects(content) } }
 
@@ -486,28 +516,35 @@ function Window.Refresh()
     if not (f and f:IsShown() and game) then return end
     local panels = View.panels(game.S)
     local inset = Glass.Inset("large")
+    -- A column that would outgrow the screen continues in the next one, so the
+    -- window never gets taller than UIParent (the projects card pages itself).
+    local top = -inset - Window.SQUARE - 4
+    local limit = UIParent:GetHeight() - Window.MESSAGE - inset
     local x, tallest = inset, 0
     for _, column in ipairs(Window.columns) do
-        local y, shown = -inset - Window.SQUARE - 4, false
+        local y, shown = top, false
         for _, card in ipairs(column) do
             if card:Update(game, panels) then
+                local h = card.frame:GetHeight()
+                if shown and -y + h > limit then
+                    x = x + Window.COLUMN + Window.GAP
+                    y = top
+                end
                 card.frame:ClearAllPoints()
                 card.frame:SetPoint("TOPLEFT", Window.content, "TOPLEFT", x, y)
-                y = y - card.frame:GetHeight() - Window.GAP
+                y = y - h - Window.GAP
                 shown = true
+                if -y > tallest then tallest = -y end
             end
         end
-        if shown then
-            x = x + Window.COLUMN + Window.GAP
-            if -y > tallest then tallest = -y end
-        end
+        if shown then x = x + Window.COLUMN + Window.GAP end
     end
     local width = math.max(x - Window.GAP + inset, Window.COLUMN + 2 * inset)
     Window.message:ClearAllPoints()
     Window.message:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
     Window.message:SetWidth(width - 2 * inset)
     Window.message:SetText(game.readouts[1])
-    f:SetSize(width, tallest + 30 + inset)
+    f:SetSize(width, tallest + Window.MESSAGE + inset)
 end
 
 function Window.Toggle()
