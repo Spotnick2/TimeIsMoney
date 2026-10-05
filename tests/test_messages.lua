@@ -60,7 +60,7 @@ assert(text == "Credits: a game by Frank Lantz" and isCredit)
 assert(not Messages.Translate("Adversarial cohesion online. Each drone added to the flock increases every drone's output 2x."):lower():find("drone"))
 assert(Messages.Translate("Self-correcting factories online. Each factory added to the network increases every factory's output 1,000x."):find("grows with the number of foundries", 1, true))
 -- The opening readout has the owner's wording; nothing unmapped slips through.
-assert(Messages.Translate("Welcome to Universal Paperclips") == "Time is money, my friend!")
+assert(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to the Time Is Money Trading Company.")
 assert(Messages.Translate("Clips are great") == nil and Messages.Translate("") == nil)
 
 -- Every key the reports and beats use exists in English (a missing one shows [key]).
@@ -111,7 +111,7 @@ ns.Window.Refresh()
 assert(h.shownText("Credits: a game by Frank Lantz"))
 game.readouts[1] = "Welcome to Universal Paperclips"
 ns.Window.Refresh()
-assert(h.shownText("Time is money, my friend!") and not h.shownText("Universal Paperclips"))
+assert(h.shownText("Welcome to the Time Is Money Trading Company.") and not h.shownText("Universal Paperclips"))
 game.readouts[1] = "Some unmapped reference text"
 ns.Window.Refresh()
 assert(not h.shownText("unmapped") and not ns.Director.strip.report.shown)

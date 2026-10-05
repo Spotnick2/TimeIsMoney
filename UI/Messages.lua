@@ -13,7 +13,7 @@ ns.Locale.Use(GetLocale())
 
 -- Exact reference text -> key.
 Messages.EXACT = {
-    -- The reference's opening readout (owner's wording, 2026-10-05).
+    -- The reference's opening readout: its game title becomes the plan's company.
     ["Welcome to Universal Paperclips"] = "msg.welcome",
     ["AutoClippers available for purchase"] = "msg.gizmosAvailable",
     ["AutoClippper performance boosted by 25%"] = "msg.gizmos25",
