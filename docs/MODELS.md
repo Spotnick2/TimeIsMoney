@@ -82,6 +82,12 @@ Record observations in forever-api-notes.md before making measured claims.
   - With no box, or a failed `SetModelByCreatureDisplayID`, it shows the 2D
     portrait from the same display, with no retry per redraw. `/tim model` off and
     on retries.
+- **Voice:** opening the window while the Director is speaking plays "Time is
+  money, friend!" on the dialog channel, so the player's dialog volume and mute
+  apply. The file is 550805, `sound/creature/goblinmalezanynpc/goblinmalezanynpcgreeting01.ogg`
+  from the community listfile, picked by ear by the owner (2026-10-05).
+  - It plays once per opening, never on redraws.
+  - Nothing plays after the takeover.
 - **`/tim model`** switches between the live model and the portrait. It works
   before the window is opened. This session only; saving it is a setting (#23).
 - **Speakers:** from `UI/Dialogue.lua`, a pure function of the saved state.
