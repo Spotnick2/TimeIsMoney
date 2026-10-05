@@ -11,6 +11,15 @@ assert(View.numberCruncher(1500, 0) == "2 thousand" and View.numberCruncher(2500
 assert(View.numberCruncher(5, 0) == "5 " and View.numberCruncher(1e30, 0) == "1000 octillion")
 assert(View.toFixed(2.5, 0) == "3" and View.toFixed(-0.4, 0) == "-0" and View.toFixed(0.5, 0) == "1")
 assert(View.toFixed(1e21, 0) == "1e+21" and View.numberCruncher(1.5e6) == "1.50 million")
+-- Ties round up at every precision, as JavaScript's toFixed (the C runtime rounds
+-- ties to even): 1.125 is exact in binary (Codex review of #59).
+assert(View.toFixed(1.125, 2) == "1.13" and View.numberCruncher(1125000) == "1.13 million")
+assert(View.toFixed(0.125, 2) == "0.13" and View.toFixed(9.995, 2) == "9.99" and View.toFixed(99.5, 0) == "100")
+assert(View.toFixed(0.005, 2) == "0.01" and View.toFixed(-1.125, 2) == "-1.13" and View.toFixed(2.5, 1) == "2.5")
+-- Decided by the double's exact value, not 17 printed digits (checked against Node
+-- on 2,000 values): 37.42315 is just below its tie, 15357.15 too.
+assert(View.toFixed(37.42315, 4) == "37.4231" and View.toFixed(15357.15, 1) == "15357.1")
+assert(View.toFixed(110.3065, 3) == "110.306" and View.toFixed(15.24325, 4) == "15.2432")
 -- NaN as JavaScript compares it (WoW's Lua compares NaN true): "NaN ".
 assert(View.numberCruncher(0 / 0, 0) == "NaN ")
 

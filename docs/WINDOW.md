@@ -115,7 +115,10 @@ the embedded LibGlass-1.0 material.
   - Numbers are written raw, without separators.
 - **numberCruncher** gives the scale and the combat losses, as the reference writes
   them.
-  - `toFixed` rounds ties up and keeps "-0".
+  - `toFixed` rounds ties up at every precision, decided by exact integer
+    comparison against the double's binary value. The C runtime rounds ties to
+    even, and this build's `%f` doesn't print exact digits. Checked against Node on
+    2,000 values. It keeps "-0".
   - From 1e21 up it gives the number's own text.
   - NaN compares as in JavaScript.
 - **Increase Max Trust** keeps the reference's page default cost text,

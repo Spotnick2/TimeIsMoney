@@ -343,6 +343,55 @@ end
 
 -- Number.prototype.toFixed for the display: with no decimals it rounds an exact tie
 -- up (JavaScript picks the larger n), which %.0f would round to even.
+-- Exact comparison for toFixed: the sign of a * 10^digits * 2 - k2, with a a finite
+-- nonnegative double and k2 a nonnegative integer below 2^53, in integers base 1e7.
+local function big(n)
+    local out = {}
+    repeat
+        out[#out + 1] = n % 1e7
+        n = math.floor(n / 1e7)
+    until n == 0
+    return out
+end
+local function mul(x, factor) -- factor up to 2^20
+    local carry = 0
+    for i = 1, #x do
+        local v = x[i] * factor + carry
+        x[i] = v % 1e7
+        carry = math.floor(v / 1e7)
+    end
+    while carry > 0 do
+        x[#x + 1] = carry % 1e7
+        carry = math.floor(carry / 1e7)
+    end
+end
+local function mulPow2(x, k)
+    while k > 0 do
+        local step = math.min(k, 20)
+        mul(x, 2 ^ step)
+        k = k - step
+    end
+end
+local function compare(x, y)
+    while #x > 1 and x[#x] == 0 do x[#x] = nil end
+    while #y > 1 and y[#y] == 0 do y[#y] = nil end
+    if #x ~= #y then return #x < #y and -1 or 1 end
+    for i = #x, 1, -1 do
+        if x[i] ~= y[i] then return x[i] < y[i] and -1 or 1 end
+    end
+    return 0
+end
+local function exactCompare(a, digits, k2)
+    if a == 0 then return k2 == 0 and 0 or -1 end
+    local m, e = math.frexp(a)
+    local left, right = big(m * 2 ^ 53), big(k2)
+    e = e - 53
+    for _ = 1, digits do mul(left, 10) end
+    mul(left, 2)
+    if e >= 0 then mulPow2(left, e) else mulPow2(right, -e) end
+    return compare(left, right)
+end
+
 -- A negative value keeps its sign even when it rounds to zero ("-0"), and from
 -- 1e21 up JavaScript gives the number's own text.
 function View.toFixed(x, digits)
@@ -351,12 +400,18 @@ function View.toFixed(x, digits)
     if math.abs(x) >= 1e21 then return JSMath.toString(x) end
     local sign = JSMath.lt(x, 0) and "-" or ""
     local a = math.abs(x)
-    if digits == 0 then
-        local n = math.floor(a)
-        if a - n >= 0.5 then n = n + 1 end
-        return sign .. string.format("%.0f", n)
-    end
-    return sign .. string.format("%." .. digits .. "f", a)
+    -- n / 10^digits nearest the exact value of x, a tie going to the larger n (the
+    -- C runtime's %f rounds ties to even, and its digits are not exact). Decided by
+    -- exact comparisons of x's binary value against the candidates.
+    if a * 10 ^ digits >= 2 ^ 51 then return sign .. string.format("%." .. digits .. "f", a) end
+    local n = math.floor(a * 10 ^ digits)
+    while exactCompare(a, digits, 2 * n) < 0 do n = n - 1 end
+    while exactCompare(a, digits, 2 * (n + 1)) >= 0 do n = n + 1 end
+    if exactCompare(a, digits, 2 * n + 1) >= 0 then n = n + 1 end -- a tie or above: up
+    local text = string.format("%.0f", n)
+    if digits == 0 then return sign .. text end
+    text = string.rep("0", digits + 1 - #text) .. text
+    return sign .. text:sub(1, #text - digits) .. "." .. text:sub(#text - digits + 1)
 end
 
 -- numberCruncher (main.js): a count divided down to its place name, toFixed.
