@@ -20,8 +20,9 @@ Window.BUTTON = 24     -- button height ("small" glass: under ~40 px tall)
 -- Square buttons stay 32x32: sliced masks fail on boxes small in both directions
 -- (16-22 px measured; 32x32 known good; LibGlass GLASS-MATERIAL.md section 6).
 Window.SQUARE = 32
--- Room under the cards: the Director's strip (#22). The reference's messages are not
--- shown in their own wording.
+-- Room under the cards: the Director's strip (#22). The reference's messages show
+-- there as the company's reports, localized (UI/Messages.lua), never in their own
+-- wording.
 Window.MESSAGE = 10
 
 local COPPER = { 0.85, 0.6, 0.4 }
@@ -977,7 +978,8 @@ function Window.Refresh()
     local width = math.max(x - Window.GAP + inset, Window.COLUMN + 2 * inset)
     Window.strip:ClearAllPoints()
     Window.strip:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
-    local drawn = ns.Director.Update(speaker, line, width - 2 * inset)
+    local report, isCredit = ns.Messages.Translate(game.readouts[1])
+    local drawn = ns.Director.Update(speaker, line, width - 2 * inset, report, isCredit)
     if speaker then stripHeight = drawn + Window.GAP end
     Window.UpdateLiveTip()
     local height = tallest + stripHeight + Window.MESSAGE + inset

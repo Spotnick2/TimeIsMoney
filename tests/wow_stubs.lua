@@ -130,6 +130,7 @@ local function New(saved, libGlass)
         return #due
     end
     env.SetPortraitTextureFromCreatureDisplayID = function(texture, id) texture.portraitDisplay = id end
+    env.GetLocale = function() return captured.locale or "enUS" end
     env.unpack = unpack
     captured.now = 0
     env.GetTime = function() return captured.now end

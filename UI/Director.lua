@@ -84,6 +84,11 @@ function Director.Build(parent, font)
     strip.line = font(strip, 12, "LEFT")
     strip.line:SetPoint("TOPLEFT", strip.speaker, "BOTTOMLEFT", 0, -4)
     strip.line:SetWordWrap(true)
+    -- The company's latest report (the simulation's newest message, localized).
+    strip.report = font(strip, 10, "LEFT")
+    strip.report:SetPoint("TOPLEFT", strip.line, "BOTTOMLEFT", 0, -6)
+    strip.report:SetWordWrap(true)
+    strip.report:SetTextColor(0.7, 0.7, 0.7)
     strip:SetScript("OnHide", function() Director.Cancel() end)
     Director.strip = strip
     return strip
@@ -162,18 +167,23 @@ local function DropModel()
     Director.state = "none"
 end
 
-local MARKS = { [ "The Ledger" ] = "clips", [ "The Unlisted Director" ] = "probes" }
+local MARKS = { ["speaker.ledger"] = "clips", ["speaker.unlisted"] = "probes" }
 
--- Redraws the strip for this speaker and line (width: the strip's width). Returns
--- the strip's height: at least MIN_STRIP, more when the line wraps further.
-function Director.Update(speaker, line, width)
+-- Redraws the strip for this speaker and line (localization keys) and the latest
+-- report (localized text, or nil). width: the strip's width. Returns the strip's
+-- height: at least MIN_STRIP, more when the text wraps further.
+function Director.Update(speaker, line, width, report, isCredit)
     local strip = Director.strip
     strip:SetShown(speaker ~= nil)
     if not speaker then return 0 end
+    local L = ns.L
     strip:SetWidth(width)
     strip.line:SetWidth(width - Director.WIDTH - 16)
-    strip.speaker:SetText(string.upper(speaker))
-    strip.line:SetText(line)
+    strip.report:SetWidth(width - Director.WIDTH - 16)
+    strip.speaker:SetText(string.upper(L[speaker]))
+    strip.line:SetText(L[line])
+    strip.report:SetShown(report ~= nil)
+    if report then strip.report:SetText(report) end
     if speaker == ns.Dialogue.DIRECTOR then
         if Director.modelEnabled then ShowModel() elseif Director.state ~= "portrait" then ShowPortrait() end
     else
@@ -182,7 +192,8 @@ function Director.Update(speaker, line, width)
         strip.portrait:SetTexture((ns.Assets.IdentityIcon(MARKS[speaker])))
         strip.portrait:Show()
     end
-    local height = math.max(Director.MIN_STRIP, 8 + 14 + 4 + strip.line:GetStringHeight() + 8)
+    local reportHeight = report and (6 + strip.report:GetStringHeight()) or 0
+    local height = math.max(Director.MIN_STRIP, 8 + 14 + 4 + strip.line:GetStringHeight() + reportHeight + 8)
     strip:SetHeight(height)
     return height
 end

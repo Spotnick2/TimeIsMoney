@@ -9,6 +9,7 @@ local Dialogue, Director, Window = ns.Dialogue, ns.Director, ns.Window
 local S = ns.Workshop.new({ draw = function() return 0.5 end }, false).S
 local function says(speaker, fragment)
     local who, line = Dialogue.Current(S)
+    who, line = ns.L[who], ns.L[line]
     assert(who == speaker and line:find(fragment, 1, true), tostring(who) .. ": " .. tostring(line))
 end
 local before = h.digest(S)
@@ -59,7 +60,7 @@ says("The Ledger", "There is nothing left to spend it on.")
 local fresh = ns.Workshop.new({ draw = function() return 0.5 end }, false).S
 fresh.prestigeU = 1
 local who, line = Dialogue.Current(fresh)
-assert(who == "Director" and line == "New premises. New customers. Same excellent product.")
+assert(ns.L[who] == "Director" and ns.L[line] == "New premises. New customers. Same excellent product.")
 
 -- /tim model works before the window exists (no strip yet), and back.
 env.SlashCmdList.TIMEISMONEY("model")
@@ -99,7 +100,7 @@ game.S.clips, game.S.unsoldClips = 1, 1 -- "Welcome aboard. ..." (a long beat)
 local beatWho, beatLine = Dialogue.Current(game.S)
 local narrow = Director.Update(beatWho, beatLine, 236)
 assert(narrow >= Director.MIN_STRIP)
-local tall = Director.Update("Director", string.rep("word ", 80), 236)
+local tall = Director.Update("speaker.director", "beat.welcome", 60)
 assert(tall > Director.MIN_STRIP and Director.strip.height == tall, "a long line grows the strip")
 game.S.clips, game.S.unsoldClips = 0, 0
 Window.Refresh()
