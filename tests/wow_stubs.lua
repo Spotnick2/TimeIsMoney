@@ -132,6 +132,8 @@ local function New(saved, libGlass)
     env.SetPortraitTextureFromCreatureDisplayID = function(texture, id) texture.portraitDisplay = id end
     env.GetLocale = function() return captured.locale or "enUS" end
     env.UnitFactionGroup = function() return captured.faction or "Horde" end
+    captured.sounds = {}
+    env.PlaySoundFile = function(id, channel) captured.sounds[#captured.sounds + 1] = { id, channel } return true end
     env.unpack = unpack
     captured.now = 0
     env.GetTime = function() return captured.now end

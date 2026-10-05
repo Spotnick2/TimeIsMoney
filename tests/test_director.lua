@@ -169,5 +169,20 @@ for _, b in ipairs({ { -0.42, -0.53, -0.695, 0.42, 0.53, 0.695 }, { 0, 0, 0, 1, 
 end
 assert(Director.ReadBox({ x = 0, y = 0, z = 0 }, { x = 1, y = 1, z = 1 }).h == 1)
 
+-- Opening the window while the Director speaks: he says "Time is money, friend!"
+-- aloud, once per opening (never on redraws); after the takeover, nobody does.
+local env4, captured4, ns4 = Harness.Load()
+env4.SlashCmdList.TIMEISMONEY("start") -- opens the window
+assert(#captured4.sounds == 1 and captured4.sounds[1][1] == 550785 and captured4.sounds[1][2] == "Dialog")
+for _ = 1, 5 do ns4.Window.Refresh() end
+assert(#captured4.sounds == 1, "not on redraws")
+ns4.Window.Toggle() -- close: silent
+ns4.Window.Toggle() -- open again: greeted again
+assert(#captured4.sounds == 2)
+ns4.Host.game.S.humanFlag = 0
+ns4.Window.Toggle()
+ns4.Window.Toggle()
+assert(#captured4.sounds == 2, "the Director has gone after the takeover")
+
 print((libGlass and "director (real LibGlass)" or "director (LibGlass stand-in)")
     .. ": campaign beats, speakers, model load, framing, toggle, cancellation, fallback and takeover passed")

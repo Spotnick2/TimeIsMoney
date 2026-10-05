@@ -997,6 +997,8 @@ function Window.Toggle()
     else
         Window.frame:Show()
         Window.Refresh()
+        local game = ns.Host.game
+        if game then ns.Director.Greet((ns.Dialogue.Current(game.S))) end
     end
 end
 

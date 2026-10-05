@@ -26,6 +26,10 @@ Director.FOV, Director.CAMERA = 0.15, 40
 Director.POLLS, Director.POLL_STEP = 30, 0.1 -- the box poll: about 3 s
 Director.MIN_STRIP = 92                   -- the strip's height when the line is short
 Director.modelEnabled = true              -- /tim model toggles (session; settings are #23)
+-- "Time is money, friend!": a goblin NPC greeting from the client's own files
+-- (sound/creature/goblinmalegruffnpc/goblinmalegruffnpcgreeting01.ogg, file 550785;
+-- picked by ear by the owner, 2026-10-05, from the community listfile).
+Director.GREETING_SOUND = 550785
 Director.state, Director.token = "none", 0 -- none | loading | live | portrait
 
 -- Framing for a camera at distance d whose field of view spans the frame's larger
@@ -200,6 +204,14 @@ function Director.Update(speaker, line, width, report, isCredit)
     local height = math.max(Director.MIN_STRIP, 8 + 14 + 4 + strip.line:GetStringHeight() + reportHeight + 8)
     strip:SetHeight(height)
     return height
+end
+
+-- Opening the window while the Director is speaking: he greets the player aloud,
+-- on the dialog channel (the player's dialog volume and mute apply).
+function Director.Greet(speaker)
+    if speaker == ns.Dialogue.DIRECTOR then
+        TimeIsMoney.API.PlaySoundFile(Director.GREETING_SOUND, "Dialog")
+    end
 end
 
 -- /tim model: the live model or the 2D portrait. Turning it on retries a model that
