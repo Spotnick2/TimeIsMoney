@@ -97,6 +97,9 @@ for _, t in ipairs(captured.textures) do
     if t.texture == 134068 and h.visible(t) then boltIcon = t end
 end
 assert(boltIcon, "the bolts row shows its item icon")
+-- The label takes the room its value leaves: a short count leaves the whole name.
+local label = assert(h.shownText("Handfuls of Copper Bolts"))
+assert(label.width >= 224 - 20 - #tostring(game.S.clips) * 6 - 8, "the bolts label is not cut short")
 local project = assert(h.button("projectButton1"))
 assert(project.icon.texture == Assets.ProjectIcon("project1"), "Precision Dies shows the gizmo family's icon")
 -- A late item load redraws the window.

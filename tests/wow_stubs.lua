@@ -52,6 +52,8 @@ local function New(saved, libGlass)
     function Widget:IsEnabled() return self.enabled end
     function Widget:SetText(t) self.text = t end
     function Widget:GetText() return self.text end
+    -- About 6 px per character at the window's sizes (stubs cannot measure text).
+    function Widget:GetStringWidth() return #tostring(self.text or "") * 6 end
     function Widget:SetPoint(...) self.point = { ... } end
     function Widget:SetAlpha(a) self.alpha = a end
     function Widget:SetTexture(t) self.texture = t end

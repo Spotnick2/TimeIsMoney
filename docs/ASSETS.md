@@ -49,53 +49,64 @@ Record the result per entry below:
 
 ## Catalog
 
-Tested build: not yet checked (Forever 1.60.1.70205 expected).
+**Client check, 2026-10-05.** Done on the owner's Forever client: 1.60.1.70205, the
+build of the last recorded measurement. `/tim status` prints the exact build.
+
+- `/tim icons`: every one of the 43 identities and families rendered its intended
+  icon. None fell back.
+- The Coins texture path (`Interface\Icons\INV_Misc_Coin_01`) exists and renders.
+- In the main window, the coin icons on funds and prices rendered (copper, silver
+  and gold), and the row icons showed beside their labels.
+- One overlap: the Gold Power Core and the 9-60 Battery Pack items share one icon in
+  the client.
+- Retail icons are in the Forever client too, if an abstract family should ever get
+  a more fitting picture.
 
 | Role | Name | Source | Status |
 | --- | --- | --- | --- |
-| `clips` | Handfuls of Copper Bolts | [item 4359](https://www.wowhead.com/forever/item=4359) | database-listed |
-| `wire` | Copper Bars | [item 2840](https://www.wowhead.com/forever/item=2840) | database-listed |
-| `autoClippers` | Whirring Bronze Gizmos | [item 4375](https://www.wowhead.com/forever/item=4375) | database-listed |
-| `megaClippers` | Thorium Widgets | [item 15994](https://www.wowhead.com/forever/item=15994) | database-listed |
-| `processors` | Copper Modulators | [item 4363](https://www.wowhead.com/forever/item=4363) | database-listed |
-| `memory` | White Punch Cards | [item 9279](https://www.wowhead.com/forever/item=9279) | database-listed |
-| `chips` | Arcane Crystals | [item 12363](https://www.wowhead.com/forever/item=12363) | database-listed |
-| `harvesters` | Compact Harvest Reapers | [item 4391](https://www.wowhead.com/forever/item=4391) | database-listed |
-| `wireDrones` | Delicate Arcanite Converters | [item 16006](https://www.wowhead.com/forever/item=16006) | database-listed |
-| `farms` | Gold Power Cores | [item 10558](https://www.wowhead.com/forever/item=10558) | database-listed |
-| `batteries` | 9-60 Battery Packs | [item 274048](https://www.wowhead.com/forever/item=274048) | database-listed |
-| `probes` | Arcanite Dragonlings | [item 16022](https://www.wowhead.com/forever/item=16022) | database-listed |
-| `mindControl` | Gnomish Mind Control Cap | [item 10726](https://www.wowhead.com/forever/item=10726) | database-listed |
-| `expansion` | Dimensional Ripper - Everlook | [item 18984](https://www.wowhead.com/forever/item=18984) | database-listed |
+| `clips` | Handfuls of Copper Bolts | [item 4359](https://www.wowhead.com/forever/item=4359) | client-verified |
+| `wire` | Copper Bars | [item 2840](https://www.wowhead.com/forever/item=2840) | client-verified |
+| `autoClippers` | Whirring Bronze Gizmos | [item 4375](https://www.wowhead.com/forever/item=4375) | client-verified |
+| `megaClippers` | Thorium Widgets | [item 15994](https://www.wowhead.com/forever/item=15994) | client-verified |
+| `processors` | Copper Modulators | [item 4363](https://www.wowhead.com/forever/item=4363) | client-verified |
+| `memory` | White Punch Cards | [item 9279](https://www.wowhead.com/forever/item=9279) | client-verified |
+| `chips` | Arcane Crystals | [item 12363](https://www.wowhead.com/forever/item=12363) | client-verified |
+| `harvesters` | Compact Harvest Reapers | [item 4391](https://www.wowhead.com/forever/item=4391) | client-verified |
+| `wireDrones` | Delicate Arcanite Converters | [item 16006](https://www.wowhead.com/forever/item=16006) | client-verified |
+| `farms` | Gold Power Cores | [item 10558](https://www.wowhead.com/forever/item=10558) | client-verified |
+| `batteries` | 9-60 Battery Packs | [item 274048](https://www.wowhead.com/forever/item=274048) | client-verified |
+| `probes` | Arcanite Dragonlings | [item 16022](https://www.wowhead.com/forever/item=16022) | client-verified |
+| `mindControl` | Gnomish Mind Control Cap | [item 10726](https://www.wowhead.com/forever/item=10726) | client-verified |
+| `expansion` | Dimensional Ripper - Everlook | [item 18984](https://www.wowhead.com/forever/item=18984) | client-verified |
 
 | Family | Source | Projects | Status |
 | --- | --- | --- | --- |
-| `automation` | Bronze Tube: [item 4371](https://www.wowhead.com/forever/item=4371) | 26 | database-listed |
-| `bolts` | Handfuls of Copper Bolts: [item 4359](https://www.wowhead.com/forever/item=4359) | 18 | database-listed |
-| `converter` | Delicate Arcanite Converters: [item 16006](https://www.wowhead.com/forever/item=16006) | 41, 44 | database-listed |
-| `copper` | Copper Bars: [item 2840](https://www.wowhead.com/forever/item=2840) | 7, 8, 9, 10, 10b | database-listed |
-| `correspondence` | Schematic: Gnomish Universal Remote: [item 7560](https://www.wowhead.com/forever/item=7560) | 2, 13, 140, 141, 142, 143, 144, 145, 146, 147, 148 | database-listed |
-| `crystal` | Arcane Crystals: [item 12363](https://www.wowhead.com/forever/item=12363) | 50, 51, 214 | database-listed |
-| `dragonling` | Arcanite Dragonlings: [item 16022](https://www.wowhead.com/forever/item=16022) | 210 | database-listed |
-| `enforcement` | Goblin Mortar: [item 10577](https://www.wowhead.com/forever/item=10577) | 29, 131 | database-listed |
-| `expansion` | Dimensional Ripper - Everlook: [item 18984](https://www.wowhead.com/forever/item=18984) | 46, 200, 201 | database-listed |
-| `fleet` | Goblin Jumper Cables XL: [item 18587](https://www.wowhead.com/forever/item=18587) | 110, 111, 112 | database-listed |
-| `foresight` | Ornate Spyglass: [item 5507](https://www.wowhead.com/forever/item=5507) | 19, 27, 119 | database-listed |
-| `foundry` | Blacksmithing: [spell 2018](https://www.wowhead.com/forever/spell=2018) | 45, 100, 101, 102, 212 | database-listed |
-| `gizmo` | Whirring Bronze Gizmos: [item 4375](https://www.wowhead.com/forever/item=4375) | 1, 4, 5 | database-listed |
-| `hull` | Mithril Casing: [item 10561](https://www.wowhead.com/forever/item=10561) | 129 | database-listed |
-| `mindControl` | Gnomish Mind Control Cap: [item 10726](https://www.wowhead.com/forever/item=10726) | 34, 70, 35 | database-listed |
-| `modulator` | Copper Modulators: [item 4363](https://www.wowhead.com/forever/item=4363) | 215, 219 | database-listed |
-| `money` | texture `Interface\Icons\INV_Misc_Coin_01` | 21, 37, 38, 42, 40, 40b | fallback-required until checked |
-| `negotiation` | Gnomish Universal Remote: [item 7506](https://www.wowhead.com/forever/item=7506) | 20, 60, 61, 62, 63, 64, 65, 66, 118, 128, 213 | database-listed |
-| `network` | Truesilver Transformer: [item 18631](https://www.wowhead.com/forever/item=18631) | 126, 130, 132, 211 | database-listed |
-| `power` | Gold Power Cores: [item 10558](https://www.wowhead.com/forever/item=10558) | 125, 127 | database-listed |
-| `precision` | Gyrochronatom: [item 4389](https://www.wowhead.com/forever/item=4389) | 15, 17, 16, 217 | database-listed |
-| `punchCard` | White Punch Cards: [item 9279](https://www.wowhead.com/forever/item=9279) | 135, 216 | database-listed |
-| `reaper` | Compact Harvest Reapers: [item 4391](https://www.wowhead.com/forever/item=4391) | 43 | database-listed |
-| `remedy` | Alchemy: [spell 2259](https://www.wowhead.com/forever/spell=2259) | 28, 31 | database-listed |
-| `speed` | Goblin Rocket Fuel: [item 9061](https://www.wowhead.com/forever/item=9061) | 120 | database-listed |
-| `tinkering` | Arclight Spanner: [item 6219](https://www.wowhead.com/forever/item=6219) | 3 | database-listed |
-| `weather` | World Enlarger: [item 18660](https://www.wowhead.com/forever/item=18660) | 30 | database-listed |
-| `widget` | Thorium Widgets: [item 15994](https://www.wowhead.com/forever/item=15994) | 22, 23, 24, 25 | database-listed |
-| `writing` | Goblin Rocket Fuel Recipe: [item 10644](https://www.wowhead.com/forever/item=10644) | 6, 11, 12, 14, 121, 133, 134, 218 | database-listed |
+| `automation` | Bronze Tube: [item 4371](https://www.wowhead.com/forever/item=4371) | 26 | client-verified |
+| `bolts` | Handfuls of Copper Bolts: [item 4359](https://www.wowhead.com/forever/item=4359) | 18 | client-verified |
+| `converter` | Delicate Arcanite Converters: [item 16006](https://www.wowhead.com/forever/item=16006) | 41, 44 | client-verified |
+| `copper` | Copper Bars: [item 2840](https://www.wowhead.com/forever/item=2840) | 7, 8, 9, 10, 10b | client-verified |
+| `correspondence` | Schematic: Gnomish Universal Remote: [item 7560](https://www.wowhead.com/forever/item=7560) | 2, 13, 140, 141, 142, 143, 144, 145, 146, 147, 148 | client-verified |
+| `crystal` | Arcane Crystals: [item 12363](https://www.wowhead.com/forever/item=12363) | 50, 51, 214 | client-verified |
+| `dragonling` | Arcanite Dragonlings: [item 16022](https://www.wowhead.com/forever/item=16022) | 210 | client-verified |
+| `enforcement` | Goblin Mortar: [item 10577](https://www.wowhead.com/forever/item=10577) | 29, 131 | client-verified |
+| `expansion` | Dimensional Ripper - Everlook: [item 18984](https://www.wowhead.com/forever/item=18984) | 46, 200, 201 | client-verified |
+| `fleet` | Goblin Jumper Cables XL: [item 18587](https://www.wowhead.com/forever/item=18587) | 110, 111, 112 | client-verified |
+| `foresight` | Ornate Spyglass: [item 5507](https://www.wowhead.com/forever/item=5507) | 19, 27, 119 | client-verified |
+| `foundry` | Blacksmithing: [spell 2018](https://www.wowhead.com/forever/spell=2018) | 45, 100, 101, 102, 212 | client-verified |
+| `gizmo` | Whirring Bronze Gizmos: [item 4375](https://www.wowhead.com/forever/item=4375) | 1, 4, 5 | client-verified |
+| `hull` | Mithril Casing: [item 10561](https://www.wowhead.com/forever/item=10561) | 129 | client-verified |
+| `mindControl` | Gnomish Mind Control Cap: [item 10726](https://www.wowhead.com/forever/item=10726) | 34, 70, 35 | client-verified |
+| `modulator` | Copper Modulators: [item 4363](https://www.wowhead.com/forever/item=4363) | 215, 219 | client-verified |
+| `money` | texture `Interface\Icons\INV_Misc_Coin_01` | 21, 37, 38, 42, 40, 40b | client-verified |
+| `negotiation` | Gnomish Universal Remote: [item 7506](https://www.wowhead.com/forever/item=7506) | 20, 60, 61, 62, 63, 64, 65, 66, 118, 128, 213 | client-verified |
+| `network` | Truesilver Transformer: [item 18631](https://www.wowhead.com/forever/item=18631) | 126, 130, 132, 211 | client-verified |
+| `power` | Gold Power Cores: [item 10558](https://www.wowhead.com/forever/item=10558) | 125, 127 | client-verified |
+| `precision` | Gyrochronatom: [item 4389](https://www.wowhead.com/forever/item=4389) | 15, 17, 16, 217 | client-verified |
+| `punchCard` | White Punch Cards: [item 9279](https://www.wowhead.com/forever/item=9279) | 135, 216 | client-verified |
+| `reaper` | Compact Harvest Reapers: [item 4391](https://www.wowhead.com/forever/item=4391) | 43 | client-verified |
+| `remedy` | Alchemy: [spell 2259](https://www.wowhead.com/forever/spell=2259) | 28, 31 | client-verified |
+| `speed` | Goblin Rocket Fuel: [item 9061](https://www.wowhead.com/forever/item=9061) | 120 | client-verified |
+| `tinkering` | Arclight Spanner: [item 6219](https://www.wowhead.com/forever/item=6219) | 3 | client-verified |
+| `weather` | World Enlarger: [item 18660](https://www.wowhead.com/forever/item=18660) | 30 | client-verified |
+| `widget` | Thorium Widgets: [item 15994](https://www.wowhead.com/forever/item=15994) | 22, 23, 24, 25 | client-verified |
+| `writing` | Goblin Rocket Fuel Recipe: [item 10644](https://www.wowhead.com/forever/item=10644) | 6, 11, 12, 14, 121, 133, 134, 218 | client-verified |

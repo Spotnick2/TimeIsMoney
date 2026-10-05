@@ -508,7 +508,6 @@ function Card:Update(game, panels)
                         row.icon.value = icon
                     end
                     place(row.label, self, y - 4, inset + 20)
-                    row.label:SetWidth(width - 20 - 80) -- truncated before the value
                 else
                     place(row.label, self, y - 4, inset)
                 end
@@ -519,6 +518,10 @@ function Card:Update(game, panels)
                 end
                 row.text:ClearAllPoints()
                 row.text:SetText(row.value(S, game))
+                if row.icon then
+                    -- The label takes what the value leaves, truncating only when needed.
+                    row.label:SetWidth(math.max(40, width - 20 - row.text:GetStringWidth() - 8))
+                end
                 if row.kind == "adjust" then
                     row.raise:ClearAllPoints()
                     row.raise:SetPoint("TOPRIGHT", self.content, "TOPLEFT", inset + width, y)
