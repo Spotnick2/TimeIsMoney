@@ -162,6 +162,14 @@ function Window.UpdateLiveTip()
     end
 end
 
+-- An identity's item icon at the start of a row (Assets), the label after it.
+function Card:WithIcon(row, key)
+    row.icon = self.content:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(16, 16)
+    row.iconKey = key
+    return row
+end
+
 function Card:Stat(label, value, show, tip)
     local row = { kind = "stat", height = Window.ROW, value = value, show = show }
     row.label = Glass.Font(self.glass.top, 11, "LEFT")
@@ -384,7 +392,7 @@ function Card:Update(game, panels)
         if not row.regions then
             row.regions = {}
             for _, r in pairs({ row.label, row.text, row.button, row.lower, row.raise, row.bar, row.mouse,
-                row.lower10, row.raise10, row.box, row.tipArea }) do
+                row.lower10, row.raise10, row.box, row.tipArea, row.icon }) do
                 row.regions[#row.regions + 1] = r
             end
             for _, r in ipairs(row.strings or row.cells or row.buttons or {}) do row.regions[#row.regions + 1] = r end
@@ -492,7 +500,13 @@ function Card:Update(game, panels)
                     cell:SetShown(View.chipShown(S, i))
                 end
             else
-                place(row.label, self, y - 4, inset)
+                if row.icon then
+                    place(row.icon, self, y - 2, inset)
+                    row.icon:SetTexture((ns.Assets.IdentityIcon(row.iconKey)))
+                    place(row.label, self, y - 4, inset + 20)
+                else
+                    place(row.label, self, y - 4, inset)
+                end
                 if row.tipArea then
                     place(row.tipArea, self, y, inset)
                     local buttons = row.raise and (Window.SQUARE + (row.lower and Window.SQUARE + 4 or 0) + 6) or 0
@@ -570,9 +584,14 @@ local function NewProjects(parent)
             if not b then
                 b = NewButton(self.content, nil, 36)
                 b.label:SetWordWrap(true)
+                b.icon = b.glass.top:CreateTexture(nil, "OVERLAY")
+                b.icon:SetSize(26, 26)
+                b.icon:SetPoint("LEFT", b, "LEFT", 5, 0)
+                b.label:SetPoint("LEFT", b, "LEFT", 36, 0)
                 self.buttons[i] = b
             end
             b.id = project.id
+            b.icon:SetTexture((ns.Assets.ProjectIcon(project.name)))
             b.tip = { project.title, project.priceTag, project.purpose }
             b:ClearAllPoints()
             b:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, y)
@@ -608,6 +627,11 @@ end
 
 local function Build()
     Glass = LibStub("LibGlass-1.0"):New()
+    -- An item icon that loads later redraws whatever shows it.
+    ns.Assets.onLoaded = function()
+        Window.Refresh()
+        if Window.icons and Window.icons:IsShown() then Window.FillIcons() end
+    end
     local f = CreateFrame("Frame", "TimeIsMoneyWindow", UIParent)
     f:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
     f:SetFrameStrata("MEDIUM")
@@ -639,22 +663,24 @@ local function Build()
     production:Stat("Universe / Sim Level", function(S)
         return JSMath.toString(S.prestigeU + 1) .. " / " .. JSMath.toString(S.prestigeS + 1)
     end, function(_, p) return p.prestige end)
-    production:Stat(T.clips, function(S) return View.count(S.clips) end)
+    production:WithIcon(production:Stat(T.clips, function(S) return View.count(S.clips) end), "clips")
     production:Action("btnMakePaperclip", function() return T.make end)
     local manufacturing = function(_, p) return p.manufacturing end
     production:Stat("Bolts per second", function(S) return View.count(S.clipRate) end, manufacturing)
-    production:Stat(T.wire, function(S) return View.count(S.wire) end, manufacturing)
+    production:WithIcon(production:Stat(T.wire, function(S) return View.count(S.wire) end, manufacturing), "wire")
     production:Action("btnBuyWire", function(S) return "Buy " .. T.wire .. " (" .. View.money(S.wireCost) .. ")" end,
         manufacturing)
     production:Action("btnToggleWireBuyer", function(S)
         return "Bar Buyer: " .. (S.wireBuyerStatus == 1 and "ON" or "OFF")
     end, function(_, p) return p.manufacturing and p.wireBuyer end)
     local gizmos = function(_, p) return p.manufacturing and p.autoClippers end
-    production:Stat(T.autoClippers, function(S) return View.count(S.clipmakerLevel) end, gizmos)
+    production:WithIcon(production:Stat(T.autoClippers, function(S) return View.count(S.clipmakerLevel) end, gizmos),
+        "autoClippers")
     production:Action("btnMakeClipper", function(S) return "Buy Gizmo (" .. View.money(S.clipperCost) .. ")" end, gizmos,
         function(S) return View.exactMoney(S.clipperCost) end)
     local widgets = function(_, p) return p.manufacturing and p.megaClippers end
-    production:Stat(T.megaClippers, function(S) return View.count(S.megaClipperLevel) end, widgets)
+    production:WithIcon(production:Stat(T.megaClippers, function(S) return View.count(S.megaClipperLevel) end, widgets),
+        "megaClippers")
     production:Action("btnMakeMegaClipper", function(S)
         return "Buy Widget (" .. View.money(S.megaClipperCost) .. ")"
     end, widgets, function(S) return View.exactMoney(S.megaClipperCost) end)
@@ -682,9 +708,10 @@ local function Build()
     ledger:Stat("Next Trust at", function(S) return View.count(S.nextTrust) .. " bolts" end, trust)
     ledger:Stat(T.swarmGifts, function(S) return View.count(S.swarmGifts) end,
         function(_, p) return p.swarmGift end)
-    ledger:Adjust(T.processors, function(S) return View.count(S.processors) end, nil, "btnAddProc",
-        function(_, p) return p.processor end)
-    ledger:Adjust(T.memory, function(S) return View.count(S.memory) end, nil, "btnAddMem", computing)
+    ledger:WithIcon(ledger:Adjust(T.processors, function(S) return View.count(S.processors) end, nil, "btnAddProc",
+        function(_, p) return p.processor end), "processors")
+    ledger:WithIcon(ledger:Adjust(T.memory, function(S) return View.count(S.memory) end, nil, "btnAddMem", computing),
+        "memory")
     ledger:Meter(T.operations, function(S) return S.operations, S.memory * 1000 end, computing)
     ledger:Stat(T.creativity, function(S) return View.count(S.creativity) end,
         function(_, p) return p.computing and p.creativity end)
@@ -767,13 +794,13 @@ local function Build()
     wire:Stat(T.wire, function(S) return View.spell(S.wire) end, pipeline)
     wire:Stat("  per second", function(_, game) return View.spell((game.wireRate or 0) * 100) end, pipeline)
     local harvester = within("harvester")
-    wire:Stat(T.harvesters, function(S) return View.count(S.harvesterLevel) end, harvester)
+    wire:WithIcon(wire:Stat(T.harvesters, function(S) return View.count(S.harvesterLevel) end, harvester), "harvesters")
     wire:Action("btnMakeHarvester", function(S) return "Build a Reaper (" .. bolts(S.harvesterCost) .. ")" end, harvester)
     wire:Buttons({ { id = "btnHarvesterx10", text = "+10" }, { id = "btnHarvesterx100", text = "+100" },
         { id = "btnHarvesterx1000", text = "+1k" }, { id = "btnHarvesterReboot", text = "Scrap",
             tip = function(S) return "Disassemble All: +" .. bolts(S.harvesterBill) end } }, harvester)
     local wireDrone = within("wireDrone")
-    wire:Stat(T.wireDrones, function(S) return View.count(S.wireDroneLevel) end, wireDrone)
+    wire:WithIcon(wire:Stat(T.wireDrones, function(S) return View.count(S.wireDroneLevel) end, wireDrone), "wireDrones")
     wire:Action("btnMakeWireDrone", function(S) return "Build a Converter (" .. bolts(S.wireDroneCost) .. ")" end,
         wireDrone)
     wire:Buttons({ { id = "btnWireDronex10", text = "+10" }, { id = "btnWireDronex100", text = "+100" },
@@ -795,12 +822,12 @@ local function Build()
     power:Stat("  Drones", function(S) return View.count(watts(S).drones) .. " MW" end, powered)
     power:Stat("Production", function(S) return View.count(watts(S).production) .. " MW" end, powered)
     power:Meter("Stored", function(S) local w = watts(S) return w.stored, w.capacity end, powered)
-    power:Stat(T.farms, function(S) return View.count(S.farmLevel) end, powered)
+    power:WithIcon(power:Stat(T.farms, function(S) return View.count(S.farmLevel) end, powered), "farms")
     power:Action("btnMakeFarm", function(S) return "Build a Core (" .. bolts(S.farmCost) .. ")" end, powered)
     power:Buttons({ { id = "btnFarmx10", text = "+10" }, { id = "btnFarmx100", text = "+100" },
         { id = "btnFarmReboot", text = "Scrap", tip = function(S) return "Disassemble All: +" .. bolts(S.farmBill) end } },
         powered)
-    power:Stat(T.batteries, function(S) return View.count(S.batteryLevel) end, powered)
+    power:WithIcon(power:Stat(T.batteries, function(S) return View.count(S.batteryLevel) end, powered), "batteries")
     power:Action("btnMakeBattery", function(S) return "Build a Pack (" .. bolts(S.batteryCost) .. ")" end, powered)
     power:Buttons({ { id = "btnBatteryx10", text = "+10" }, { id = "btnBatteryx100", text = "+100" },
         { id = "btnBatteryReboot", text = "Scrap",
@@ -950,5 +977,123 @@ function Window.Toggle()
     else
         Window.frame:Show()
         Window.Refresh()
+    end
+end
+
+-- /tim icons: every identity and icon family with its icon, source and status
+-- (resolved, pending, fallback or path), so each can be checked in the client.
+-- Hovering an entry lists its source ID and URL and the projects that use it.
+local function IconEntries()
+    local Assets, list = ns.Assets, {}
+    for _, entry in ipairs(Assets.IDENTITIES) do
+        list[#list + 1] = { title = entry.name, source = { kind = "item", id = entry.item, name = entry.name,
+            url = "https://www.wowhead.com/forever/item=" .. entry.item }, users = {} }
+    end
+    local families = {}
+    for family in pairs(Assets.FAMILIES) do
+        if not Assets.FAMILIES[family].identity then families[#families + 1] = family end
+    end
+    table.sort(families)
+    local byFamily = {}
+    for _, family in ipairs(families) do
+        local source = Assets.Source(family)
+        byFamily[family] = { title = source.name, source = source, users = {} }
+        list[#list + 1] = byFamily[family]
+    end
+    -- Projects: under their family, or the identity their family names.
+    local identityEntry = {}
+    for i, entry in ipairs(Assets.IDENTITIES) do identityEntry[entry.key] = list[i] end
+    for _, project in ipairs(ns.Workshop.projects) do
+        local family = Assets.PROJECT_FAMILY[project.name]
+        local f = family and Assets.FAMILIES[family]
+        local target = f and (f.identity and identityEntry[f.identity] or byFamily[family])
+        if target then target.users[#target.users + 1] = ns.ProjectText[project.name].title end
+    end
+    return list
+end
+
+local function BuildIcons()
+    local f = CreateFrame("Frame", "TimeIsMoneyIcons", UIParent)
+    f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    f:SetFrameStrata("DIALOG")
+    f:SetClampedToScreen(true)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving)
+    f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    local g = Glass.Apply(f, "large")
+    local content = CreateFrame("Frame", nil, f)
+    content:SetAllPoints(f)
+    content:SetFrameLevel(Glass.ContentLevel(f))
+    local title = Glass.Font(g.top, 14, "LEFT")
+    title:SetPoint("TOPLEFT", content, "TOPLEFT", Glass.Inset("large"), -Glass.Inset("large"))
+    title:SetText("Time Is Money: icon check")
+    title:SetTextColor(COPPER[1], COPPER[2], COPPER[3])
+    local close = NewButton(content, nil, Window.SQUARE)
+    close:SetWidth(Window.SQUARE)
+    close:SetPoint("TOPRIGHT", content, "TOPRIGHT", -Glass.Inset("large"), -Glass.Inset("large"))
+    close.label:SetText("x")
+    close:SetScript("OnClick", function() f:Hide() end)
+    f.content, f.cells = content, {}
+    f:Hide() -- a new frame is shown; the toggle opens it
+    Window.icons = f
+end
+
+function Window.FillIcons()
+    local f = Window.icons
+    local entries = IconEntries()
+    local columns, cellW, cellH, inset = 3, 250, 36, Glass.Inset("large")
+    for i, entry in ipairs(entries) do
+        local cell = f.cells[i]
+        if not cell then
+            cell = CreateFrame("Frame", nil, f.content)
+            cell:SetSize(cellW, cellH - 2)
+            cell:EnableMouse(true)
+            cell.icon = cell:CreateTexture(nil, "ARTWORK")
+            cell.icon:SetSize(32, 32)
+            cell.icon:SetPoint("LEFT", cell, "LEFT", 0, 0)
+            cell.name = Glass.Font(f.content, 11, "LEFT")
+            cell.status = Glass.Font(f.content, 10, "LEFT")
+            cell:SetScript("OnEnter", function(self)
+                local e = self.entry
+                local lines = { e.title, e.source.kind == "texture" and ("texture " .. e.source.path)
+                    or (e.source.kind .. " " .. e.source.id .. "  " .. (e.source.url or "")) }
+                for _, user in ipairs(e.users) do lines[#lines + 1] = user end
+                ShowTip(self, lines)
+            end)
+            cell:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            f.cells[i] = cell
+        end
+        cell.entry = entry
+        local col, row = (i - 1) % columns, math.floor((i - 1) / columns)
+        cell:ClearAllPoints()
+        cell:SetPoint("TOPLEFT", f.content, "TOPLEFT", inset + col * cellW, -inset - 40 - row * cellH)
+        local icon, status = ns.Assets.IconForSource(entry.source)
+        cell.icon:SetTexture(icon)
+        cell.name:ClearAllPoints()
+        cell.name:SetPoint("TOPLEFT", cell, "TOPLEFT", 38, -3)
+        cell.name:SetText(entry.title)
+        cell.status:ClearAllPoints()
+        cell.status:SetPoint("TOPLEFT", cell, "TOPLEFT", 38, -18)
+        cell.status:SetText(status .. (#entry.users > 0 and ("  (" .. #entry.users .. " projects)") or ""))
+        if status == "fallback" then cell.status:SetTextColor(1, 0.4, 0.3) else cell.status:SetTextColor(0.6, 0.9, 0.6) end
+        cell:Show()
+    end
+    local rows = math.ceil(#entries / columns)
+    local width, height = columns * cellW + 2 * inset, rows * cellH + 2 * inset + 40
+    f:SetSize(width, height)
+    f:SetScale(math.min(1, (UIParent:GetWidth() - 2 * Window.GAP) / width,
+        (UIParent:GetHeight() - 2 * Window.GAP) / height))
+end
+
+function Window.ToggleIcons()
+    if not Window.frame then Build() end
+    if not Window.icons then BuildIcons() end
+    if Window.icons:IsShown() then
+        Window.icons:Hide()
+    else
+        Window.icons:Show()
+        Window.FillIcons()
     end
 end
