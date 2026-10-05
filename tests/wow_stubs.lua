@@ -24,11 +24,11 @@ local function New(saved, libGlass)
     -- state they set kept for assertions. Stubs cannot prove pixels.
     local Widget = {}
     local methods = {
-        "SetPoint", "ClearAllPoints", "SetAllPoints", "SetFrameStrata", "SetToplevel", "SetClampedToScreen",
+        "ClearAllPoints", "SetAllPoints", "SetFrameStrata", "SetToplevel", "SetClampedToScreen",
         "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing",
         "SetMotionScriptsWhileDisabled", "SetJustifyH", "SetWordWrap", "SetStatusBarColor",
         -- What LibGlass-1.0 r1 calls (its own test_methods checks them against the dump).
-        "AddMaskTexture", "Play", "SetBlendMode", "SetClipsChildren", "SetColorTexture",
+        "AddMaskTexture", "Play", "SetBlendMode", "SetClipsChildren",
         "SetDuration", "SetFont", "SetFromAlpha", "SetGradient", "SetHorizTile", "SetMinMaxValues",
         "SetOffset", "SetShadowColor", "SetShadowOffset", "SetSmoothing", "SetStartDelay",
         "SetStatusBarTexture", "SetTexture", "SetTextureSliceMargins", "SetTextureSliceMode", "SetToAlpha",
@@ -51,12 +51,19 @@ local function New(saved, libGlass)
     function Widget:SetEnabled(v) self.enabled = not not v end
     function Widget:IsEnabled() return self.enabled end
     function Widget:SetText(t) self.text = t end
+    function Widget:SetPoint(...) self.point = { ... } end
     function Widget:SetAlpha(a) self.alpha = a end
+    function Widget:SetColorTexture(r, g, b, a) self.colorTexture = { r, g, b, a } end
     function Widget:SetTextColor(r, g, b) self.color = { r, g, b } end
     local function child(kind)
         return setmetatable({ kind = kind, scripts = {}, shown = true }, { __index = Widget })
     end
-    function Widget:CreateTexture() return child("Texture") end
+    function Widget:CreateTexture()
+        local t = child("Texture")
+        t.parent = self
+        captured.textures[#captured.textures + 1] = t
+        return t
+    end
     function Widget:CreateMaskTexture() return child("MaskTexture") end
     function Widget:CreateAnimationGroup() return child("AnimationGroup") end
     function Widget:CreateAnimation() return child("Animation") end
@@ -69,7 +76,7 @@ local function New(saved, libGlass)
         captured.fontStrings[#captured.fontStrings + 1] = fs
         return fs
     end
-    captured.fontStrings, captured.widgets = {}, {}
+    captured.fontStrings, captured.widgets, captured.textures = {}, {}, {}
     env.UIParent = setmetatable({ scripts = {}, shown = true, width = 1024, height = 768 }, { __index = Widget })
     env.GameTooltip = setmetatable({ scripts = {}, shown = false }, { __index = Widget })
     function env.GameTooltip:SetOwner() end

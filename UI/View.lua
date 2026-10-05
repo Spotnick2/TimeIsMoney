@@ -9,6 +9,8 @@ ns.View = View
 -- matches only the number (creativityOn === 0 is never true: the reference
 -- keeps creativityOn a boolean, so its row always shows once the Ledger does).
 local function looseZero(v) return v == 0 or v == false end
+-- JavaScript's < (false for NaN; WoW's Lua compares NaN true).
+local function lt(a, b) return ns.JSMath.lt(a, b) end
 local function strictZero(v) return v == 0 end
 
 -- Panel visibility, in buttonUpdate's order (main.js), for the panels this window
@@ -45,6 +47,19 @@ function View.panels(S)
     -- In space, probes build: factoryDivSpace and droneDivSpace replace the rows.
     show.factorySpace = space
     show.droneSpace = space
+    -- Phase III.
+    show.space = space
+    show.probeDesign = space
+    show.increaseProbeTrust = space
+    show.increaseMaxTrust = S.project121.flag ~= 0
+    show.honor = S.project121.flag ~= 0
+    show.drifters = not looseZero(S.battleFlag)
+    show.battle = not looseZero(S.battleFlag)
+    show.combatAllocation = S.project131.flag ~= 0
+    show.lostHazards = not lt(S.probesLostHaz, 1)
+    show.lostDrift = not lt(S.probesLostDrift, 1)
+    show.lostCombat = not lt(S.probesLostCombat, 1)
+    show.prestige = not (S.prestigeU < 1 and S.prestigeS < 1)
     return show
 end
 
@@ -59,6 +74,10 @@ View.TERMS = {
     harvesters = "Compact Harvest Reapers", wireDrones = "Delicate Arcanite Converters", factories = "Bolt Foundries",
     farms = "Gold Power Cores", batteries = "9-60 Battery Packs", swarm = "Company Network",
     swarmGifts = "Network Breakthroughs",
+    colonized = "Cosmos Surveyed", drift = "Charter Drift", drifters = "Breakaway Franchises",
+    probeTrust = "Dragonling Trust", honor = "Renown", probeSpeed = "Rift Engines", probeNav = "Cosmic Surveying",
+    probeRep = "Franchise Replication", probeHaz = "Protective Wards", probeFac = "Foundry Deployment",
+    probeHarv = "Salvage Deployment", probeWire = "Refinery Deployment", probeCombat = "Enforcement",
 }
 
 -- A count for display: whole, with thousands separators. Display only: the
@@ -320,4 +339,123 @@ local SWARM = { [0] = "Active", [1] = "Hungry", [2] = "Confused", [3] = "Bored",
     [5] = "Disorganized", [6] = "Sleeping", [8] = "Lonely", [9] = "NO RESPONSE..." }
 function View.swarmStatus(S)
     return SWARM[S.swarmStatus]
+end
+
+-- Number.prototype.toFixed for the display: with no decimals it rounds an exact tie
+-- up (JavaScript picks the larger n), which %.0f would round to even.
+-- Exact comparison for toFixed: the sign of a * 10^digits * 2 - k2, with a a finite
+-- nonnegative double and k2 a nonnegative integer below 2^53, in integers base 1e7.
+local function big(n)
+    local out = {}
+    repeat
+        out[#out + 1] = n % 1e7
+        n = math.floor(n / 1e7)
+    until n == 0
+    return out
+end
+local function mul(x, factor) -- factor up to 2^20
+    local carry = 0
+    for i = 1, #x do
+        local v = x[i] * factor + carry
+        x[i] = v % 1e7
+        carry = math.floor(v / 1e7)
+    end
+    while carry > 0 do
+        x[#x + 1] = carry % 1e7
+        carry = math.floor(carry / 1e7)
+    end
+end
+local function mulPow2(x, k)
+    while k > 0 do
+        local step = math.min(k, 20)
+        mul(x, 2 ^ step)
+        k = k - step
+    end
+end
+local function compare(x, y)
+    while #x > 1 and x[#x] == 0 do x[#x] = nil end
+    while #y > 1 and y[#y] == 0 do y[#y] = nil end
+    if #x ~= #y then return #x < #y and -1 or 1 end
+    for i = #x, 1, -1 do
+        if x[i] ~= y[i] then return x[i] < y[i] and -1 or 1 end
+    end
+    return 0
+end
+local function exactCompare(a, digits, k2)
+    if a == 0 then return k2 == 0 and 0 or -1 end
+    local m, e = math.frexp(a)
+    local left, right = big(m * 2 ^ 53), big(k2)
+    e = e - 53
+    for _ = 1, digits do mul(left, 10) end
+    mul(left, 2)
+    if e >= 0 then mulPow2(left, e) else mulPow2(right, -e) end
+    return compare(left, right)
+end
+
+-- A negative value keeps its sign even when it rounds to zero ("-0"), and from
+-- 1e21 up JavaScript gives the number's own text.
+function View.toFixed(x, digits)
+    local JSMath = ns.JSMath
+    if isNaN(x) then return "NaN" end
+    if math.abs(x) >= 1e21 then return JSMath.toString(x) end
+    local sign = JSMath.lt(x, 0) and "-" or ""
+    local a = math.abs(x)
+    -- n / 10^digits nearest the exact value of x, a tie going to the larger n (the
+    -- C runtime's %f rounds ties to even, and its digits are not exact). Decided by
+    -- exact comparisons of x's binary value against the candidates.
+    if a * 10 ^ digits >= 2 ^ 51 then return sign .. string.format("%." .. digits .. "f", a) end
+    local n = math.floor(a * 10 ^ digits)
+    while exactCompare(a, digits, 2 * n) < 0 do n = n - 1 end
+    while exactCompare(a, digits, 2 * (n + 1)) >= 0 do n = n + 1 end
+    if exactCompare(a, digits, 2 * n + 1) >= 0 then n = n + 1 end -- a tie or above: up
+    local text = string.format("%.0f", n)
+    if digits == 0 then return sign .. text end
+    text = string.rep("0", digits + 1 - #text) .. text
+    return sign .. text:sub(1, #text - digits) .. "." .. text:sub(#text - digits + 1)
+end
+
+-- numberCruncher (main.js): a count divided down to its place name, toFixed.
+local CRUNCH = { { 51, "sexdecillion" }, { 48, "quindecillion" }, { 45, "quattuordecillion" },
+    { 42, "tredecillion" }, { 39, "duodecillion" }, { 36, "undecillion" }, { 33, "decillion" },
+    { 30, "nonillion" }, { 27, "octillion" }, { 24, "septillion" }, { 21, "sextillion" },
+    { 18, "quintillion" }, { 15, "quadrillion" }, { 12, "trillion" }, { 9, "billion" }, { 6, "million" },
+    { 3, "thousand" } }
+for _, step in ipairs(CRUNCH) do
+    -- The reference's literals: 999...9 (k nines) and 1000...0, parsed as doubles
+    -- exactly as JavaScript parses them.
+    step.above = tonumber(string.rep("9", step[1]))
+    step.divisor = tonumber("1" .. string.rep("0", step[1]))
+end
+function View.numberCruncher(number, decimals)
+    local precision = decimals or 2
+    local suffix = ""
+    for _, step in ipairs(CRUNCH) do
+        if ns.JSMath.gt(number, step.above) then
+            number, suffix = number / step.divisor, step[2]
+            break
+        end
+    end
+    if suffix == "" and ns.JSMath.lt(number, 1000) then precision = 0 end
+    return View.toFixed(number, precision) .. " " .. suffix
+end
+
+-- The share of the universe explored, as the reference prints it.
+function View.colonized(S)
+    return View.toFixed(ns.JSMath.div(100, ns.JSMath.div(S.totalMatter, S.foundMatter)), 12)
+end
+
+-- checkForBattleEnd's result panel: shown while a battle has ended on one side, once
+-- Renown exists. Its DEFEAT branch runs first and always writes the left side's
+-- ships; the VICTORY branch then overwrites the text and sign, writing the reward
+-- only on the battle's first award. So when both fleets fall together it reads
+-- VICTORY with the left side's count. Numbers are written raw (no separators).
+function View.battleResult(S)
+    if #S.battles == 0 or S.project121.flag ~= 1 then return nil end
+    local JSMath = ns.JSMath
+    if S.numRightShips == 0 then
+        local amount = S.numLeftShips == 0 and S.battleLEFTSHIPS or S.honorReward
+        return "VICTORY", "+" .. JSMath.toString(amount)
+    end
+    if S.numLeftShips == 0 then return "DEFEAT", "-" .. JSMath.toString(S.battleLEFTSHIPS) end
+    return nil
 end

@@ -4,6 +4,7 @@
 -- (the host's own wakeup frame runs the simulation).
 local _, ns = ...
 local View = ns.View
+local JSMath = ns.JSMath
 local T = View.TERMS
 
 local Window = {}
@@ -11,6 +12,7 @@ ns.Window = Window
 TimeIsMoney.Window = Window
 
 Window.REFRESH = 0.1   -- seconds between redraws while shown (not the logical step)
+Window.BATTLE_REFRESH = 0.03 -- the combat view's own redraw while a battle shows
 Window.COLUMN = 236    -- column width
 Window.GAP = 8
 Window.ROW = 22        -- one line of a card
@@ -217,6 +219,57 @@ function Card:Range(id, label, max, show)
     return row
 end
 
+-- The combat view: the reference's 310x150 battle canvas, scaled to the card. Live
+-- ships are 2x2 squares in their team's colour; a destroyed ship flashes white and
+-- fades over its ten explosion frames (the reference draws expanding pixels).
+-- Textures are pooled and reused; the simulation's ships are only read.
+local TEAM = { [0] = { 0.45, 0.75, 1 }, [1] = { 1, 0.35, 0.3 } } -- left (loyal), right (breakaway)
+function Card:Battle(show)
+    local row = { kind = "battle", show = show, dots = {} }
+    row.box = CreateFrame("Frame", nil, self.content)
+    row.background = row.box:CreateTexture(nil, "BACKGROUND")
+    row.background:SetAllPoints(row.box)
+    row.background:SetColorTexture(0, 0, 0, 0.45)
+    self.rows[#self.rows + 1] = row
+    return row
+end
+
+-- Draws the battle's ships into its box. A dot changes colour or size only when its
+-- ship's team or state changes; each redraw moves it and sets its fade.
+local WHITE = { 1, 1, 1 }
+function Window.DrawBattle(row, S)
+    local scale, used = row.scale, 0
+    for _, ship in ipairs(S.ships) do
+        local alpha, kind, color
+        if ship.alive then
+            alpha, kind, color = 1, ship.team, TEAM[ship.team] or TEAM[0]
+        elseif ship.framesDead < 10 then
+            alpha, kind, color = 1 - ship.framesDead / 10, "dead", WHITE
+        end
+        if alpha then
+            used = used + 1
+            local dot = row.dots[used]
+            if not dot then
+                dot = row.box:CreateTexture(nil, "ARTWORK")
+                row.dots[used] = dot
+            end
+            if dot.kind ~= kind or dot.scale ~= scale then
+                -- At least 2 px (3 for an explosion), so a scaled-down view keeps them.
+                local size = math.max(kind == "dead" and 3 or 2, (kind == "dead" and 3 or 2) * scale)
+                dot:SetColorTexture(color[1], color[2], color[3], 1)
+                dot:SetSize(size, size)
+                dot.kind, dot.scale = kind, scale
+            end
+            dot:SetAlpha(alpha)
+            dot:SetPoint("CENTER", row.box, "TOPLEFT", ship.x * scale, -ship.y * scale)
+            dot:Show()
+        end
+    end
+    for i = used + 1, #row.dots do
+        if row.dots[i]:IsShown() then row.dots[i]:Hide() end
+    end
+end
+
 -- The photonic chips: ten cells whose brightness follows each chip's value, as the
 -- reference sets each chip's opacity (a negative value shows nothing).
 function Card:Chips(show)
@@ -251,7 +304,7 @@ function Card:Update(game, panels)
         if not row.regions then
             row.regions = {}
             for _, r in pairs({ row.label, row.text, row.button, row.lower, row.raise, row.bar, row.mouse,
-                row.lower10, row.raise10 }) do
+                row.lower10, row.raise10, row.box }) do
                 row.regions[#row.regions + 1] = r
             end
             for _, r in ipairs(row.strings or row.cells or row.buttons or {}) do row.regions[#row.regions + 1] = r end
@@ -340,6 +393,14 @@ function Card:Update(game, panels)
                 row.bar:SetPoint("LEFT", row.lower, "RIGHT", 6, 0)
                 row.bar:SetPoint("RIGHT", row.raise, "LEFT", -6, 0)
                 Glass.SetBar(row.bar, row.max, math.max(0, math.min(range.number, row.max)), true)
+            elseif row.kind == "battle" then
+                local scale = width / S.battleWIDTH
+                row.height = S.battleHEIGHT * scale + 6
+                place(row.box, self, y - 2, inset)
+                row.box:SetSize(width, S.battleHEIGHT * scale)
+                row.scale = scale
+                Window.DrawBattle(row, S)
+                Window.battleRow = row
             elseif row.kind == "chips" then
                 for i, cell in ipairs(row.cells) do
                     place(cell, self, y - 2, inset + (i - 1) * 20)
@@ -486,6 +547,9 @@ local function Build()
 
     -- Production: the bolts and the press, then what feeds it.
     local production = NewCard(content, "Production")
+    production:Stat("Universe / Sim Level", function(S)
+        return JSMath.toString(S.prestigeU + 1) .. " / " .. JSMath.toString(S.prestigeS + 1)
+    end, function(_, p) return p.prestige end)
     production:Stat(T.clips, function(S) return View.count(S.clips) end)
     production:Action("btnMakePaperclip", function() return T.make end)
     local manufacturing = function(_, p) return p.manufacturing end
@@ -662,8 +726,61 @@ local function Build()
     network:Stat(T.swarmGifts, function(S) return View.count(S.swarmGifts) end, swarming)
     network:Range("slider", "Work  <  >  Think", 200, function(_, p) return p.swarmSlider end)
 
+    -- Phase III: exploration, the dragonling design and combat.
+    local spaceShown = function(_, p) return p.space end
+    local cosmos = NewCard(content, "Space Exploration")
+    cosmos:Stat(T.colonized, function(S) return View.colonized(S) .. "%" end, spaceShown)
+    cosmos:Action("btnMakeProbe", function(S) return "Launch a Dragonling (" .. bolts(S.probeCost) .. ")" end, spaceShown)
+    cosmos:Stat("Launched", function(S) return ns.Workshop.formatWithCommas(S.probeLaunchLevel) end, spaceShown)
+    cosmos:Stat("Descendants", function(S) return View.spell(S.probeDescendents) end, spaceShown)
+    cosmos:Stat("Lost to hazards", function(S) return "(" .. View.spell(S.probesLostHaz) .. ")" end,
+        function(_, p) return p.space and p.lostHazards end)
+    cosmos:Stat("Lost to " .. T.drift, function(S) return "(" .. View.spell(S.probesLostDrift) .. ")" end,
+        function(_, p) return p.space and p.lostDrift end)
+    -- The reference writes this one only through numberCruncher (combat.js).
+    cosmos:Stat("Lost in combat", function(S) return "(" .. View.numberCruncher(S.probesLostCombat) .. ")" end,
+        function(_, p) return p.space and p.lostCombat end)
+    cosmos:Stat("Total", function(S) return View.spell(S.probeCount) end, spaceShown)
+    local drifting = function(_, p) return p.space and p.drifters end
+    cosmos:Stat(T.drifters .. " defeated", function(S) return View.spell(S.driftersKilled) end, drifting)
+    cosmos:Stat(T.drifters, function(S) return View.spell(S.drifterCount) end, drifting)
+
+    local designing = function(_, p) return p.probeDesign end
+    local design = NewCard(content, "Dragonling Design")
+    design:Stat(T.probeTrust, function(S)
+        return JSMath.toString(S.probeUsedTrust) .. " / " .. JSMath.toString(S.probeTrust) .. " ("
+            .. ns.Workshop.formatWithCommas(S.maxTrust) .. " Max)"
+    end, designing)
+    for _, a in ipairs({ { "Speed", T.probeSpeed }, { "Nav", T.probeNav }, { "Rep", T.probeRep }, { "Haz", T.probeHaz },
+        { "Fac", T.probeFac }, { "Harv", T.probeHarv }, { "Wire", T.probeWire } }) do
+        design:Adjust(a[2], function(S) return JSMath.toString(S["probe" .. a[1]]) end,
+            "btnLowerProbe" .. a[1], "btnRaiseProbe" .. a[1], designing)
+    end
+    design:Adjust(T.probeCombat, function(S) return JSMath.toString(S.probeCombat) end, "btnLowerProbeCombat",
+        "btnRaiseProbeCombat", function(_, p) return p.probeDesign and p.combatAllocation end)
+    design:Action("btnIncreaseProbeTrust", function(S)
+        return "Increase " .. T.probeTrust .. " (" .. ns.Workshop.formatWithCommas(math.floor(S.probeTrustCost)) .. " "
+            .. T.yomi .. ")"
+    end, function(_, p) return p.increaseProbeTrust end)
+    -- The reference never updates this cost's text (the line is commented out), so
+    -- it keeps its page default.
+    design:Action("btnIncreaseMaxTrust", function() return "Increase Max Trust (91,117.99 " .. T.honor .. ")" end,
+        function(_, p) return p.increaseMaxTrust end)
+    design:Stat(T.honor, function(S) return ns.Workshop.formatWithCommas(JSMath.round(S.honor)) end,
+        function(_, p) return p.honor end)
+
+    local fighting = function(_, p) return p.battle end
+    local combat = NewCard(content, "Combat")
+    combat:Stat("", function(S) return S.battleName end, fighting)
+    combat:Battle(fighting)
+    combat:Stat("", function(S)
+        local result, amount = View.battleResult(S)
+        return result and (result .. "  " .. amount .. " " .. T.honor) or ""
+    end, function(S, p) return p.battle and View.battleResult(S) ~= nil end)
+    combat:Stat("Scale", function(S) return View.numberCruncher(S.unitSize, 0) .. ":1" end, fighting)
+
     Window.columns = { { production }, { sales, ledger, factories, wire }, { invest, negotiate, resonance, power, network },
-        { NewProjects(content) } }
+        { cosmos, design, combat }, { NewProjects(content) } }
 
     -- Messages: the newest reference message (the Director's strip is #22).
     Window.message = Glass.Font(g.top, 11, "LEFT")
@@ -671,9 +788,16 @@ local function Build()
 
     f:SetScript("OnUpdate", function(_, elapsed)
         Window.elapsed = (Window.elapsed or 0) + elapsed
+        Window.battleElapsed = (Window.battleElapsed or 0) + elapsed
         if Window.elapsed >= Window.REFRESH then
-            Window.elapsed = 0
+            Window.elapsed, Window.battleElapsed = 0, 0
             Window.Refresh()
+        elseif Window.battleElapsed >= Window.BATTLE_REFRESH then
+            -- The combat view alone redraws faster, so an explosion's ten 16 ms
+            -- frames are seen; nothing else is laid out.
+            Window.battleElapsed = 0
+            local row, game = Window.battleRow, ns.Host.game
+            if row and game and row.box:IsShown() then Window.DrawBattle(row, game.S) end
         end
     end)
     f:Hide()
