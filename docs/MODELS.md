@@ -102,6 +102,10 @@ Record observations in forever-api-notes.md before making measured claims.
 - **`/tim model`:** shows the round 2D portrait from the same display.
 - **Margin:** the model sat on the window's bottom edge, so the bottom margin is now
   10 px.
+- **Clipping:** when the idle animation turned Gazlowe's head, it left the 96x72
+  scene and was cut at its edge. The scene is now 136x84 with a 1.30 margin. The
+  framing recomputes the zoom from the frame, so he keeps his size with room to
+  move.
 
 Still to watch over longer play: the idle animation, repeated hide/show and phase
 changes, and frame time.

@@ -16,11 +16,15 @@ Director.DISPLAY = 7052                  -- Gazlowe (npc 3391), owner's choice (
 -- the idle pose and differs between loads (PORTING-TBC-TO-FOREVER, 70205), so the
 -- framing uses this height and the live box only says "the model is in".
 Director.MODEL_HEIGHT = 1.39
-Director.WIDTH, Director.HEIGHT = 96, 72  -- the storyboard strip, as measured (#10)
-Director.CROP, Director.MARGIN = 0.40, 1.15
+-- The scene is wider than the measured 96x72 strip crop: the idle animation turns
+-- Gazlowe's head past a 96 px frame and it clipped (owner, 2026-10-05). The framing
+-- recomputes the zoom from the frame, so he keeps his size with room to move; the
+-- margin leaves headroom for the ears.
+Director.WIDTH, Director.HEIGHT = 136, 84
+Director.CROP, Director.MARGIN = 0.40, 1.30
 Director.FOV, Director.CAMERA = 0.15, 40
 Director.POLLS, Director.POLL_STEP = 30, 0.1 -- the box poll: about 3 s
-Director.MIN_STRIP = 84                   -- the strip's height when the line is short
+Director.MIN_STRIP = 92                   -- the strip's height when the line is short
 Director.modelEnabled = true              -- /tim model toggles (session; settings are #23)
 Director.state, Director.token = "none", 0 -- none | loading | live | portrait
 
