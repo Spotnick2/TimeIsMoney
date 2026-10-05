@@ -208,8 +208,9 @@ number in the tag when `project215` is bought; it is display only.
 1. The window, the phase I Production, Sales and Ledger cards, and projects (#56).
    - The window never shows the reference's messages in their own wording. The
      Director's strip shows them as localized company reports (#22). The opening
-     "Welcome to Universal Paperclips" reads "Welcome to Durotar Supply and
-     Logistics." (the owner's choice of company, 2026-10-05).
+     "Welcome to Universal Paperclips" welcomes the player to their faction's company
+     (owner's choice, 2026-10-05): Azeroth Commerce Authority for Alliance
+     characters, Durotar Supply and Logistics otherwise.
 2. Cartel Investments (risk, cash, stocks, deposit, withdraw, the
    engine upgrade), the Negotiation Simulator (Cunning, strategy picker, new and
    run tournament, auto tournaments, the report line, matchup, payoff grid and

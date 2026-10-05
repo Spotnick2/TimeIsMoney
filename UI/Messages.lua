@@ -183,12 +183,20 @@ Messages.PATTERNS = {
         end },
 }
 
+-- Values any exact report may name: the player's company, by faction (Alliance:
+-- the Azeroth Commerce Authority; Horde or not yet chosen: Durotar Supply and
+-- Logistics).
+function Messages.Context()
+    local faction = TimeIsMoney.API.PlayerFaction()
+    return { company = ns.L[faction == "Alliance" and "company.alliance" or "company.horde"] }
+end
+
 -- The localized line for a reference message, and whether it is a credit.
 function Messages.Translate(message)
     if message == nil or message == "" then return nil end
     if Messages.CREDITS[message] then return Locale.Format("credits.line", { text = message }), true end
     local key = Messages.EXACT[message]
-    if key then return ns.L[key] end
+    if key then return Locale.Format(key, Messages.Context()) end
     for _, p in ipairs(Messages.PATTERNS) do
         local captures = { message:match(p[1]) }
         if captures[1] then return Locale.Format(p[2], p[3](unpack(captures))) end

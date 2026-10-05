@@ -60,7 +60,13 @@ assert(text == "Credits: a game by Frank Lantz" and isCredit)
 assert(not Messages.Translate("Adversarial cohesion online. Each drone added to the flock increases every drone's output 2x."):lower():find("drone"))
 assert(Messages.Translate("Self-correcting factories online. Each factory added to the network increases every factory's output 1,000x."):find("grows with the number of foundries", 1, true))
 -- The opening readout has the owner's wording; nothing unmapped slips through.
+-- The company follows the player's faction (goblins are neutral in Forever).
 assert(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Durotar Supply and Logistics.")
+captured.faction = "Alliance"
+assert(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Azeroth Commerce Authority.")
+captured.faction = "Neutral"
+assert(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Durotar Supply and Logistics.")
+captured.faction = nil
 assert(Messages.Translate("Clips are great") == nil and Messages.Translate("") == nil)
 
 -- Every key the reports and beats use exists in English (a missing one shows [key]).
