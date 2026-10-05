@@ -49,8 +49,9 @@ ns.Locale.Register("enUS", {
     ["beat.freshStart"] = "New premises. New customers. Same excellent product.",
 
     -- The company's reports: the reference's messages in Time Is Money terms.
-    -- The company the plan names (Original Plan, "Company and characters").
-    ["msg.welcome"] = "Welcome to the Time Is Money Trading Company.",
+    -- The owner's choice (2026-10-05): the Forever faction, over the plan's "Time Is
+    -- Money Trading Company".
+    ["msg.welcome"] = "Welcome to Durotar Supply and Logistics.",
     ["msg.gizmosAvailable"] = "Whirring Bronze Gizmos available for purchase.",
     ["msg.gizmos25"] = "Precision Dies fitted: Gizmo output up 25%.",
     ["msg.gizmos50"] = "Faster press timing: Gizmo output up another 50%.",
