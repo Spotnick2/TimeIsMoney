@@ -20,8 +20,23 @@ the embedded LibGlass-1.0 material.
   because `creativityOn` is a boolean, so the Ingenuity row shows whenever the
   Ledger does.
 - **Display rounding never decides anything.** Counts are whole numbers with
-  separators. Funds show as coins, one reference unit per silver (0.25 shows as 25c,
-  1,000,000 as 10,000g). Coin icons and threshold tooltips are #21.
+  separators.
+- **Funds show as coins** (#21), one reference unit per silver: 0.25 shows as 25c,
+  1 as 1s, 123.45 as 1g 23s 45c, 1,000,000 as 10,000g.
+  - The window draws the coin icons Forever's money frames use; the letters are the
+    readable equivalent.
+  - Amounts round to the nearest copper. Negative amounts keep their sign, and a
+    value that rounds to nothing shows none.
+  - Once whole copper is no longer exact (2^53 copper), only the gold shows.
+  - **The exact amount on hover:** when the coins round away a fraction of a copper
+    (funds, the price, gizmo and widget costs), hovering shows it, so thresholds
+    stay visible.
+    - The number's own text decides: 0.29 is whole copper, even though 0.29 * 100
+      isn't exactly 29 in doubles.
+    - While hovered, every tooltip follows the company on every redraw, a row's or
+      a button's. A purchase made without moving the pointer shows the next cost.
+    - The area covers the label and value, never the row's buttons, and still lets
+      the window be dragged.
 - **Disabled controls say so** in their label, not only in colour: "(not yet)" on
   wide buttons, "(+)" / "(-)" on the 32x32 square ones.
 - **The window fits the screen.** Offers stay while the player defers them, so the

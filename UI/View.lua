@@ -137,19 +137,52 @@ function View.count(x)
     return (negative and "-" or "") .. text
 end
 
--- Company funds: one reference unit is one silver (0.25 shows as 25c). Coin
--- presentation with icons and threshold tooltips is #21; this is its text form.
-function View.coins(x)
+-- Company funds (spec section 4): one reference unit is one silver, so 0.25 shows
+-- as 25c, 1 as 1s, 123.45 as 1g 23s 45c and 1,000,000 as 10,000g. Display only:
+-- the simulation keeps the exact number, and nothing here decides affordability.
+-- Rounded to the nearest copper; once copper counts pass 2^53 (where whole copper
+-- is no longer exact) only the gold shows. The sign survives; a value that rounds
+-- to nothing shows no sign.
+local COIN_TEXT = { g = "g", s = "s", c = "c" }
+local EXACT_COPPER = 2 ^ 53
+-- The coin icons Forever's money frames use (AltStable shows them on Forever too),
+-- sized to the line, with the letters as their readable equivalent in tooltips.
+View.COIN_ICONS = {
+    g = "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t",
+    s = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t",
+    c = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t",
+}
+local function coinParts(x, marks)
     if isNaN(x) or x == math.huge or x == -math.huge then return View.count(x) end
     local copper = math.floor(math.abs(x) * 100 + 0.5)
-    local negative = x < 0 and copper > 0 -- no "-0c" once rounded
-    local gold, silver = math.floor(copper / 10000), math.floor(copper / 100) % 100
-    copper = copper % 100
+    local negative = x < 0 and copper > 0
     local parts = {}
-    if gold > 0 then parts[#parts + 1] = View.count(gold) .. "g" end
-    if silver > 0 then parts[#parts + 1] = silver .. "s" end
-    if copper > 0 or #parts == 0 then parts[#parts + 1] = copper .. "c" end
+    if copper >= EXACT_COPPER then
+        parts[1] = View.count(math.floor(math.abs(x) / 100)) .. marks.g
+    else
+        local gold, silver = math.floor(copper / 10000), math.floor(copper / 100) % 100
+        copper = copper % 100
+        if gold > 0 then parts[#parts + 1] = View.count(gold) .. marks.g end
+        if silver > 0 then parts[#parts + 1] = silver .. marks.s end
+        if copper > 0 or #parts == 0 then parts[#parts + 1] = copper .. marks.c end
+    end
     return (negative and "-" or "") .. table.concat(parts, " ")
+end
+function View.coins(x) return coinParts(x, COIN_TEXT) end
+-- The same amount with coin icons, for the window.
+function View.money(x) return coinParts(x, View.COIN_ICONS) end
+
+-- The exact amount, when the coins round it (a fraction of a copper): the tooltip
+-- that keeps thresholds visible. nil when the coins already show it exactly. The
+-- number's own shortest text decides (0.29 is whole copper even though 0.29 * 100
+-- is not exactly 29 in doubles): more than two decimals, or an exponent, rounds.
+function View.exactMoney(x)
+    if isNaN(x) or x == math.huge or x == -math.huge then return nil end
+    if math.abs(x) * 100 >= EXACT_COPPER then return nil end
+    local text = ns.JSMath.toString(x)
+    local decimals = text:match("%.(%d+)$")
+    if not text:find("e", 1, true) and (not decimals or #decimals <= 2) then return nil end
+    return "Exactly " .. text .. " silver (" .. View.coins(x) .. " shown)"
 end
 
 -- A project's price tag: the reference text (or the reference's computed one),
@@ -170,11 +203,12 @@ local function computedTag(name, S)
         return "(" .. View.count(S.threnodyCost) .. " creat, " .. View.count(2 * (S.threnodyCost / 5)) .. " yomi)"
     end
 end
-function View.priceTag(name, S)
+function View.priceTag(name, S, money)
+    money = money or View.money
     local text = ns.ProjectText[name]
     local tag = text.priceTag or computedTag(name, S) or ""
     if name == "project216" then tag = "(" .. View.count(S.standardOps) .. " ops)" end
-    tag = tag:gsub("%$([%d,]+)", function(n) return View.coins(tonumber((n:gsub(",", "")))) end)
+    tag = tag:gsub("%$([%d,]+)", function(n) return money(tonumber((n:gsub(",", "")))) end)
     for _, unit in ipairs(UNITS) do
         tag = tag:gsub("(%d) " .. unit[1] .. "%f[%A]", "%1 " .. unit[2])
     end
@@ -183,13 +217,13 @@ end
 
 -- The projects on offer, in the order the reference shows them (activeProjects),
 -- each with its title, price tag, purpose and whether it can be bought now.
-function View.projects(game)
+function View.projects(game, money)
     local list = {}
     for _, project in ipairs(game.S.activeProjects) do
         local entry = ns.Workshop.projectById[project.id]
         local text = ns.ProjectText[entry.name]
         list[#list + 1] = {
-            id = project.id, title = text.title, priceTag = View.priceTag(entry.name, game.S),
+            id = project.id, title = text.title, priceTag = View.priceTag(entry.name, game.S, money),
             purpose = text.purpose, enabled = not game.disabled[project.id],
         }
     end
@@ -265,14 +299,15 @@ end
 -- in five slots. The reference clears the slots after the last stock starting one
 -- too late (main.js "Frank Fix"), so the slot just after the last stock keeps what
 -- it last showed; slots carries that between redraws (window state, not saved).
-function View.stockLines(S, slots)
+function View.stockLines(S, slots, money)
+    money = money or View.money
     local n = math.min(5, #S.stocks)
     for i = 1, 5 do
         local stock = S.stocks[i]
         if i <= n then
             slots[i] = {
-                stock.symbol .. "  x" .. View.count(math.ceil(stock.amount)) .. " @ " .. View.coins(math.ceil(stock.price)),
-                "    = " .. View.coins(math.ceil(stock.total)) .. "   P/L " .. View.coins(math.ceil(stock.profit)),
+                stock.symbol .. "  x" .. View.count(math.ceil(stock.amount)) .. " @ " .. money(math.ceil(stock.price)),
+                "    = " .. money(math.ceil(stock.total)) .. "   P/L " .. money(math.ceil(stock.profit)),
             }
         elseif i > n + 1 then
             slots[i] = nil

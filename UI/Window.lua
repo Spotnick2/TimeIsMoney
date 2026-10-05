@@ -38,6 +38,29 @@ local function Click(id)
     Window.Refresh()
 end
 
+-- Tooltips: one renderer. lines[1] is the white title, the rest wrap muted.
+local function ShowTip(owner, lines)
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:SetText(lines[1], 1, 1, 1)
+    for i = 2, #lines do GameTooltip:AddLine(lines[i], MUTED[1], MUTED[2], MUTED[3], true) end
+    GameTooltip:Show()
+end
+
+-- A tooltip line read from the running company, or nil.
+local function FromGame(fn)
+    return function()
+        local game = ns.Host.game
+        return game and fn(game.S) or nil
+    end
+end
+
+-- Mouse areas (tooltips, hover) over the window still let it be dragged.
+local function Draggable(area)
+    area:RegisterForDrag("LeftButton")
+    area:SetScript("OnDragStart", function() Window.frame:StartMoving() end)
+    area:SetScript("OnDragStop", function() Window.frame:StopMovingOrSizing() end)
+end
+
 -- A glass button bound to a control id. Disabled exactly when the game disables
 -- that control; the label says so too (not colour alone).
 local function NewButton(parent, id, height)
@@ -50,15 +73,19 @@ local function NewButton(parent, id, height)
     b.label:SetPoint("RIGHT", b, "RIGHT", -4, 0)
     b.id = id
     b:SetScript("OnClick", function(self) if self.id then Click(self.id) end end)
+    -- Live like every hover tooltip: re-read on each redraw while hovered, so a cost
+    -- that changes under the pointer (a purchase) shows its new value and title.
     b:SetScript("OnEnter", function(self)
-        if self.tipFn then self.tip = self.tipFn() end
-        if not self.tip then return end
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(self.tip[1], 1, 1, 1)
-        for i = 2, #self.tip do GameTooltip:AddLine(self.tip[i], MUTED[1], MUTED[2], MUTED[3], true) end
-        GameTooltip:Show()
+        Window.liveTip = { owner = self, lines = function()
+            if self.tipFn then self.tip = self.tipFn() end
+            return self.tip
+        end }
+        Window.UpdateLiveTip()
     end)
-    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b:SetScript("OnLeave", function(self)
+        if Window.liveTip and Window.liveTip.owner == self then Window.liveTip = nil end
+        GameTooltip:Hide()
+    end)
     b:SetMotionScriptsWhileDisabled(true)
     return b
 end
@@ -98,26 +125,71 @@ local function NewCard(parent, title, titled)
 end
 
 -- A row: a label on the left and a value on the right.
-function Card:Stat(label, value, show)
+-- tip(S), when given, is a tooltip line for the row (nil: no tooltip now). The
+-- row's label and value become a mouse area for it; while hovered, the tooltip
+-- follows the company on every redraw (it appears, changes or goes as the amount
+-- does).
+local function TipArea(row, parent, tip)
+    local line = FromGame(tip)
+    row.tipArea = CreateFrame("Frame", nil, parent)
+    row.tipArea:EnableMouse(true)
+    Draggable(row.tipArea)
+    row.tipArea:SetScript("OnEnter", function(area)
+        Window.liveTip = { owner = area, lines = function()
+            local text = line()
+            return text and { row.label:GetText() or "", text } or nil
+        end }
+        Window.UpdateLiveTip()
+    end)
+    row.tipArea:SetScript("OnLeave", function(area)
+        if Window.liveTip and Window.liveTip.owner == area then Window.liveTip = nil end
+        GameTooltip:Hide()
+    end)
+end
+
+-- The hovered tooltip (a button or a row), refreshed on each redraw: it appears,
+-- changes or goes as its lines do.
+function Window.UpdateLiveTip()
+    local tip = Window.liveTip
+    if not tip then return end
+    local lines = tip.lines()
+    if lines then
+        ShowTip(tip.owner, lines)
+        tip.shown = true
+    elseif tip.shown then
+        GameTooltip:Hide()
+        tip.shown = false
+    end
+end
+
+function Card:Stat(label, value, show, tip)
     local row = { kind = "stat", height = Window.ROW, value = value, show = show }
     row.label = Glass.Font(self.glass.top, 11, "LEFT")
     row.label:SetText(label)
     row.text = Glass.Font(self.glass.top, 12, "RIGHT")
+    if tip then TipArea(row, self.content, tip) end
     self.rows[#self.rows + 1] = row
     return row
 end
 
 -- A full-width button for a control; text(S) gives its label.
-function Card:Action(id, text, show)
+function Card:Action(id, text, show, tip)
     local row = { kind = "action", height = Window.BUTTON + 4, id = id, caption = text, show = show }
     row.button = NewButton(self.content, id)
+    if tip then
+        local line = FromGame(tip)
+        row.button.tipFn = function()
+            local text = line()
+            return text and { row.caption(ns.Host.game.S), text } or nil
+        end
+    end
     self.rows[#self.rows + 1] = row
     return row
 end
 
 -- A stat with lower and raise buttons beside its value.
-function Card:Adjust(label, value, lower, raise, show)
-    local row = self:Stat(label, value, show)
+function Card:Adjust(label, value, lower, raise, show, tip)
+    local row = self:Stat(label, value, show, tip)
     row.kind, row.height = "adjust", Window.SQUARE + 2
     row.raise = NewButton(self.content, raise, Window.SQUARE)
     row.raise:SetWidth(Window.SQUARE)
@@ -172,6 +244,7 @@ function Card:Lines(max, lines, show, alpha, hover, reserve)
     if hover then
         row.mouse = CreateFrame("Frame", nil, self.content)
         row.mouse:EnableMouse(true)
+        Draggable(row.mouse)
         -- Pointer moves are not player decisions: a refusal (a stopped company) is
         -- not reported on every move.
         local function send(id) ns.Host.click(id) Window.Refresh() end
@@ -311,7 +384,7 @@ function Card:Update(game, panels)
         if not row.regions then
             row.regions = {}
             for _, r in pairs({ row.label, row.text, row.button, row.lower, row.raise, row.bar, row.mouse,
-                row.lower10, row.raise10, row.box }) do
+                row.lower10, row.raise10, row.box, row.tipArea }) do
                 row.regions[#row.regions + 1] = r
             end
             for _, r in ipairs(row.strings or row.cells or row.buttons or {}) do row.regions[#row.regions + 1] = r end
@@ -376,10 +449,13 @@ function Card:Update(game, panels)
                     place(b, self, y - 2, inset + (i - 1) * (each + gap))
                     b:SetWidth(each)
                     -- Built when hovered, not on every redraw.
-                    b.tipFn = entry.tip and function()
-                        local game = ns.Host.game
-                        return game and { entry.text, entry.tip(game.S) } or nil
-                    end or nil
+                    if entry.tip and not b.tipFn then
+                        local line = FromGame(entry.tip)
+                        b.tipFn = function()
+                            local text = line()
+                            return text and { entry.text, text } or nil
+                        end
+                    end
                     SetButton(b, entry.text, not game.disabled[entry.id], true)
                 end
             elseif row.kind == "range" then
@@ -417,6 +493,11 @@ function Card:Update(game, panels)
                 end
             else
                 place(row.label, self, y - 4, inset)
+                if row.tipArea then
+                    place(row.tipArea, self, y, inset)
+                    local buttons = row.raise and (Window.SQUARE + (row.lower and Window.SQUARE + 4 or 0) + 6) or 0
+                    row.tipArea:SetSize(width - buttons, Window.ROW)
+                end
                 row.text:ClearAllPoints()
                 row.text:SetText(row.value(S, game))
                 if row.kind == "adjust" then
@@ -563,31 +644,33 @@ local function Build()
     local manufacturing = function(_, p) return p.manufacturing end
     production:Stat("Bolts per second", function(S) return View.count(S.clipRate) end, manufacturing)
     production:Stat(T.wire, function(S) return View.count(S.wire) end, manufacturing)
-    production:Action("btnBuyWire", function(S) return "Buy " .. T.wire .. " (" .. View.coins(S.wireCost) .. ")" end,
+    production:Action("btnBuyWire", function(S) return "Buy " .. T.wire .. " (" .. View.money(S.wireCost) .. ")" end,
         manufacturing)
     production:Action("btnToggleWireBuyer", function(S)
         return "Bar Buyer: " .. (S.wireBuyerStatus == 1 and "ON" or "OFF")
     end, function(_, p) return p.manufacturing and p.wireBuyer end)
     local gizmos = function(_, p) return p.manufacturing and p.autoClippers end
     production:Stat(T.autoClippers, function(S) return View.count(S.clipmakerLevel) end, gizmos)
-    production:Action("btnMakeClipper", function(S) return "Buy Gizmo (" .. View.coins(S.clipperCost) .. ")" end, gizmos)
+    production:Action("btnMakeClipper", function(S) return "Buy Gizmo (" .. View.money(S.clipperCost) .. ")" end, gizmos,
+        function(S) return View.exactMoney(S.clipperCost) end)
     local widgets = function(_, p) return p.manufacturing and p.megaClippers end
     production:Stat(T.megaClippers, function(S) return View.count(S.megaClipperLevel) end, widgets)
     production:Action("btnMakeMegaClipper", function(S)
-        return "Buy Widget (" .. View.coins(S.megaClipperCost) .. ")"
-    end, widgets)
+        return "Buy Widget (" .. View.money(S.megaClipperCost) .. ")"
+    end, widgets, function(S) return View.exactMoney(S.megaClipperCost) end)
 
     -- Sales: funds, price, demand and campaigns.
     local business = function(_, p) return p.business end
     local sales = NewCard(content, "Sales")
-    sales:Stat(T.funds, function(S) return View.coins(S.funds) end, business)
-    sales:Stat("Revenue per second", function(S) return View.coins(S.avgRev) end,
+    sales:Stat(T.funds, function(S) return View.money(S.funds) end, business, function(S) return View.exactMoney(S.funds) end)
+    sales:Stat("Revenue per second", function(S) return View.money(S.avgRev) end,
         function(_, p) return p.business and p.revPerSec end)
     sales:Stat(T.unsold, function(S) return View.count(S.unsoldClips) end, business)
-    sales:Adjust(T.price, function(S) return View.coins(S.margin) end, "btnLowerPrice", "btnRaisePrice", business)
+    sales:Adjust(T.price, function(S) return View.money(S.margin) end, "btnLowerPrice", "btnRaisePrice", business,
+        function(S) return View.exactMoney(S.margin) end)
     sales:Stat("Public Demand", function(S) return View.count(S.demand * 10) .. "%" end, business)
     sales:Stat(T.marketing, function(S) return View.count(S.marketingLvl) end, business)
-    sales:Action("btnExpandMarketing", function(S) return "Run a Campaign (" .. View.coins(S.adCost) .. ")" end,
+    sales:Action("btnExpandMarketing", function(S) return "Run a Campaign (" .. View.money(S.adCost) .. ")" end,
         business)
 
     -- The Ledger: trust, its allocation and the operations it buys.
@@ -611,9 +694,9 @@ local function Build()
     local invest = NewCard(content, "Cartel Investments")
     local RISK = { low = "Low Risk", med = "Med Risk", hi = "High Risk" }
     invest:Select("investStrat", function(value) return RISK[value] or value end, investing)
-    invest:Stat("Cash", function(S) return View.coins(S.bankroll) end, investing)
-    invest:Stat("Stocks", function(S) return View.coins(S.secTotal) end, investing)
-    invest:Stat("Total", function(S) return View.coins(S.portTotal) end, investing)
+    invest:Stat("Cash", function(S) return View.money(S.bankroll) end, investing)
+    invest:Stat("Stocks", function(S) return View.money(S.secTotal) end, investing)
+    invest:Stat("Total", function(S) return View.money(S.portTotal) end, investing)
     invest:Action("btnInvest", function() return "Deposit" end, investing)
     invest:Action("btnWithdraw", function() return "Withdraw" end, investing)
     local slots = {}
@@ -851,6 +934,7 @@ function Window.Refresh()
     Window.message:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
     Window.message:SetWidth(width - 2 * inset)
     Window.message:SetText(game.readouts[1])
+    Window.UpdateLiveTip()
     local height = tallest + Window.MESSAGE + inset
     f:SetSize(width, height)
     -- Whatever the content (open selects, many columns), the window fits the screen
