@@ -21,28 +21,52 @@ assert(G == "|TInterface\\MoneyFrame\\UI-GoldIcon:0:0:2:0|t")
 assert(View.exactMoney(0.25) == nil and View.exactMoney(123.45) == nil)
 assert(View.exactMoney(0.2537) == "Exactly 0.2537 silver (25c shown)")
 assert(View.exactMoney(1e30) == nil and View.exactMoney(0 / 0) == nil)
+-- Whole copper by the number's own text, not float products (0.29 * 100 is not 29).
+assert(View.exactMoney(0.29) == nil and View.exactMoney(0.07) == nil and View.exactMoney(1.13) == nil)
+assert(View.exactMoney(0.1 + 0.2) == "Exactly 0.30000000000000004 silver (30c shown)")
 -- Price tags in coins.
 assert(View.priceTag("project40b", { bribe = 1000000 }, View.money) == "(10,000" .. G .. ")")
 
--- In the window: funds in coin icons, with the exact amount on hover.
+-- In the window: funds in coin icons, with the exact amount on hover, live.
 env.SlashCmdList.TIMEISMONEY("start")
 local game = Host.game
-game.S.funds = 12.3456
+game.S.funds = 0
 local disabledBefore = game.disabled.btnBuyWire
 Window.Refresh()
-assert(h.shownText("12" .. S_ .. " 35" .. C), "funds in coins")
+-- The tooltip areas: mouse frames that also drag the window.
+local areas = {}
+for _, w in ipairs(captured.widgets) do
+    if w.kind == "Frame" and w.scripts.OnEnter and w.scripts.OnDragStart and h.visible(w) then areas[#areas + 1] = w end
+end
+assert(#areas >= 2, "funds and price have tooltip areas")
+-- The price row's area stops short of its -/+ buttons (two 32 px squares).
+local widths = {}
+for _, area in ipairs(areas) do widths[area.width] = true end
+assert(widths[224] and widths[224 - (32 + 32 + 4 + 6)], "funds spans the row; the price stops at its buttons")
 local shown
 local tooltip = env.GameTooltip
-local realAdd = tooltip.AddLine
 tooltip.AddLine = function(_, text) shown = text end
-for _, w in ipairs(captured.widgets) do
-    if w.kind == "Frame" and w.scripts.OnEnter and h.visible(w) and not shown then
-        w.scripts.OnEnter(w)
-        if shown and not shown:find("Exactly", 1, true) then shown = nil end
-    end
-end
-tooltip.AddLine = realAdd
+tooltip.Hide = function() shown = nil end
+-- Hover Funds while they are whole copper: no tooltip yet.
+local fundsArea = areas[1]
+fundsArea.scripts.OnEnter(fundsArea)
+assert(shown == nil)
+-- Funds become fractional while hovered: the next redraw shows the exact amount.
+game.S.funds = 12.3456
+Window.Refresh()
+assert(h.shownText("12" .. S_ .. " 35" .. C), "funds in coins")
 assert(shown == "Exactly 12.3456 silver (12s 35c shown)", "the exact funds on hover: " .. tostring(shown))
+-- It follows the amount.
+game.S.funds = 12.3457
+Window.Refresh()
+assert(shown == "Exactly 12.3457 silver (12s 35c shown)")
+fundsArea.scripts.OnLeave(fundsArea)
+assert(shown == nil and Window.liveTip == nil)
+-- Dragging from a tooltip area moves the window.
+local moved = false
+Window.frame.StartMoving = function() moved = true end
+fundsArea.scripts.OnDragStart(fundsArea)
+assert(moved)
 -- Display never decides: the purchase's state is the simulation's alone.
 assert(game.disabled.btnBuyWire == disabledBefore)
 

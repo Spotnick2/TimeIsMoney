@@ -31,6 +31,11 @@ the embedded LibGlass-1.0 material.
   - **The exact amount on hover:** when the coins round away a fraction of a copper
     (funds, the price, gizmo and widget costs), hovering shows it, so thresholds
     stay visible.
+    - The number's own text decides: 0.29 is whole copper, even though 0.29 * 100
+      isn't exactly 29 in doubles.
+    - While hovered, the tooltip follows the amount on every redraw.
+    - The area covers the label and value, never the row's buttons, and still lets
+      the window be dragged.
 - **Disabled controls say so** in their label, not only in colour: "(not yet)" on
   wide buttons, "(+)" / "(-)" on the 32x32 square ones.
 - **The window fits the screen.** Offers stay while the player defers them, so the

@@ -144,6 +144,7 @@ end
 -- is no longer exact) only the gold shows. The sign survives; a value that rounds
 -- to nothing shows no sign.
 local COIN_TEXT = { g = "g", s = "s", c = "c" }
+local EXACT_COPPER = 2 ^ 53
 -- The coin icons Forever's money frames use (AltStable shows them on Forever too),
 -- sized to the line, with the letters as their readable equivalent in tooltips.
 View.COIN_ICONS = {
@@ -156,7 +157,7 @@ local function coinParts(x, marks)
     local copper = math.floor(math.abs(x) * 100 + 0.5)
     local negative = x < 0 and copper > 0
     local parts = {}
-    if copper >= 2 ^ 53 then
+    if copper >= EXACT_COPPER then
         parts[1] = View.count(math.floor(math.abs(x) / 100)) .. marks.g
     else
         local gold, silver = math.floor(copper / 10000), math.floor(copper / 100) % 100
@@ -172,12 +173,16 @@ function View.coins(x) return coinParts(x, COIN_TEXT) end
 function View.money(x) return coinParts(x, View.COIN_ICONS) end
 
 -- The exact amount, when the coins round it (a fraction of a copper): the tooltip
--- that keeps thresholds visible. nil when the coins already show it exactly.
+-- that keeps thresholds visible. nil when the coins already show it exactly. The
+-- number's own shortest text decides (0.29 is whole copper even though 0.29 * 100
+-- is not exactly 29 in doubles): more than two decimals, or an exponent, rounds.
 function View.exactMoney(x)
     if isNaN(x) or x == math.huge or x == -math.huge then return nil end
-    local copper = math.abs(x) * 100
-    if copper >= 2 ^ 53 or copper == math.floor(copper) then return nil end
-    return "Exactly " .. ns.JSMath.toString(x) .. " silver (" .. View.coins(x) .. " shown)"
+    if math.abs(x) * 100 >= EXACT_COPPER then return nil end
+    local text = ns.JSMath.toString(x)
+    local decimals = text:match("%.(%d+)$")
+    if not text:find("e", 1, true) and (not decimals or #decimals <= 2) then return nil end
+    return "Exactly " .. text .. " silver (" .. View.coins(x) .. " shown)"
 end
 
 -- A project's price tag: the reference text (or the reference's computed one),
@@ -199,7 +204,7 @@ local function computedTag(name, S)
     end
 end
 function View.priceTag(name, S, money)
-    money = money or View.coins
+    money = money or View.money
     local text = ns.ProjectText[name]
     local tag = text.priceTag or computedTag(name, S) or ""
     if name == "project216" then tag = "(" .. View.count(S.standardOps) .. " ops)" end
@@ -295,7 +300,7 @@ end
 -- too late (main.js "Frank Fix"), so the slot just after the last stock keeps what
 -- it last showed; slots carries that between redraws (window state, not saved).
 function View.stockLines(S, slots, money)
-    money = money or View.coins
+    money = money or View.money
     local n = math.min(5, #S.stocks)
     for i = 1, 5 do
         local stock = S.stocks[i]

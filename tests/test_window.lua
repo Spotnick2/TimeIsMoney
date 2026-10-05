@@ -12,7 +12,7 @@ assert(View.count(1e300):find("e%+300"))
 local S0 = { bribe = 1000000, qChipCost = 10000, threnodyCost = 50000, standardOps = 1234, project51 = { flag = 0 } }
 assert(View.priceTag("project1", S0) == "(750 Operations)")
 assert(View.priceTag("project2", S0) == "(1 Board Trust)")
-assert(View.priceTag("project40b", S0) == "(10,000g)")
+assert(View.priceTag("project40b", S0, View.coins) == "(10,000g)")
 assert(View.priceTag("project51", S0) == "(10,000 Operations)")
 -- After a chip purchase the reference rebuilds project51's tag without separators.
 S0.project51 = { flag = 1 }
@@ -256,10 +256,11 @@ local slots = {}
 local stocks = {}
 for i = 1, 5 do stocks[i] = { symbol = "S" .. i, amount = 10.2, price = 1.5, total = 15, profit = -0.4 } end
 local fake = { stocks = stocks }
-assert(#View.stockLines(fake, slots) == 10)
-assert(View.stockLines(fake, slots)[1] == "S1  x11 @ 2s" and View.stockLines(fake, slots)[2]:find("P/L 0c", 1, true))
+assert(#View.stockLines(fake, slots, View.coins) == 10)
+assert(View.stockLines(fake, slots, View.coins)[1] == "S1  x11 @ 2s"
+    and View.stockLines(fake, slots, View.coins)[2]:find("P/L 0c", 1, true))
 stocks[5], stocks[4] = nil, nil
-lines = View.stockLines(fake, slots)
+lines = View.stockLines(fake, slots, View.coins)
 assert(#lines == 8 and lines[7] == "S4  x11 @ 2s", "slot 4 keeps the sold stock; slot 5 cleared")
 
 print((libGlass and "window (real LibGlass at " .. libGlass .. ")" or "window (LibGlass stand-in)")

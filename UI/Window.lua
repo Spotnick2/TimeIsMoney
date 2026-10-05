@@ -38,6 +38,29 @@ local function Click(id)
     Window.Refresh()
 end
 
+-- Tooltips: one renderer. lines[1] is the white title, the rest wrap muted.
+local function ShowTip(owner, lines)
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:SetText(lines[1], 1, 1, 1)
+    for i = 2, #lines do GameTooltip:AddLine(lines[i], MUTED[1], MUTED[2], MUTED[3], true) end
+    GameTooltip:Show()
+end
+
+-- A tooltip line read from the running company, or nil.
+local function FromGame(fn)
+    return function()
+        local game = ns.Host.game
+        return game and fn(game.S) or nil
+    end
+end
+
+-- Mouse areas (tooltips, hover) over the window still let it be dragged.
+local function Draggable(area)
+    area:RegisterForDrag("LeftButton")
+    area:SetScript("OnDragStart", function() Window.frame:StartMoving() end)
+    area:SetScript("OnDragStop", function() Window.frame:StopMovingOrSizing() end)
+end
+
 -- A glass button bound to a control id. Disabled exactly when the game disables
 -- that control; the label says so too (not colour alone).
 local function NewButton(parent, id, height)
@@ -52,11 +75,7 @@ local function NewButton(parent, id, height)
     b:SetScript("OnClick", function(self) if self.id then Click(self.id) end end)
     b:SetScript("OnEnter", function(self)
         if self.tipFn then self.tip = self.tipFn() end
-        if not self.tip then return end
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(self.tip[1], 1, 1, 1)
-        for i = 2, #self.tip do GameTooltip:AddLine(self.tip[i], MUTED[1], MUTED[2], MUTED[3], true) end
-        GameTooltip:Show()
+        if self.tip then ShowTip(self, self.tip) end
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b:SetMotionScriptsWhileDisabled(true)
@@ -98,21 +117,36 @@ local function NewCard(parent, title, titled)
 end
 
 -- A row: a label on the left and a value on the right.
--- tip(S), when given, is a tooltip line for the row (nil: no tooltip now); the row
--- becomes a mouse area for it.
+-- tip(S), when given, is a tooltip line for the row (nil: no tooltip now). The
+-- row's label and value become a mouse area for it; while hovered, the tooltip
+-- follows the company on every redraw (it appears, changes or goes as the amount
+-- does).
 local function TipArea(row, parent, tip)
+    local line = FromGame(tip)
     row.tipArea = CreateFrame("Frame", nil, parent)
     row.tipArea:EnableMouse(true)
+    Draggable(row.tipArea)
     row.tipArea:SetScript("OnEnter", function(area)
-        local game = ns.Host.game
-        local line = game and tip(game.S)
-        if not line then return end
-        GameTooltip:SetOwner(area, "ANCHOR_RIGHT")
-        GameTooltip:SetText(row.label and row.label:GetText() or "", 1, 1, 1)
-        GameTooltip:AddLine(line, MUTED[1], MUTED[2], MUTED[3], true)
-        GameTooltip:Show()
+        Window.liveTip = { owner = area, title = row.label, line = line }
+        Window.UpdateLiveTip()
     end)
-    row.tipArea:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    row.tipArea:SetScript("OnLeave", function()
+        Window.liveTip = nil
+        GameTooltip:Hide()
+    end)
+end
+
+function Window.UpdateLiveTip()
+    local tip = Window.liveTip
+    if not tip then return end
+    local line = tip.line()
+    if line then
+        ShowTip(tip.owner, { tip.title:GetText() or "", line })
+        tip.shown = true
+    elseif tip.shown then
+        GameTooltip:Hide()
+        tip.shown = false
+    end
 end
 
 function Card:Stat(label, value, show, tip)
@@ -130,10 +164,10 @@ function Card:Action(id, text, show, tip)
     local row = { kind = "action", height = Window.BUTTON + 4, id = id, caption = text, show = show }
     row.button = NewButton(self.content, id)
     if tip then
+        local line = FromGame(tip)
         row.button.tipFn = function()
-            local game = ns.Host.game
-            local line = game and tip(game.S)
-            return line and { row.caption(game.S), line } or nil
+            local text = line()
+            return text and { row.caption(ns.Host.game.S), text } or nil
         end
     end
     self.rows[#self.rows + 1] = row
@@ -197,6 +231,7 @@ function Card:Lines(max, lines, show, alpha, hover, reserve)
     if hover then
         row.mouse = CreateFrame("Frame", nil, self.content)
         row.mouse:EnableMouse(true)
+        Draggable(row.mouse)
         -- Pointer moves are not player decisions: a refusal (a stopped company) is
         -- not reported on every move.
         local function send(id) ns.Host.click(id) Window.Refresh() end
@@ -401,10 +436,13 @@ function Card:Update(game, panels)
                     place(b, self, y - 2, inset + (i - 1) * (each + gap))
                     b:SetWidth(each)
                     -- Built when hovered, not on every redraw.
-                    b.tipFn = entry.tip and function()
-                        local game = ns.Host.game
-                        return game and { entry.text, entry.tip(game.S) } or nil
-                    end or nil
+                    if entry.tip and not b.tipFn then
+                        local line = FromGame(entry.tip)
+                        b.tipFn = function()
+                            local text = line()
+                            return text and { entry.text, text } or nil
+                        end
+                    end
                     SetButton(b, entry.text, not game.disabled[entry.id], true)
                 end
             elseif row.kind == "range" then
@@ -444,7 +482,8 @@ function Card:Update(game, panels)
                 place(row.label, self, y - 4, inset)
                 if row.tipArea then
                     place(row.tipArea, self, y, inset)
-                    row.tipArea:SetSize(width, Window.ROW)
+                    local buttons = row.raise and (Window.SQUARE + (row.lower and Window.SQUARE + 4 or 0) + 6) or 0
+                    row.tipArea:SetSize(width - buttons, Window.ROW)
                 end
                 row.text:ClearAllPoints()
                 row.text:SetText(row.value(S, game))
@@ -503,7 +542,7 @@ local function NewProjects(parent)
     card.pageText = Glass.Font(card.glass.top, 11, "CENTER")
     function card:Update(game, panels)
         local inset = Glass.Inset("large")
-        local list = panels.projects and View.projects(game, View.money) or {}
+        local list = panels.projects and View.projects(game) or {}
         local perPage = Window.ProjectsPerPage()
         local pages = math.max(1, math.ceil(#list / perPage))
         self.page = math.max(1, math.min(self.page, pages))
@@ -648,7 +687,7 @@ local function Build()
     invest:Action("btnInvest", function() return "Deposit" end, investing)
     invest:Action("btnWithdraw", function() return "Withdraw" end, investing)
     local slots = {}
-    invest:Lines(10, function(S) return View.stockLines(S, slots, View.money) end, investing)
+    invest:Lines(10, function(S) return View.stockLines(S, slots) end, investing)
     invest:Stat("Engine Level", function(S) return View.count(S.investLevel) end, investing)
     invest:Action("btnImproveInvestments", function(S)
         return "Upgrade Engine (" .. View.count(S.investUpgradeCost) .. " " .. T.yomi .. ")"
@@ -882,6 +921,7 @@ function Window.Refresh()
     Window.message:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
     Window.message:SetWidth(width - 2 * inset)
     Window.message:SetText(game.readouts[1])
+    Window.UpdateLiveTip()
     local height = tallest + Window.MESSAGE + inset
     f:SetSize(width, height)
     -- Whatever the content (open selects, many columns), the window fits the screen
