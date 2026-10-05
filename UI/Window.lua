@@ -36,18 +36,18 @@ end
 
 -- Commands: the host validates and applies them at the current logical time.
 -- Controls that end the company ask first (the reference's confirm()): the click
--- reaches the simulation only after an explicit yes.
+-- reaches the host, marked confirmed, only after an explicit yes.
 local CONFIRM = { projectButton217 = "confirm.reversion" }
 
-local function Send(id)
-    local ok, err = ns.Host.click(id)
+local function Send(id, confirmed)
+    local ok, err = ns.Host.click(id, confirmed)
     if not ok then Report("not done: " .. tostring(err)) end
     Window.Refresh()
 end
 
 local function Click(id)
     if CONFIRM[id] then
-        Window.Confirm(CONFIRM[id], function() Send(id) end)
+        Window.Confirm(CONFIRM[id], function() Send(id, true) end)
         return
     end
     Send(id)
@@ -949,6 +949,7 @@ local function Build()
             if row and game and row.box:IsShown() then Window.DrawBattle(row, game.S) end
         end
     end)
+    f:SetScript("OnHide", function() Window.CloseStaleDialog() end)
     f:Hide()
 end
 
@@ -959,6 +960,7 @@ function Window.Refresh()
     if not (f and f:IsShown() and game) then return end
     local panels = View.panels(game.S)
     Window.redraw = (Window.redraw or 0) + 1
+    Window.CloseStaleDialog()
     local inset = Glass.Inset("large")
     -- A column that would outgrow the screen continues in the next one, so the
     -- window never gets taller than UIParent (the projects card pages itself).
@@ -1033,11 +1035,21 @@ function Window.Confirm(questionKey, onYes)
     d.question:SetText(ns.L[questionKey])
     d.yes.label:SetText(ns.L["confirm.yes"])
     d.no.label:SetText(ns.L["confirm.no"])
+    -- The question belongs to this company: if it is replaced meanwhile, "yes" does
+    -- nothing (the dialog also closes with the window, see Refresh and OnHide).
+    d.game = ns.Host.game
     d.yes:SetScript("OnClick", function()
         d:Hide()
+        if d.game ~= ns.Host.game then return end
         onYes()
     end)
     d:Show()
+end
+
+-- A dialog left open closes when the window does, or when its company is replaced.
+function Window.CloseStaleDialog()
+    local d = Window.dialog
+    if d and d:IsShown() and (d.game ~= ns.Host.game or not Window.frame:IsShown()) then d:Hide() end
 end
 
 -- The new-game control: a fresh company, the prestige kept, after an explicit yes.

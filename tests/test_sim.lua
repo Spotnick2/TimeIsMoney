@@ -238,7 +238,8 @@ projects.S.activeProjects[#projects.S.activeProjects + 1] = projects.S.project21
 projects.S.standardOps, projects.S.prestigeU = -10000, 1
 projects:click("projectButton217")
 assert(projects.S.standardOps == 0 and projects.S.project217.flag == 1 and projects.readouts[1] == "Restart")
-assert(projects.restartRequested == "reversion" and projects.savedPrestige.prestigeU == 1)
+assert(projects.restartRequested == "reversion" and projects.savedPrestige == nil,
+    "a reversion keeps the account's prestige (the host's), not the company's")
 assert(not projects.projectElements.projectButton217)
 
 -- Milestones after the transition: full autonomy, then clip-count milestones.

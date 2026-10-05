@@ -6,9 +6,10 @@ local env, captured, ns, libGlass = Harness.Load()
 local h = Harness.Helpers(captured)
 local Host, Window = ns.Host, ns.Window
 
+Host.prestige = { prestigeU = 2, prestigeS = 0 } -- the account's prestige
 env.SlashCmdList.TIMEISMONEY("start")
 local game = Host.game
-game.S.prestigeU, game.S.compFlag, game.S.projectsFlag = 2, 1, 1
+game.S.compFlag, game.S.projectsFlag = 1, 1
 game.S.standardOps = -20000
 Host.update(0.05)
 Window.Refresh()
@@ -51,6 +52,27 @@ Window.Refresh()
 local universe = assert(h.button("projectButton200"))
 universe.scripts.OnClick(universe)
 assert(not dialog:IsShown() and Host.game ~= third and Host.game.S.prestigeU == 3)
+
+-- /tim click cannot bypass the confirmation.
+local before = Host.game
+before.S.standardOps, before.S.compFlag, before.S.projectsFlag = -20000, 1, 1
+Host.update(0.05)
+env.SlashCmdList.TIMEISMONEY("click projectButton217")
+assert(Host.game == before and captured.messages[#captured.messages]:find("confirmation", 1, true))
+-- A dialog left open closes with the window, and a "yes" for a replaced company does
+-- nothing.
+Window.Refresh()
+local again = assert(h.button("projectButton217"))
+again.scripts.OnClick(again)
+assert(dialog:IsShown())
+Window.Toggle() -- close the ledger
+assert(not dialog:IsShown(), "the dialog closes with the window")
+Window.Toggle()
+again.scripts.OnClick(again)
+local stale = Host.game
+assert(Host.newGame())
+dialog.yes.scripts.OnClick(dialog.yes)
+assert(Host.game ~= stale and Host.game.S.project217.flag == 0, "a stale yes does nothing")
 
 -- Saving off (unrecognized data): no new game, the data kept.
 local env2, captured2, ns2 = Harness.Load()

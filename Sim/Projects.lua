@@ -685,8 +685,9 @@ add("project216", function(S) return S.project215.flag == 1 and S.endTimer5 >= 1
 end)
 -- Quantum Temporal Reversion: the reference asks confirm() and, if the player agrees,
 -- returns the Operations, marks the project, says "Restart" and resets (the save is
--- cleared, the prestige kept). The confirmation is the window's, before the click
--- reaches the simulation; the reset is the host's, as for a prestige (#23).
+-- cleared; the stored prestige is reloaded). The confirmation is the host's (an
+-- explicit confirmed click, asked by the window), the reset is the host's too, with
+-- the account's prestige (#23).
 add("project217", function(S) return S.operations <= -10000 end, function(S) return S.operations <= -10000 end,
     function(game)
         local S = game.S
@@ -694,7 +695,6 @@ add("project217", function(S) return S.operations <= -10000 end, function(S) ret
         S.project217.flag = 1
         game:displayMessage("Restart")
         game:removeProject("project217")
-        game.savedPrestige = { prestigeU = S.prestigeU, prestigeS = S.prestigeS }
         game.restartRequested = "reversion"
     end)
 add("project218", creat(1000000), creat(1000000), function(game)

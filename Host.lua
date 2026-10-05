@@ -115,6 +115,11 @@ end
 local function validPrestige(p)
     return type(p) == "table" and type(p.prestigeU) == "number" and type(p.prestigeS) == "number"
 end
+-- A copy of a prestige record (a valid one, or nil).
+local function copyPrestige(p)
+    if not validPrestige(p) then return nil end
+    return { prestigeU = p.prestigeU, prestigeS = p.prestigeS }
+end
 
 -- Reads TimeIsMoneyDB at load. Unknown, future or broken data blocks saving so it is
 -- never replaced; it is reported and left as it is.
@@ -135,7 +140,7 @@ function Host.loadSaved(db)
             Host.blocked = "unrecognized saved prestige"
             return "blocked"
         end
-        Host.prestige = { prestigeU = db.prestige.prestigeU, prestigeS = db.prestige.prestigeS }
+        Host.prestige = copyPrestige(db.prestige)
     end
     if db.company == nil then return "empty" end
     local ok, err = pcall(function()
@@ -161,14 +166,16 @@ function Host.loadSaved(db)
 end
 
 -- What to store at logout, or nil to leave TimeIsMoneyDB untouched. A halted game
--- (a tick that partly ran) keeps its last good auto-save; after a prestige choice
--- the company is over and only the prestige carries on.
+-- (a tick that partly ran) keeps its last good auto-save. A restart normally
+-- replaces the company at once (Host.restart); only when it could not (the choice's
+-- tick halted) is the old company still here, over, and only its earned prestige
+-- carries on.
 function Host.persist()
     if Host.blocked then return nil end
     local game = Host.game
     local db = { schema = ns.Save.SCHEMA, prestige = Host.prestige }
     if game and game.restartRequested and game.savedPrestige then
-        db.prestige = { prestigeU = game.savedPrestige.prestigeU, prestigeS = game.savedPrestige.prestigeS }
+        db.prestige = copyPrestige(game.savedPrestige)
         return db
     end
     if game and Host.running then
@@ -236,33 +243,51 @@ end
 -- company starts at once with the prestige; the old one is never run again.
 function Host.restart(prestige)
     if Host.blocked then return false, "saving is off (" .. Host.blocked .. "); the saved data is kept untouched" end
-    if prestige then Host.prestige = { prestigeU = prestige.prestigeU, prestigeS = prestige.prestigeS } end
+    if prestige then Host.prestige = copyPrestige(prestige) end
     Host.start()
     return true
 end
 
 -- The new-game control: a fresh company, the account's prestige kept (as reset()).
--- The window asks for explicit confirmation first.
+-- A company that ended on a prestige choice but halted before its restart still
+-- carries its earned prestige into the new one. The window asks for explicit
+-- confirmation first.
 function Host.newGame()
-    return Host.restart(nil)
+    local game = Host.game
+    local earned = game and game.restartRequested == "prestige" and game.savedPrestige or nil
+    return Host.restart(earned)
 end
+
+-- Controls that end the company need an explicit confirmation (the reference asks
+-- confirm() inside the effect): Host.click refuses them unless the caller says the
+-- player confirmed (the window's dialog does).
+Host.CONFIRM = { projectButton217 = true }
 
 -- Validated commands: a known control, applied at the current logical time. A
 -- control the slice refuses (an unported path, a project not shown) raises before
 -- changing state, so the game keeps running and the refusal is reported. A click
 -- that ends the company (a prestige choice, Quantum Temporal Reversion) requests a
 -- restart, and the next company starts with the saved prestige.
-function Host.click(id)
+function Host.click(id, confirmed)
     local game = Host.game
     if not game then return false, "no company (/tim start)" end
     if not Host.running then return false, "the company stopped: " .. tostring(Host.halted) .. " (/tim status)" end
     local known = ns.Workshop.clicks[id] or ns.Workshop.projectById[id]
     if not known then return false, "unknown control " .. tostring(id) end
+    if Host.CONFIRM[id] and not confirmed then return false, "this needs the player's confirmation" end
+    -- A confirmation can arrive after the offer lapsed (the game kept running while
+    -- the dialog was open): say so rather than doing nothing silently.
+    if confirmed and (game.disabled[id] or (ns.Workshop.projectById[id] and not game.projectElements[id])) then
+        return false, "no longer available"
+    end
     local ok, err = pcall(game.click, game, id)
     if game.restartRequested then
         -- The company is over whatever happened next: never run it again.
         if not ok then Host.halt(err) return false, tostring(err) end
-        local restarted, why = Host.restart(game.savedPrestige)
+        -- A prestige choice carries its prestige; a reversion keeps the account's
+        -- (reset() reloads the stored prestige, not the company's own values).
+        local prestige = game.restartRequested == "prestige" and game.savedPrestige or nil
+        local restarted, why = Host.restart(prestige)
         if not restarted then Host.halt(why) return false, why end
         return true, "restart"
     end
