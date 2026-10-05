@@ -44,16 +44,8 @@ else
     assert(captured.glass.applied > 0, "drawn with the glass material")
 end
 
-local function button(id)
-    for _, w in ipairs(captured.widgets) do
-        if w.kind == "Button" and w.id == id and w.shown then return w end
-    end
-end
-local function shownText(fragment)
-    for _, fs in ipairs(captured.fontStrings) do
-        if fs.shown and fs.text and tostring(fs.text):find(fragment, 1, true) then return fs end
-    end
-end
+local h = dofile("tests/window_harness.lua").Helpers(captured)
+local button, shownText, digest = h.button, h.shownText, h.digest
 
 -- The opening: production and sales; no computing, no projects yet.
 assert(shownText("Handfuls of Copper Bolts") and shownText("Company Funds") and shownText("Board Trust"))
@@ -72,22 +64,6 @@ Window.Refresh()
 assert(button("btnLowerPrice").label.text == "(-)" and button("btnRaisePrice").label.text == "+")
 
 -- Drawing never changes the company: the state is identical after many refreshes.
-local function digest(t, seen)
-    seen = seen or {}
-    if type(t) ~= "table" then return tostring(t) end
-    if seen[t] then return "<cycle>" end
-    seen[t] = true
-    local keys = {}
-    for k in pairs(t) do keys[#keys + 1] = tostring(k) end
-    table.sort(keys)
-    local out = {}
-    for _, k in ipairs(keys) do
-        local v = t[k]
-        if v == nil then v = t[tonumber(k)] end
-        out[#out + 1] = k .. "=" .. digest(v, seen)
-    end
-    return "{" .. table.concat(out, ",") .. "}"
-end
 local before = digest(game.S) .. digest(game.disabled) .. digest(game.readouts)
 local draws = Host.random.count
 for _ = 1, 20 do Window.Refresh() end
@@ -183,11 +159,7 @@ deposit.scripts.OnClick(deposit)
 assert(S.funds == 0 and S.bankroll == 500)
 -- A select opens its options; choosing one sets it in a single step (no passing
 -- through the options in between).
-local function labelled(text)
-    for _, w in ipairs(captured.widgets) do
-        if w.kind == "Button" and w.shown and w.label and w.label.text == text then return w end
-    end
-end
+local labelled = h.labelled
 local risk = assert(labelled("Low Risk  v"))
 risk.scripts.OnClick(risk)
 assert(labelled("Low Risk  ^") and labelled("Med Risk") and labelled("High Risk"))

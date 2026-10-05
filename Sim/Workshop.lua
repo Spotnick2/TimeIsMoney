@@ -173,13 +173,17 @@ function Game:displayMessage(msg)
     r[5], r[4], r[3], r[2], r[1] = r[4], r[3], r[2], r[1], msg
 end
 
--- timeCruncher: JavaScript % is fmod.
+-- timeCruncher: JavaScript % is fmod. Non-finite input follows JavaScript without
+-- dividing a NaN (WoW's Lua raises on it): Infinity shows "Infinity hours " (h is
+-- Infinity, m and s NaN, so only the hours print); NaN and -Infinity print nothing.
 local function timeCruncher(t)
-    local x = t / 100
+    local x = JSMath.div(t, 100)
+    if JSMath.isNaN(x) or x == -math.huge then return "" end
+    if x == math.huge then return "Infinity hours " end
     local h = floor(x / 3600)
     local m = floor(JSMath.mod(x, 3600) / 60)
     local s = floor(JSMath.mod(JSMath.mod(x, 3600), 60))
-    local hDisplay = h > 0 and (h .. (h == 1 and " hour " or " hours ")) or ""
+    local hDisplay = h > 0 and (JSMath.toString(h) .. (h == 1 and " hour " or " hours ")) or ""
     local mDisplay = m > 0 and (m .. (m == 1 and " minute " or " minutes ")) or ""
     local sDisplay = s > 0 and (s .. (s == 1 and " second" or " seconds")) or ""
     return hDisplay .. mDisplay .. sDisplay

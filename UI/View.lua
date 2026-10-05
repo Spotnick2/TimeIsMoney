@@ -42,6 +42,9 @@ function View.panels(S)
     show.mdps = S.spaceFlag == 1
     show.swarm = not looseZero(S.swarmFlag)
     show.swarmSlider = S.swarmFlag == 1
+    -- In space, probes build: factoryDivSpace and droneDivSpace replace the rows.
+    show.factorySpace = space
+    show.droneSpace = space
     return show
 end
 
@@ -229,33 +232,60 @@ function View.stockLines(S, slots)
     return lines
 end
 
--- spellf (main.js): a large count as its leading group of digits with one decimal
--- (truncated, from the next two digits) and the place name: 12345678 shows as
--- "12.3 million". Below 1,000 the reference still adds ".0" and drops any fraction.
-local PLACES = { "", " thousand", " million", " billion", " trillion", " quadrillion", " quintillion",
-    " sextillion", " septillion", " octillion", " nonillion", " decillion", " undecillion", " duodecillion",
-    " tredecillion", " quattuordecillion", " quindecillion", " sexdecillion", " septendecillion",
-    " octodecillion", " novemdecillion", " vigintillion" }
+-- spellf (main.js), as written: the whole part's digits (JavaScript's toString,
+-- with "e+" expanded), then its leading group with the next two digits after a
+-- point, through formatWithCommas(num, 1), and the place name. 12345678 shows as
+-- "12.3 million ". Its quirks stay: below 1,000 ".0" is added and any fraction
+-- dropped, and a tiny "Ne-k" value is read as text ("1e-7" gives "NaN.0 thousand ").
+local PLACES = {
+    "", " thousand ", " million ", " billion ", " trillion ", " quadrillion ", " quintillion ", " sextillion ",
+    " septillion ", " octillion ", " nonillion ", " decillion ", " undecillion ", " duodecillion ",
+    " tredecillion ", " quattuordecillion ", " quindecillion ", " sexdecillion ", " septendecillion ",
+    " octodecillion ", " novemdecillion  ", " vigintillion ", " unvigintillion ", " duovigintillion ",
+    " trevigintillion ", " quattuorvigintillion ", " quinvigintillion ", " sexvigintillion ",
+    " septenvigintillion ", " octovigintillion ", " novemvigintillion ", " trigintillion ", " untrigintillion ",
+    " duotrigintillion ", " tretrigintillion ", " quattuortrigintillion ", " quintrigintillion ",
+    " sextrigintillion ", " septentrigintillion ", " octotrigintillion ", " novemtrigintillion ",
+    " quadragintillion ", " unquadragintillion ", " duoquadragintillion ", " trequadragintillion ",
+    " quattuorquadragintillion ", " quinquadragintillion ", " sexquadragintillion ", " septenquadragintillion ",
+    " octoquadragintillion ", " novemquadragintillion ", " quinquagintillion ", " unquinquagintillion ",
+    " duoquinquagintillion ", " trequinquagintillion ", " quattuorquinquagintillion ", " quinquinquagintillion ",
+    " sexquinquagintillion ", " septenquinquagintillion ", " octoquinquagintillion ", " novemquinquagintillion ",
+    " sexagintillion ", " unsexagintillion ", " duosexagintillion ", " tresexagintillion ",
+    " quattuorsexagintillion ", " quinsexagintillion ", " sexsexagintillion ", " septsexagintillion ",
+    " octosexagintillion ", " octosexagintillion ", " septuagintillion ", " unseptuagintillion ",
+    " duoseptuagintillion ", " treseptuagintillion ", " quinseptuagintillion", " sexseptuagintillion",
+    " septseptuagintillion", " octoseptuagintillion", " novemseptuagintillion", " octogintillion",
+    " unoctogintillion", " duooctogintillion", " treoctogintillion", " quattuoroctogintillion",
+    " quinoctogintillion", " sexoctogintillion", " septoctogintillion", " octooctogintillion",
+    " novemoctogintillion", " nonagintillion", " unnonagintillion", " duononagintillion", " trenonagintillion ",
+    " quattuornonagintillion ", " quinnonagintillion ", " sexnonagintillion ", " septnonagintillion ",
+    " octononagintillion ", " novemnonagintillion ", " centillion"
+}
 function View.spell(x)
-    if isNaN(x) or x == math.huge or x == -math.huge then return View.count(x) end
-    if x < 0 then return ns.JSMath.toString(x) end
-    -- The digits of the whole part, as the reference expands JavaScript's toString.
-    local text = ns.JSMath.toString(x)
-    local mantissa, exponent = text:match("^([%d%.]+)e%+(%d+)$")
-    local digits
+    local JSMath = ns.JSMath
+    if JSMath.lt(x, 0) then return JSMath.toString(x) end
+    local text = JSMath.toString(x)
+    local mantissa, exponent = text:match("^(.-)e%+(%d+)$")
     if mantissa then
-        local whole, fraction = mantissa:match("^(%d+)%.?(%d*)$")
-        digits = whole .. fraction .. string.rep("0", tonumber(exponent) - #fraction)
-    else
-        digits = text:match("^(%d+)")
+        local whole, fraction = mantissa:match("^(%d+)%.(%d+)$")
+        exponent = tonumber(exponent)
+        if whole then
+            exponent = exponent - #fraction
+            mantissa = whole .. fraction
+        end
+        text = mantissa .. string.rep("0", exponent)
+    elseif text:find(".", 1, true) then
+        text = text:match("^(.-)%.")
     end
-    if digits == "0" then return "0" end
-    local lead = (#digits - 1) % 3 + 1
-    local place = PLACES[math.floor((#digits - 1) / 3) + 1]
-    if not place then return View.count(x) end -- beyond the names the window carries
-    local decimal = digits:sub(lead + 1, lead + 1)
-    if decimal == "" then decimal = "0" end
-    return digits:sub(1, lead) .. "." .. decimal .. place
+    -- The reference throws "Number out of bonds!" here; the window shows the count.
+    if #text >= 303 then return View.count(x) end
+    local asNumber = JSMath.toNumber(text)
+    if not isNaN(asNumber) and asNumber == 0 then return "0" end
+    local groups = math.ceil(#text / 3)
+    local lead = #text - 3 * (groups - 1)
+    local num = JSMath.toNumber(text:sub(1, lead) .. "." .. text:sub(lead + 1, lead + 2))
+    return ns.Workshop.formatWithCommas(num, 1) .. (PLACES[groups] or "")
 end
 
 -- updateUpgrades: the next factory and drone counts that unlock an upgrade.

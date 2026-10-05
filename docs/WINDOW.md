@@ -69,18 +69,26 @@ the embedded LibGlass-1.0 material.
 
 ## Phase II display
 
-- **Big counts and costs** use the reference's `spellf`: the leading group of
-  digits with one truncated decimal and the place name, so 12,345,678 shows as
-  "12.3 million". Below 1,000 the reference adds ".0" and drops any fraction.
+- **Big counts and costs** use the reference's `spellf`, ported as written over
+  `formatWithCommas`: the leading group of digits with one truncated decimal, then
+  the place name. 12,345,678 shows as "12.3 million ". Its quirks stay:
+  - below 1,000 it adds ".0" and drops any fraction;
+  - a tiny value JavaScript writes as "Ne-k" is read as text ("NaN.0 thousand ").
+- **Endless countdowns:** with the slider at 0 an Active network's countdown is
+  Infinity. `timeCruncher` prints JavaScript's "Infinity hours " without dividing a
+  NaN, which WoW's Lua would raise on.
 - **Costs are in bolts**, as the reference prices them in clips.
 - **The pipeline rates** (`maps`, `wpps`, `mdps`) are presentation values the
   simulation keeps on the game (`matterRate`, `wireRate`, `exploreRate`; never
   saved). They show the last tick times 100, as the reference prints them.
 - **Power figures** are recomputed from the state `updatePower` uses.
 - **The next-upgrade thresholds** come from `updateUpgrades`.
-- **The Work/Think slider** is a bar with -/+ buttons that set the range 10 at a
-  time through `Host.setValue`, which sanitizes it as the reference's range input
-  does.
+- **The Work/Think slider** is a bar with << < > >> buttons that move it by 10 or
+  by 1. Every value from 0 to 200 is reachable, and `Host.setValue` sanitizes each
+  one as the reference's range input does.
+- **In space,** probes build. The foundry and drone counts (`factoryDivSpace`,
+  `droneDivSpace`) replace the build rows, and Unclaimed Material shows its
+  exploration rate.
 - **Network remedies:** only the remedies the simulation can reach have buttons:
   Entertain when Bored, Synchronize when Disorganized. Hungry, Confused and Cold
   (feed, teach, clad) are never set by the reference's swarm update.

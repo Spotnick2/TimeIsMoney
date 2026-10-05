@@ -49,6 +49,7 @@ local function NewButton(parent, id, height)
     b.id = id
     b:SetScript("OnClick", function(self) if self.id then Click(self.id) end end)
     b:SetScript("OnEnter", function(self)
+        if self.tipFn then self.tip = self.tipFn() end
         if not self.tip then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(self.tip[1], 1, 1, 1)
@@ -188,8 +189,8 @@ end
 -- A range control: the value over its range as a bar, with lower and raise
 -- buttons that set it a step at a time through the host (Host.setValue sanitizes
 -- it as the reference's range input does).
-function Card:Range(id, label, max, step, show)
-    local row = { kind = "range", height = Window.SQUARE + 14, id = id, max = max, show = show }
+function Card:Range(id, label, max, show)
+    local row = { kind = "range", height = Window.SQUARE + 20, id = id, max = max, show = show }
     row.label = Glass.Font(self.glass.top, 11, "LEFT")
     row.label:SetText(label)
     row.text = Glass.Font(self.glass.top, 12, "RIGHT")
@@ -202,12 +203,16 @@ function Card:Range(id, label, max, step, show)
         if not ok then Report("not done: " .. tostring(err)) end
         Window.Refresh()
     end
-    row.lower = NewButton(self.content, nil, Window.SQUARE)
-    row.lower:SetWidth(Window.SQUARE)
-    row.lower:SetScript("OnClick", function() nudge(-step) end)
-    row.raise = NewButton(self.content, nil, Window.SQUARE)
-    row.raise:SetWidth(Window.SQUARE)
-    row.raise:SetScript("OnClick", function() nudge(step) end)
+    -- Every value of the range is reachable: steps of 1 and of 10 each way.
+    local function square(delta, text)
+        local b = NewButton(self.content, nil, Window.SQUARE)
+        b:SetWidth(Window.SQUARE)
+        b:SetScript("OnClick", function() nudge(delta) end)
+        b.text = text
+        return b
+    end
+    row.lower10, row.lower = square(-10, "<<"), square(-1, "<")
+    row.raise, row.raise10 = square(1, ">"), square(10, ">>")
     self.rows[#self.rows + 1] = row
     return row
 end
@@ -245,7 +250,8 @@ function Card:Update(game, panels)
         local visible = not row.show or row.show(S, panels)
         if not row.regions then
             row.regions = {}
-            for _, r in pairs({ row.label, row.text, row.button, row.lower, row.raise, row.bar, row.mouse }) do
+            for _, r in pairs({ row.label, row.text, row.button, row.lower, row.raise, row.bar, row.mouse,
+                row.lower10, row.raise10 }) do
                 row.regions[#row.regions + 1] = r
             end
             for _, r in ipairs(row.strings or row.cells or row.buttons or {}) do row.regions[#row.regions + 1] = r end
@@ -309,7 +315,11 @@ function Card:Update(game, panels)
                     local entry = row.list[i]
                     place(b, self, y - 2, inset + (i - 1) * (each + gap))
                     b:SetWidth(each)
-                    b.tip = entry.tip and { entry.text, entry.tip(S) } or nil
+                    -- Built when hovered, not on every redraw.
+                    b.tipFn = entry.tip and function()
+                        local game = ns.Host.game
+                        return game and { entry.text, entry.tip(game.S) } or nil
+                    end or nil
                     SetButton(b, entry.text, not game.disabled[entry.id], true)
                 end
             elseif row.kind == "range" then
@@ -318,11 +328,14 @@ function Card:Update(game, panels)
                 row.text:ClearAllPoints()
                 row.text:SetPoint("TOPRIGHT", self.content, "TOPLEFT", inset + width, y - 4)
                 row.text:SetText(range.value)
-                place(row.lower, self, y - 16, inset)
+                place(row.lower10, self, y - 18, inset)
+                place(row.lower, self, y - 18, inset + Window.SQUARE + 2)
+                row.raise10:ClearAllPoints()
+                row.raise10:SetPoint("TOPRIGHT", self.content, "TOPLEFT", inset + width, y - 18)
                 row.raise:ClearAllPoints()
-                row.raise:SetPoint("TOPRIGHT", self.content, "TOPLEFT", inset + width, y - 16)
-                SetButton(row.lower, "-", range.number > 0, true)
-                SetButton(row.raise, "+", range.number < row.max, true)
+                row.raise:SetPoint("TOPRIGHT", row.raise10, "TOPLEFT", -2, 0)
+                for _, b in ipairs({ row.lower10, row.lower }) do SetButton(b, b.text, range.number > 0, true) end
+                for _, b in ipairs({ row.raise, row.raise10 }) do SetButton(b, b.text, range.number < row.max, true) end
                 row.bar:ClearAllPoints()
                 row.bar:SetPoint("LEFT", row.lower, "RIGHT", 6, 0)
                 row.bar:SetPoint("RIGHT", row.raise, "LEFT", -6, 0)
@@ -577,40 +590,51 @@ local function Build()
     factories:Buttons({ { id = "btnFactoryReboot", text = "Disassemble All",
         tip = function(S) return "+" .. bolts(S.factoryBill) end } }, factory)
     factories:Stat(T.wire, function(S) return View.spell(S.wire) end, function(_, p) return p.creation and p.wireTrans end)
+    factories:Stat(T.factories, function(S) return View.spell(S.factoryLevel) end,
+        function(_, p) return p.creation and p.factorySpace end)
 
-    local pipeline = function(_, p) return p.creation and p.wireProduction end
+    -- wireProductionDiv and powerDiv sit outside creationDiv: their own flags only.
+    local function pipeline(_, p) return p.wireProduction end
+    local function within(key) return function(_, p) return p.wireProduction and p[key] end end
     local wire = NewCard(content, "Copper Production")
     wire:Stat("Next Upgrade at", function(S) local _, ndup = View.nextUpgrades(S) return View.count(ndup) .. " Drones" end,
-        function(_, p) return p.creation and p.wireProduction and p.droneUpgrade end)
+        within("droneUpgrade"))
     wire:Stat(T.availableMatter, function(S) return View.spell(S.availableMatter) .. " g" end, pipeline)
     wire:Stat("  per second", function(_, game) return View.spell((game.exploreRate or 0) * 100) .. " g" end,
-        function(_, p) return p.creation and p.wireProduction and p.mdps end)
+        within("mdps"))
     wire:Stat(T.acquiredMatter, function(S) return View.spell(S.acquiredMatter) .. " g" end, pipeline)
     wire:Stat("  per second", function(_, game) return View.spell((game.matterRate or 0) * 100) .. " g" end, pipeline)
     wire:Stat(T.wire, function(S) return View.spell(S.wire) end, pipeline)
     wire:Stat("  per second", function(_, game) return View.spell((game.wireRate or 0) * 100) end, pipeline)
-    local harvester = function(_, p) return p.creation and p.wireProduction and p.harvester end
+    local harvester = within("harvester")
     wire:Stat(T.harvesters, function(S) return View.count(S.harvesterLevel) end, harvester)
     wire:Action("btnMakeHarvester", function(S) return "Build a Reaper (" .. bolts(S.harvesterCost) .. ")" end, harvester)
     wire:Buttons({ { id = "btnHarvesterx10", text = "+10" }, { id = "btnHarvesterx100", text = "+100" },
         { id = "btnHarvesterx1000", text = "+1k" }, { id = "btnHarvesterReboot", text = "Scrap",
             tip = function(S) return "Disassemble All: +" .. bolts(S.harvesterBill) end } }, harvester)
-    local wireDrone = function(_, p) return p.creation and p.wireProduction and p.wireDrone end
+    local wireDrone = within("wireDrone")
     wire:Stat(T.wireDrones, function(S) return View.count(S.wireDroneLevel) end, wireDrone)
     wire:Action("btnMakeWireDrone", function(S) return "Build a Converter (" .. bolts(S.wireDroneCost) .. ")" end,
         wireDrone)
     wire:Buttons({ { id = "btnWireDronex10", text = "+10" }, { id = "btnWireDronex100", text = "+100" },
         { id = "btnWireDronex1000", text = "+1k" }, { id = "btnWireDroneReboot", text = "Scrap",
             tip = function(S) return "Disassemble All: +" .. bolts(S.wireDroneBill) end } }, wireDrone)
+    wire:Stat(T.harvesters, function(S) return View.spell(S.harvesterLevel) end, within("droneSpace"))
+    wire:Stat(T.wireDrones, function(S) return View.spell(S.wireDroneLevel) end, within("droneSpace"))
 
-    local powered = function(_, p) return p.creation and p.power end
+    local function powered(_, p) return p.power end
+    -- One set of power figures per redraw, shared by the rows below.
+    local function watts(S)
+        if Window.powerFor ~= Window.redraw then Window.power, Window.powerFor = View.power(S), Window.redraw end
+        return Window.power
+    end
     local power = NewCard(content, "Power")
-    power:Stat("Performance", function(S) return View.count(View.power(S).performance) .. "%" end, powered)
-    power:Stat("Consumption", function(S) return View.count(View.power(S).consumption) .. " MW" end, powered)
-    power:Stat("  Foundries", function(S) return View.count(View.power(S).factories) .. " MW" end, powered)
-    power:Stat("  Drones", function(S) return View.count(View.power(S).drones) .. " MW" end, powered)
-    power:Stat("Production", function(S) return View.count(View.power(S).production) .. " MW" end, powered)
-    power:Meter("Stored", function(S) local w = View.power(S) return w.stored, w.capacity end, powered)
+    power:Stat("Performance", function(S) return View.count(watts(S).performance) .. "%" end, powered)
+    power:Stat("Consumption", function(S) return View.count(watts(S).consumption) .. " MW" end, powered)
+    power:Stat("  Foundries", function(S) return View.count(watts(S).factories) .. " MW" end, powered)
+    power:Stat("  Drones", function(S) return View.count(watts(S).drones) .. " MW" end, powered)
+    power:Stat("Production", function(S) return View.count(watts(S).production) .. " MW" end, powered)
+    power:Meter("Stored", function(S) local w = watts(S) return w.stored, w.capacity end, powered)
     power:Stat(T.farms, function(S) return View.count(S.farmLevel) end, powered)
     power:Action("btnMakeFarm", function(S) return "Build a Core (" .. bolts(S.farmCost) .. ")" end, powered)
     power:Buttons({ { id = "btnFarmx10", text = "+10" }, { id = "btnFarmx100", text = "+100" },
@@ -636,7 +660,7 @@ local function Build()
         return "Synchronize the Network (" .. View.count(S.synchCost) .. " " .. T.yomi .. ")"
     end, function(S, p) return p.swarm and S.swarmStatus == 5 end)
     network:Stat(T.swarmGifts, function(S) return View.count(S.swarmGifts) end, swarming)
-    network:Range("slider", "Work  <  >  Think", 200, 10, function(_, p) return p.swarmSlider end)
+    network:Range("slider", "Work  <  >  Think", 200, function(_, p) return p.swarmSlider end)
 
     Window.columns = { { production }, { sales, ledger, factories, wire }, { invest, negotiate, resonance, power, network },
         { NewProjects(content) } }
@@ -661,6 +685,7 @@ function Window.Refresh()
     local game = ns.Host.game
     if not (f and f:IsShown() and game) then return end
     local panels = View.panels(game.S)
+    Window.redraw = (Window.redraw or 0) + 1
     local inset = Glass.Inset("large")
     -- A column that would outgrow the screen continues in the next one, so the
     -- window never gets taller than UIParent (the projects card pages itself).
