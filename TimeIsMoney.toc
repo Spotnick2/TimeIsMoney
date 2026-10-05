@@ -23,6 +23,9 @@ Host.lua
 UI/ProjectText.lua
 UI/Assets.lua
 UI/View.lua
+UI/Locale.lua
+UI/Locale_enUS.lua
+UI/Messages.lua
 UI/Dialogue.lua
 UI/Director.lua
 UI/Window.lua
