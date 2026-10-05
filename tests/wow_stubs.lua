@@ -51,6 +51,7 @@ local function New(saved, libGlass)
     function Widget:SetEnabled(v) self.enabled = not not v end
     function Widget:IsEnabled() return self.enabled end
     function Widget:SetText(t) self.text = t end
+    function Widget:GetText() return self.text end
     function Widget:SetPoint(...) self.point = { ... } end
     function Widget:SetAlpha(a) self.alpha = a end
     function Widget:SetColorTexture(r, g, b, a) self.colorTexture = { r, g, b, a } end

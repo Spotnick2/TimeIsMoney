@@ -98,26 +98,51 @@ local function NewCard(parent, title, titled)
 end
 
 -- A row: a label on the left and a value on the right.
-function Card:Stat(label, value, show)
+-- tip(S), when given, is a tooltip line for the row (nil: no tooltip now); the row
+-- becomes a mouse area for it.
+local function TipArea(row, parent, tip)
+    row.tipArea = CreateFrame("Frame", nil, parent)
+    row.tipArea:EnableMouse(true)
+    row.tipArea:SetScript("OnEnter", function(area)
+        local game = ns.Host.game
+        local line = game and tip(game.S)
+        if not line then return end
+        GameTooltip:SetOwner(area, "ANCHOR_RIGHT")
+        GameTooltip:SetText(row.label and row.label:GetText() or "", 1, 1, 1)
+        GameTooltip:AddLine(line, MUTED[1], MUTED[2], MUTED[3], true)
+        GameTooltip:Show()
+    end)
+    row.tipArea:SetScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
+function Card:Stat(label, value, show, tip)
     local row = { kind = "stat", height = Window.ROW, value = value, show = show }
     row.label = Glass.Font(self.glass.top, 11, "LEFT")
     row.label:SetText(label)
     row.text = Glass.Font(self.glass.top, 12, "RIGHT")
+    if tip then TipArea(row, self.content, tip) end
     self.rows[#self.rows + 1] = row
     return row
 end
 
 -- A full-width button for a control; text(S) gives its label.
-function Card:Action(id, text, show)
+function Card:Action(id, text, show, tip)
     local row = { kind = "action", height = Window.BUTTON + 4, id = id, caption = text, show = show }
     row.button = NewButton(self.content, id)
+    if tip then
+        row.button.tipFn = function()
+            local game = ns.Host.game
+            local line = game and tip(game.S)
+            return line and { row.caption(game.S), line } or nil
+        end
+    end
     self.rows[#self.rows + 1] = row
     return row
 end
 
 -- A stat with lower and raise buttons beside its value.
-function Card:Adjust(label, value, lower, raise, show)
-    local row = self:Stat(label, value, show)
+function Card:Adjust(label, value, lower, raise, show, tip)
+    local row = self:Stat(label, value, show, tip)
     row.kind, row.height = "adjust", Window.SQUARE + 2
     row.raise = NewButton(self.content, raise, Window.SQUARE)
     row.raise:SetWidth(Window.SQUARE)
@@ -311,7 +336,7 @@ function Card:Update(game, panels)
         if not row.regions then
             row.regions = {}
             for _, r in pairs({ row.label, row.text, row.button, row.lower, row.raise, row.bar, row.mouse,
-                row.lower10, row.raise10, row.box }) do
+                row.lower10, row.raise10, row.box, row.tipArea }) do
                 row.regions[#row.regions + 1] = r
             end
             for _, r in ipairs(row.strings or row.cells or row.buttons or {}) do row.regions[#row.regions + 1] = r end
@@ -417,6 +442,10 @@ function Card:Update(game, panels)
                 end
             else
                 place(row.label, self, y - 4, inset)
+                if row.tipArea then
+                    place(row.tipArea, self, y, inset)
+                    row.tipArea:SetSize(width, Window.ROW)
+                end
                 row.text:ClearAllPoints()
                 row.text:SetText(row.value(S, game))
                 if row.kind == "adjust" then
@@ -474,7 +503,7 @@ local function NewProjects(parent)
     card.pageText = Glass.Font(card.glass.top, 11, "CENTER")
     function card:Update(game, panels)
         local inset = Glass.Inset("large")
-        local list = panels.projects and View.projects(game) or {}
+        local list = panels.projects and View.projects(game, View.money) or {}
         local perPage = Window.ProjectsPerPage()
         local pages = math.max(1, math.ceil(#list / perPage))
         self.page = math.max(1, math.min(self.page, pages))
@@ -563,31 +592,33 @@ local function Build()
     local manufacturing = function(_, p) return p.manufacturing end
     production:Stat("Bolts per second", function(S) return View.count(S.clipRate) end, manufacturing)
     production:Stat(T.wire, function(S) return View.count(S.wire) end, manufacturing)
-    production:Action("btnBuyWire", function(S) return "Buy " .. T.wire .. " (" .. View.coins(S.wireCost) .. ")" end,
+    production:Action("btnBuyWire", function(S) return "Buy " .. T.wire .. " (" .. View.money(S.wireCost) .. ")" end,
         manufacturing)
     production:Action("btnToggleWireBuyer", function(S)
         return "Bar Buyer: " .. (S.wireBuyerStatus == 1 and "ON" or "OFF")
     end, function(_, p) return p.manufacturing and p.wireBuyer end)
     local gizmos = function(_, p) return p.manufacturing and p.autoClippers end
     production:Stat(T.autoClippers, function(S) return View.count(S.clipmakerLevel) end, gizmos)
-    production:Action("btnMakeClipper", function(S) return "Buy Gizmo (" .. View.coins(S.clipperCost) .. ")" end, gizmos)
+    production:Action("btnMakeClipper", function(S) return "Buy Gizmo (" .. View.money(S.clipperCost) .. ")" end, gizmos,
+        function(S) return View.exactMoney(S.clipperCost) end)
     local widgets = function(_, p) return p.manufacturing and p.megaClippers end
     production:Stat(T.megaClippers, function(S) return View.count(S.megaClipperLevel) end, widgets)
     production:Action("btnMakeMegaClipper", function(S)
-        return "Buy Widget (" .. View.coins(S.megaClipperCost) .. ")"
-    end, widgets)
+        return "Buy Widget (" .. View.money(S.megaClipperCost) .. ")"
+    end, widgets, function(S) return View.exactMoney(S.megaClipperCost) end)
 
     -- Sales: funds, price, demand and campaigns.
     local business = function(_, p) return p.business end
     local sales = NewCard(content, "Sales")
-    sales:Stat(T.funds, function(S) return View.coins(S.funds) end, business)
-    sales:Stat("Revenue per second", function(S) return View.coins(S.avgRev) end,
+    sales:Stat(T.funds, function(S) return View.money(S.funds) end, business, function(S) return View.exactMoney(S.funds) end)
+    sales:Stat("Revenue per second", function(S) return View.money(S.avgRev) end,
         function(_, p) return p.business and p.revPerSec end)
     sales:Stat(T.unsold, function(S) return View.count(S.unsoldClips) end, business)
-    sales:Adjust(T.price, function(S) return View.coins(S.margin) end, "btnLowerPrice", "btnRaisePrice", business)
+    sales:Adjust(T.price, function(S) return View.money(S.margin) end, "btnLowerPrice", "btnRaisePrice", business,
+        function(S) return View.exactMoney(S.margin) end)
     sales:Stat("Public Demand", function(S) return View.count(S.demand * 10) .. "%" end, business)
     sales:Stat(T.marketing, function(S) return View.count(S.marketingLvl) end, business)
-    sales:Action("btnExpandMarketing", function(S) return "Run a Campaign (" .. View.coins(S.adCost) .. ")" end,
+    sales:Action("btnExpandMarketing", function(S) return "Run a Campaign (" .. View.money(S.adCost) .. ")" end,
         business)
 
     -- The Ledger: trust, its allocation and the operations it buys.
@@ -611,13 +642,13 @@ local function Build()
     local invest = NewCard(content, "Cartel Investments")
     local RISK = { low = "Low Risk", med = "Med Risk", hi = "High Risk" }
     invest:Select("investStrat", function(value) return RISK[value] or value end, investing)
-    invest:Stat("Cash", function(S) return View.coins(S.bankroll) end, investing)
-    invest:Stat("Stocks", function(S) return View.coins(S.secTotal) end, investing)
-    invest:Stat("Total", function(S) return View.coins(S.portTotal) end, investing)
+    invest:Stat("Cash", function(S) return View.money(S.bankroll) end, investing)
+    invest:Stat("Stocks", function(S) return View.money(S.secTotal) end, investing)
+    invest:Stat("Total", function(S) return View.money(S.portTotal) end, investing)
     invest:Action("btnInvest", function() return "Deposit" end, investing)
     invest:Action("btnWithdraw", function() return "Withdraw" end, investing)
     local slots = {}
-    invest:Lines(10, function(S) return View.stockLines(S, slots) end, investing)
+    invest:Lines(10, function(S) return View.stockLines(S, slots, View.money) end, investing)
     invest:Stat("Engine Level", function(S) return View.count(S.investLevel) end, investing)
     invest:Action("btnImproveInvestments", function(S)
         return "Upgrade Engine (" .. View.count(S.investUpgradeCost) .. " " .. T.yomi .. ")"
