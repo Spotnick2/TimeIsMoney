@@ -5,6 +5,7 @@
 ## Version: @project-version@
 ## SavedVariables: TimeIsMoneyDB
 
+Libs\LibGlass-1.0\LibGlass-1.0.xml
 Compat.lua
 Sim/Reference.lua
 Sim/JSMath.lua
@@ -19,4 +20,7 @@ Sim/Planet.lua
 Sim/Space.lua
 Sim/Save.lua
 Host.lua
+UI/ProjectText.lua
+UI/View.lua
+UI/Window.lua
 TimeIsMoney.lua

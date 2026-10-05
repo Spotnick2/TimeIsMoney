@@ -55,7 +55,8 @@ https://github.com/Gethe/wow-ui-source/tree/9a789c074b8e73c5d604ef2d6af3bb5b3aef
 
 Gnomesweeper: bootstrap/workflow and test/deploy idiom.
 AltStable/GlassRaidFrames: evidence, packaging and maintenance conventions.
-GlassUnitFrames main owns the Liquid Glass material; no glass copied in M0.
+LibGlass-1.0 (Spotnick2/LibGlass) owns the Liquid Glass material, embedded at
+Libs/LibGlass-1.0 (its docs/GLASS-MATERIAL.md section 5 is the embedding contract).
 AltStable's roster pet renderer guides the animated Director; see MODELS.md.
 
 Sibling original code: MIT, copyright 2026 Spotnick. Retain attribution when copied.

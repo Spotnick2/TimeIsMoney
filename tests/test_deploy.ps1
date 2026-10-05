@@ -10,9 +10,20 @@ try {
     foreach ($name in 'LICENSE', 'TimeIsMoney.toc', 'Compat.lua', 'Host.lua', 'TimeIsMoney.lua') {
         Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination (Join-Path $fixture $name)
     }
-    # The simulation (#18) loads from Sim/ through the TOC.
+    # The simulation (#18) and the window (#20) load from Sim/ and UI/ through the TOC.
     Copy-Item -LiteralPath (Join-Path $repoRoot 'Sim') -Destination (Join-Path $fixture 'Sim') -Recurse
-    $simFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Sim') -File | ForEach-Object { 'Sim/' + $_.Name })
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'UI') -Destination (Join-Path $fixture 'UI') -Recurse
+    $simFiles = @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Sim') -File | ForEach-Object { 'Sim/' + $_.Name }) +
+        @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'UI') -File | ForEach-Object { 'UI/' + $_.Name })
+    # The embedded LibGlass comes from its checkout (LIBGLASS, else ..\LibGlass) at
+    # Libs/LibGlass-1.0, exactly the files it ships.
+    $libGlass = if ($env:LIBGLASS) { $env:LIBGLASS } else { Join-Path (Split-Path -Parent $repoRoot) 'LibGlass' }
+    # What the checkout ships: the files its XML loads, LICENSE and Media/*.tga.
+    $libXml = (Get-Content -LiteralPath (Join-Path $libGlass 'LibGlass-1.0.xml') -Raw) -replace '(?s)<!--.*?-->', ''
+    $libScripts = @([regex]::Matches($libXml, '<Script\s+file="([^"]+)"') | ForEach-Object { $_.Groups[1].Value.Replace('\', '/') })
+    $libMedia = @(Get-ChildItem -LiteralPath (Join-Path $libGlass 'Media') -Filter '*.tga' | ForEach-Object { 'Media/' + $_.Name })
+    if ($libScripts.Count -eq 0 -or $libMedia.Count -eq 0) { throw "LibGlass checkout at $libGlass lists no scripts or textures" }
+    $libFiles = @(@('LibGlass-1.0.xml', 'LICENSE') + $libScripts + $libMedia | ForEach-Object { "Libs/LibGlass-1.0/$_" })
     $deploy = Join-Path $fixture 'Tools/deploy.ps1'
     Copy-Item -LiteralPath (Join-Path $repoRoot 'Tools/deploy.ps1') -Destination $deploy
     [IO.File]::WriteAllBytes((Join-Path $fixture 'Media/Nested/probe.tga'), [byte[]](1, 2, 3, 4))
@@ -21,12 +32,12 @@ try {
     Set-Content -LiteralPath $sentinel -Value 'Leave other addons alone.'
     $sentinelHash = (Get-FileHash -LiteralPath $sentinel).Hash
 
-    & $deploy -AddOnsPath $addOns
+    & $deploy -AddOnsPath $addOns -LibGlass $libGlass
     $destination = Join-Path $addOns 'TimeIsMoney'
     $actual = @(Get-ChildItem -LiteralPath $destination -Recurse -File |
         ForEach-Object { [IO.Path]::GetRelativePath($destination, $_.FullName).Replace('\', '/') } |
         Sort-Object)
-    $expected = @(@('Compat.lua', 'Host.lua', 'LICENSE', 'Media/Nested/probe.tga', 'TimeIsMoney.lua', 'TimeIsMoney.toc') + $simFiles) | Sort-Object
+    $expected = @(@('Compat.lua', 'Host.lua', 'LICENSE', 'Media/Nested/probe.tga', 'TimeIsMoney.lua', 'TimeIsMoney.toc') + $simFiles + $libFiles) | Sort-Object
     if (($actual -join "`n") -ne ($expected -join "`n")) { throw "Unexpected deployed files: $actual" }
     foreach ($relative in @('Compat.lua', 'Host.lua', 'TimeIsMoney.lua', 'LICENSE', 'Media/Nested/probe.tga') + $simFiles) {
         if ((Get-FileHash -LiteralPath (Join-Path $fixture $relative)).Hash -ne
@@ -39,14 +50,14 @@ try {
     if (!(Get-Content -LiteralPath (Join-Path $destination 'TimeIsMoney.toc') -Raw).Contains('## Version: dev')) {
         throw 'Deployment did not substitute the development version.'
     }
-    & $deploy -AddOnsPath $addOns
+    & $deploy -AddOnsPath $addOns -LibGlass $libGlass
     if ((Get-FileHash -LiteralPath $sourceToc).Hash -ne $tocHash) { throw 'Deployment modified the source TOC.' }
     if ((Get-FileHash -LiteralPath $sentinel).Hash -ne $sentinelHash) { throw 'Deployment modified another addon.' }
 
     $installedTocHash = (Get-FileHash -LiteralPath (Join-Path $destination 'TimeIsMoney.toc')).Hash
     Add-Content -LiteralPath $sourceToc -Value 'Missing.lua'
     $rejected = $false
-    try { & $deploy -AddOnsPath $addOns } catch { $rejected = $true }
+    try { & $deploy -AddOnsPath $addOns -LibGlass $libGlass } catch { $rejected = $true }
     if (!$rejected) { throw 'A missing TOC input was accepted.' }
     if ((Get-FileHash -LiteralPath (Join-Path $destination 'TimeIsMoney.toc')).Hash -ne $installedTocHash) {
         throw 'Preflight failure changed the installed TOC.'
@@ -56,6 +67,24 @@ try {
     $rejected = $false
     try { & $deploy -AddOnsPath $addOns } catch { $rejected = $true }
     if (!$rejected) { throw 'A TOC input outside the source folder was accepted.' }
+
+    # An incomplete LibGlass checkout is refused before anything of ours is copied.
+    $brokenLib = Join-Path $testRoot 'BrokenLibGlass'
+    Copy-Item -LiteralPath $libGlass -Destination $brokenLib -Recurse
+    Remove-Item -LiteralPath (Join-Path $brokenLib 'Media/gloss.tga')
+    $cleanAddOns = Join-Path $testRoot 'CleanAddOns'
+    New-Item -ItemType Directory -Path $cleanAddOns | Out-Null
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'TimeIsMoney.toc') -Destination $sourceToc -Force
+    $rejected = $false
+    try { & $deploy -AddOnsPath $cleanAddOns -LibGlass $brokenLib 2>$null } catch { $rejected = $true }
+    if (!$rejected) { throw 'An incomplete LibGlass checkout was accepted.' }
+    # The expected failure was LibGlass's own (exit 1); clear it so the caller (the
+    # Actions wrapper exits with $LASTEXITCODE) does not inherit it as a failure.
+    if ($LASTEXITCODE -ne 1) { throw "LibGlass deploy refusal exited $LASTEXITCODE, not 1." }
+    $global:LASTEXITCODE = 0
+    if (Test-Path -LiteralPath (Join-Path $cleanAddOns 'TimeIsMoney/TimeIsMoney.lua')) {
+        throw 'A failed LibGlass deploy left TimeIsMoney files behind.'
+    }
 
     # Developer probe (#9): exact folder from Probe/ and Sim/, nothing else touched.
     $probeAddOns = Join-Path $testRoot 'ProbeAddOns'

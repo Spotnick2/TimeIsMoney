@@ -147,7 +147,8 @@ do
     Host.update(1)
     assert(game.clock.now == now and now == 25, "stopped at the failing timer: " .. now)
     local ok, err = Host.click("btnMakePaperclip")
-    assert(not ok and err:find("no running game", 1, true))
+    -- A halted company is not a missing one: no advice to /tim start (it would refuse).
+    assert(not ok and err:find("the company stopped: ", 1, true) and not err:find("/tim start", 1, true))
 end
 
 -- Commands are validated; a refused control leaves the game running.
@@ -189,7 +190,7 @@ for _, route in ipairs({ { "projectButton200", "prestigeU", { compFlag = 1, stan
     assert(not ok and err:find("reset after a prestige choice", 1, true))
     assert(not Host.running and S[route[2]] == 1 and game.savedPrestige[route[2]] == 1)
     ok, err = Host.click(route[1])
-    assert(not ok and err:find("no running game", 1, true) and S[route[2]] == 1, "no second award")
+    assert(not ok and err:find("the company stopped", 1, true) and S[route[2]] == 1, "no second award")
     local now = game.clock.now
     Host.update(1)
     assert(game.clock.now == now, "the old company does not run on")
