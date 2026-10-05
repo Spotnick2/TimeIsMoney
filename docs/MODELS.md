@@ -61,3 +61,37 @@ while simulation continues.
 Test real strip size/UI scales, texture/crop/clipping, late/missing display, emotes,
 particles, mouse input, repeated open/close/phase changes and frame time.
 Record observations in forever-api-notes.md before making measured claims.
+
+## Integration (#22)
+
+`UI/Director.lua` puts the Director's strip under the window's cards.
+
+- **Model:** one mouse-disabled ModelScene with Gazlowe, display 7052. Idle runs;
+  no reaction animations until they are measured.
+  - It uses the measured recipe above: camera at +40 on X facing back, field of
+    view 0.15, clip 0.1-100, centred origin, particles at scale 0.
+  - It is framed from the live box on the 0.40 crop with a 1.15 margin. The offset
+    is divided by the scale, because the client scales the actor's position.
+- **Loading:** the model loads once per appearance. Its box is polled every 0.1 s,
+  at most 30 times, by `C_Timer.After`. A token drops late answers on hide (the
+  strip's OnHide), on a speaker change, or on a toggle.
+  - With no box, or a failed `SetModelByCreatureDisplayID`, it shows the 2D
+    portrait from the same display for the rest of the session, with no retry per
+    redraw.
+- **`/tim model`** switches between the live model and the portrait. This session
+  only; saving it is a setting (#23).
+- **Speakers:** from `UI/Dialogue.lua`, a pure function of the saved state.
+  - The Director speaks in phase I.
+  - After the takeover the model is cleared, and the Ledger's reports show the
+    company mark (the bolts icon).
+  - The Unlisted Director's letters show a dragonling.
+- **No cosmetic effect on the game:** no randomness, no game state, no logical
+  timers. A test redraws repeatedly and checks the state and draw count are
+  unchanged.
+
+To check in the client:
+- readability at the strip's real size and at several UI scales;
+- crop and clipping inside the glass;
+- the idle animation;
+- hide/show repeatedly, and phase changes;
+- frame time.

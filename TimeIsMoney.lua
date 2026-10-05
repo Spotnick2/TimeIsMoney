@@ -41,7 +41,7 @@ local function Slash(message)
     local Host = TIM.Host
     if command == "help" then
         Print("/tim - open or close the ledger. /tim status - runtime and company. /tim start - a new company when there is none.")
-        Print("Developer: /tim click <control> (e.g. btnMakePaperclip), /tim set <control> <value>, /tim icons.")
+        Print("Developer: /tim click <control> (e.g. btnMakePaperclip), /tim set <control> <value>, /tim icons, /tim model.")
     elseif command == "" then
         if Host.game then
             TIM.Window.Toggle()
@@ -54,6 +54,8 @@ local function Slash(message)
         Status()
     elseif command == "icons" then
         TIM.Window.ToggleIcons()
+    elseif command == "model" then
+        Print("Director model " .. (TIM.Director.ToggleModel() and "on." or "off (portrait)."))
     elseif command == "start" then
         if Host.blocked then
             Print("Not starting: " .. Host.blocked .. ". The saved data is kept untouched.")

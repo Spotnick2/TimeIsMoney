@@ -27,6 +27,9 @@ local function New(saved, libGlass)
         "ClearAllPoints", "SetAllPoints", "SetFrameStrata", "SetToplevel", "SetClampedToScreen",
         "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing",
         "SetMotionScriptsWhileDisabled", "SetJustifyH", "SetWordWrap", "SetStatusBarColor",
+        -- The Director's ModelScene (#22; measured in the client by the #10 probe).
+        "SetCameraFieldOfView", "SetCameraNearClip", "SetCameraFarClip", "SetCameraPosition",
+        "SetCameraOrientationByYawPitchRoll", "SetUseCenterForOrigin", "SetParticleOverrideScale",
         -- What LibGlass-1.0 r1 calls (its own test_methods checks them against the dump).
         "AddMaskTexture", "Play", "SetBlendMode", "SetClipsChildren",
         "SetDuration", "SetFont", "SetFromAlpha", "SetGradient", "SetHorizTile", "SetMinMaxValues",
@@ -62,6 +65,24 @@ local function New(saved, libGlass)
     local function child(kind)
         return setmetatable({ kind = kind, scripts = {}, shown = true }, { __index = Widget })
     end
+    -- The model actor: tests choose whether a display loads (captured.modelOK) and the
+    -- box it reports once streamed (captured.modelBox, six numbers).
+    function Widget:CreateActor()
+        local actor = child("Actor")
+        function actor:SetModelByCreatureDisplayID(id)
+            self.display = id
+            captured.modelLoads = (captured.modelLoads or 0) + 1
+            return captured.modelOK ~= false
+        end
+        function actor:ClearModel() self.display = nil end
+        function actor:SetScale(v) self.scaleValue = v end
+        function actor:SetPosition(x, y, z) self.position = { x, y, z } end
+        function actor:GetActiveBoundingBox()
+            if self.display and captured.modelBox then return unpack(captured.modelBox) end
+        end
+        captured.actor = actor
+        return actor
+    end
     function Widget:CreateTexture()
         local t = child("Texture")
         t.parent = self
@@ -94,6 +115,17 @@ local function New(saved, libGlass)
         RequestLoadItemDataByID = function(id) captured.requested[#captured.requested + 1] = id end,
     }
     env.C_Spell = { GetSpellTexture = function(id) return 100000 + id end }
+    -- C_Timer.After: callbacks queue until the test runs them (captured:RunTimers()).
+    captured.timers = {}
+    env.C_Timer = { After = function(_, fn) captured.timers[#captured.timers + 1] = fn end }
+    function captured:RunTimers()
+        local due = self.timers
+        self.timers = {}
+        for _, fn in ipairs(due) do fn() end
+        return #due
+    end
+    env.SetPortraitTextureFromCreatureDisplayID = function(texture, id) texture.portraitDisplay = id end
+    env.unpack = unpack
     captured.now = 0
     env.GetTime = function() return captured.now end
     function captured:ItemLoaded(id, success)
@@ -142,7 +174,8 @@ local function New(saved, libGlass)
     end end
     env.CreateFrame = function(kind, name, parent)
         if kind ~= "Frame" or parent ~= nil or name ~= nil then
-            assert(kind == "Frame" or kind == "Button" or kind == "StatusBar", "widget kind " .. tostring(kind))
+            assert(kind == "Frame" or kind == "Button" or kind == "StatusBar" or kind == "ModelScene",
+                "widget kind " .. tostring(kind))
             local w = setmetatable({ kind = kind, name = name, parent = parent, scripts = {}, shown = true },
                 { __index = Widget })
             if name then env[name] = w end
