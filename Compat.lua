@@ -12,6 +12,8 @@ function TIM.API.GetItemIconByID(itemID) return C_Item.GetItemIconByID(itemID) e
 function TIM.API.RequestLoadItemDataByID(itemID) C_Item.RequestLoadItemDataByID(itemID) end
 function TIM.API.GetSpellTexture(spellID) return (C_Spell.GetSpellTexture(spellID)) end
 function TIM.API.GetTime() return GetTime() end
+-- The player's faction ("Alliance", "Horde", or "Neutral"/nil before a choice).
+function TIM.API.PlayerFaction() return (UnitFactionGroup("player")) end
 
 function TIM.API.Build()
     local version, build, _, interface = GetBuildInfo()

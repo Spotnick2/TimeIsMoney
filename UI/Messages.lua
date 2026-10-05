@@ -13,6 +13,8 @@ ns.Locale.Use(GetLocale())
 
 -- Exact reference text -> key.
 Messages.EXACT = {
+    -- The reference's opening readout: its game title becomes the company's welcome.
+    ["Welcome to Universal Paperclips"] = "msg.welcome",
     ["AutoClippers available for purchase"] = "msg.gizmosAvailable",
     ["AutoClippper performance boosted by 25%"] = "msg.gizmos25",
     ["AutoClippper performance boosted by another 50%"] = "msg.gizmos50",
@@ -112,9 +114,8 @@ Messages.EXACT = {
     ["Selected strategy won the tournament (or tied for first). +50,000 yomi"] = "msg.tourneyFirst",
 }
 
--- The reference's opening readout is not a report: the Director's greeting beat
--- takes its place, so it is never shown.
-Messages.SILENT = { ["Welcome to Universal Paperclips"] = true }
+-- Messages the window never shows (none at present).
+Messages.SILENT = {}
 
 -- The original game's credits, shown as written (attribution).
 Messages.CREDITS = {
@@ -182,12 +183,20 @@ Messages.PATTERNS = {
         end },
 }
 
+-- Values any exact report may name: the player's company, by faction (Alliance:
+-- the Azeroth Commerce Authority; Horde or not yet chosen: Durotar Supply and
+-- Logistics).
+function Messages.Context()
+    local faction = TimeIsMoney.API.PlayerFaction()
+    return { company = ns.L[faction == "Alliance" and "company.alliance" or "company.horde"] }
+end
+
 -- The localized line for a reference message, and whether it is a credit.
 function Messages.Translate(message)
     if message == nil or message == "" then return nil end
     if Messages.CREDITS[message] then return Locale.Format("credits.line", { text = message }), true end
     local key = Messages.EXACT[message]
-    if key then return ns.L[key] end
+    if key then return Locale.Format(key, Messages.Context()) end
     for _, p in ipairs(Messages.PATTERNS) do
         local captures = { message:match(p[1]) }
         if captures[1] then return Locale.Format(p[2], p[3](unpack(captures))) end

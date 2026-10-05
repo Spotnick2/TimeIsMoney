@@ -49,6 +49,11 @@ ns.Locale.Register("enUS", {
     ["beat.freshStart"] = "New premises. New customers. Same excellent product.",
 
     -- The company's reports: the reference's messages in Time Is Money terms.
+    -- The company follows the player's faction (owner's choice, 2026-10-05, over the
+    -- plan's "Time Is Money Trading Company"): goblins are neutral in Forever.
+    ["msg.welcome"] = "Welcome to {company}.",
+    ["company.horde"] = "Durotar Supply and Logistics",
+    ["company.alliance"] = "Azeroth Commerce Authority",
     ["msg.gizmosAvailable"] = "Whirring Bronze Gizmos available for purchase.",
     ["msg.gizmos25"] = "Precision Dies fitted: Gizmo output up 25%.",
     ["msg.gizmos50"] = "Faster press timing: Gizmo output up another 50%.",

@@ -59,8 +59,15 @@ assert(text == "Credits: a game by Frank Lantz" and isCredit)
 -- names (no "drone") (consult on #22).
 assert(not Messages.Translate("Adversarial cohesion online. Each drone added to the flock increases every drone's output 2x."):lower():find("drone"))
 assert(Messages.Translate("Self-correcting factories online. Each factory added to the network increases every factory's output 1,000x."):find("grows with the number of foundries", 1, true))
--- Nothing in the reference's wording slips through.
-assert(Messages.Translate("Welcome to Universal Paperclips") == nil and Messages.Translate("") == nil)
+-- The opening readout has the owner's wording; nothing unmapped slips through.
+-- The company follows the player's faction (goblins are neutral in Forever).
+assert(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Durotar Supply and Logistics.")
+captured.faction = "Alliance"
+assert(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Azeroth Commerce Authority.")
+captured.faction = "Neutral"
+assert(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Durotar Supply and Logistics.")
+captured.faction = nil
+assert(Messages.Translate("Clips are great") == nil and Messages.Translate("") == nil)
 
 -- Every key the reports and beats use exists in English (a missing one shows [key]).
 for _, key in pairs(Messages.EXACT) do assert(not L[key]:find("^%["), key) end
@@ -110,7 +117,10 @@ ns.Window.Refresh()
 assert(h.shownText("Credits: a game by Frank Lantz"))
 game.readouts[1] = "Welcome to Universal Paperclips"
 ns.Window.Refresh()
-assert(not h.shownText("Universal Paperclips") and not ns.Director.strip.report.shown)
+assert(h.shownText("Welcome to Durotar Supply and Logistics.") and not h.shownText("Universal Paperclips"))
+game.readouts[1] = "Some unmapped reference text"
+ns.Window.Refresh()
+assert(not h.shownText("unmapped") and not ns.Director.strip.report.shown)
 
 print((libGlass and "messages (real LibGlass)" or "messages (LibGlass stand-in)")
     .. ": every simulation message mapped, patterns, credits, keys, locale fallback and the strip report passed")

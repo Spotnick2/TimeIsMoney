@@ -82,7 +82,8 @@ assert(captured.actor.display == 7052 and captured.modelLoads == 1)
 assert(Director.state == "loading" and #captured.timers == 0, "no C_Timer: the window ticks the poll")
 tick()
 assert(Director.state == "live", "the box arrived: framed")
-local scale, offset = Director.Framing({ h = 1.39 }, 96, 72, 40, 0.15, 0.40, 1.15)
+local scale, offset = Director.Framing({ h = 1.39 }, Director.WIDTH, Director.HEIGHT, 40, 0.15, Director.CROP,
+    Director.MARGIN)
 assert(math.abs(captured.actor.scaleValue - scale) < 1e-12 and math.abs(captured.actor.position[3] - offset) < 1e-12,
     "framed from the measured 1.39, whatever the live box says")
 for _ = 1, 10 do Window.Refresh() end

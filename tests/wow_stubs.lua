@@ -131,6 +131,7 @@ local function New(saved, libGlass)
     end
     env.SetPortraitTextureFromCreatureDisplayID = function(texture, id) texture.portraitDisplay = id end
     env.GetLocale = function() return captured.locale or "enUS" end
+    env.UnitFactionGroup = function() return captured.faction or "Horde" end
     env.unpack = unpack
     captured.now = 0
     env.GetTime = function() return captured.now end
