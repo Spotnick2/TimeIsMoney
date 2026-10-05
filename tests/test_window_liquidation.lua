@@ -71,7 +71,43 @@ assert(not p.processor and p.computing)
 p = at(7)
 assert(not p.computing and not p.projects and p.creation)
 
+-- Timers as the reference checked them: once project148 runs endTimer1, the state
+-- after a tick is one ahead of the value the ending block saw.
+S.project148.flag = 1
+p = at(1, { endTimer1 = 50 })
+assert(p.increaseProbeTrust, "the check saw 49")
+p = at(1, { endTimer1 = 51 })
+assert(not p.increaseProbeTrust)
+S.project148.flag = 0
+
+-- The window at each stage (review of #60).
+-- 1: the design's heading goes with it; the trust increases outlast it, untitled.
+at(1, { endTimer1 = 10 })
+Window.Refresh()
+assert(not h.shownText("Dragonling Design") and h.button("btnIncreaseProbeTrust"))
+-- 2: the network's heading goes at 100; the slider stays until 150, untitled.
+at(2, { endTimer2 = 120 })
+Window.Refresh()
+assert(not h.shownText("Company Network") and h.labelled(">>"))
+-- 5: Compute goes; chips 10, 9 and 8 are gone at endTimer4 100, seven remain.
+at(5, { endTimer4 = 100 })
+Window.Refresh()
+assert(not h.button("btnQcompute") and h.shownText("Resonance Calculator"))
+local chips = 0
+for _, t in ipairs(captured.textures) do
+    local c = t.colorTexture
+    if c and c[1] == 0.45 and c[2] == 0.85 and h.visible(t) then chips = chips + 1 end
+end
+assert(chips == 7, chips .. " chips show")
+-- compDiv holds the network, the slider and the calculator: hidden with it.
+S.dismantle = 0
+S.compFlag = 0
+p = View.panels(S)
+assert(not p.swarm and not p.swarmSlider and not p.quantum and not p.trust and not p.swarmGift)
+S.compFlag = 1
+
 -- The window follows: drawn at the seventh dismantling, the late cards are gone.
+at(7, { endTimer1 = 190, endTimer2 = 150, endTimer4 = 250 }) -- every earlier timer has run its course
 Window.Refresh()
 for _, title in ipairs({ "Dragonling Design", "Space Exploration", "Combat", "Negotiation Simulator",
     "Resonance Calculator", "Copper Production", "Company Network", "The Ledger", "Projects" }) do

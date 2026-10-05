@@ -65,7 +65,9 @@ function View.panels(S)
     -- The ending (main.js "// Ending", which runs after buttonUpdate in the same main
     -- loop tick, so its hiding wins): each dismantling and its end timer close panels
     -- in order until only manual production remains.
-    local d, t1, t2, t4 = S.dismantle, S.endTimer1, S.endTimer2, S.endTimer4
+    -- The reference checks endTimer1/2/4 before the same tick increments them; the
+    -- view reads the state after the tick, so it takes the value the check saw.
+    local d, t1, t2, t4 = S.dismantle, View.checkedTimer(S, 1), View.checkedTimer(S, 2), View.checkedTimer(S, 4)
     if d >= 1 then
         show.probeDesign = false
         if t1 >= 50 then show.increaseProbeTrust = false end
@@ -88,7 +90,13 @@ function View.panels(S)
     end
     if d >= 6 then show.processor = false end
     if d >= 7 then show.computing, show.projects = false, false end
-    if S.endTimer6 >= 250 then show.creation = false end
+    if S.endTimer6 >= 250 then show.creation = false end -- incremented before its check
+    -- compDiv holds trustDiv, swarmGiftDiv, processorDisplay, swarmEngine,
+    -- swarmSliderDiv and qComputing: hidden with it.
+    if not show.computing then
+        show.trust, show.swarmGift, show.processor = false, false, false
+        show.swarm, show.swarmSlider, show.quantum = false, false, false
+    end
     return show
 end
 
@@ -336,11 +344,21 @@ function View.spell(x)
     return ns.Workshop.formatWithCommas(num, 1) .. (PLACES[groups] or "")
 end
 
+-- An end timer as the reference's ending block checked it this tick: endTimer1, 2
+-- and 4 are incremented after the checks when their project is bought (148, 211,
+-- 213), so the state after the tick is one ahead of what was checked.
+local TIMER_PROJECT = { [1] = "project148", [2] = "project211", [4] = "project213" }
+function View.checkedTimer(S, n)
+    local value = S["endTimer" .. n]
+    if S[TIMER_PROJECT[n]].flag == 1 then value = value - 1 end
+    return value
+end
+
 -- The photonic chips the ending has not yet taken: from the fifth dismantling, chip
--- 10 goes at endTimer4 10, then 9 at 60, ... and chip 1 at 174 (main.js).
-local CHIP_GONE = { 174, 172, 169, 165, 160, 150, 130, 100, 60, 10 }
+-- 10 goes at the first time in Workshop.chipTimes, ... chip 1 at the last.
 function View.chipShown(S, i)
-    return not (S.dismantle >= 5 and S.endTimer4 >= CHIP_GONE[i])
+    local times = ns.Workshop.chipTimes
+    return not (S.dismantle >= 5 and View.checkedTimer(S, 4) >= times[#times + 1 - i])
 end
 
 -- updateUpgrades: the next factory and drone counts that unlock an upgrade.

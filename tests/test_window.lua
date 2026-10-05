@@ -26,7 +26,9 @@ assert(View.priceTag("project216", S0) == "(1,234 Operations)")
 -- boolean, so creativityOn === 0 never holds and its row shows with the Ledger.
 local fresh = ns.Workshop.new({ draw = function() return 0.5 end }, false).S
 local panels = View.panels(fresh)
-assert(panels.business and panels.manufacturing and panels.trust and not panels.computing and panels.creativity)
+assert(panels.business and panels.manufacturing and not panels.computing and panels.creativity)
+-- trustDiv sits inside compDiv: hidden with it.
+assert(not panels.trust)
 assert(not panels.projects and not panels.autoClippers and not panels.wireBuyer)
 
 -- No company: /tim says how to start one; the window is not built.
@@ -144,6 +146,7 @@ assert(Window.frame:IsShown())
 -- Last in the file: it edits the company's state directly.
 local S = game.S
 S.investmentEngineFlag, S.strategyEngineFlag, S.qFlag = 1, 1, 1
+S.compFlag = 1 -- the Resonance Calculator sits inside the computing panel
 S.funds, S.operations, S.standardOps, S.memory = 500, 5000, 5000, 10
 Host.update(0.02)
 Window.Refresh()

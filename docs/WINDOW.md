@@ -142,10 +142,21 @@ timers, all of them saved state:
 | 7 | The Ledger's computing panel and the projects. |
 | `endTimer6` 250 | Manufacturing. Only Make Copper Bolts remains. |
 
-**Inside the computing panel:** Board Trust and the network's breakthroughs sit in
-the reference's computing panel (`trustDiv` and `swarmGiftDiv` in `compDiv`), so
-they show only with it. That is why Board Trust appears with Computational
-Resources, not at the start.
+**Inside the computing panel:** `compDiv` holds Board Trust, the network's
+breakthroughs, the processors, the network, the slider and the Resonance
+Calculator (`trustDiv`, `swarmGiftDiv`, `processorDisplay`, `swarmEngine`,
+`swarmSliderDiv`, `qComputing`). `View.panels` hides them with it. That is why
+Board Trust appears with Computational Resources, not at the start.
+
+- **Timer reads:** the reference checks `endTimer1`, `endTimer2` and `endTimer4`
+  before the same tick increments them. The view reads the value the check saw
+  (`View.checkedTimer`), so each closing lands on the reference's tick.
+  `endTimer6` is incremented before its check.
+- **Headings belong to their blocks.** The Dragonling Design and Company Network
+  titles go with the design and the network. The trust increases, Renown and the
+  slider that outlast them show without a heading, as in the reference.
+- **One chip schedule:** `Workshop.chipTimes` drives both the wire the chips
+  release and when the window hides them.
 
 ## Project text
 
@@ -177,7 +188,8 @@ number in the tag when `project215` is bought; it is display only.
    - **Power:** performance, consumption by foundries and drones, production,
      stored power over capacity, Power Cores and Battery Packs.
    - **Company Network:** drones, status, the countdown to the next breakthrough,
-     the remedy the status calls for, breakthroughs, and the Work/Think slider.
+     the remedy the status calls for, and the Work/Think slider. The breakthroughs
+     row sits on the Ledger (see "The liquidation").
 4. Phase III (#59):
    - **Space Exploration:** Cosmos Surveyed, Launch a Dragonling, launched,
      descendants, the losses to hazards, Charter Drift and combat (each once

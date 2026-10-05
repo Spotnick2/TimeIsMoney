@@ -25,6 +25,7 @@ local S = game.S
 S.humanFlag, S.factoryFlag, S.tothFlag, S.wireProductionFlag = 0, 1, 1, 1
 S.harvesterFlag, S.wireDroneFlag, S.swarmFlag = 1, 1, 1
 S.project127.flag, S.project45.flag = 1, 1
+S.compFlag = 1 -- the network sits inside the computing panel
 S.unusedClips = 1e12
 Host.update(0.02)
 Window.Refresh()
