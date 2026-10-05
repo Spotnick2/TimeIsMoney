@@ -56,7 +56,12 @@ local function New(saved, libGlass)
     local function child(kind)
         return setmetatable({ kind = kind, scripts = {}, shown = true }, { __index = Widget })
     end
-    function Widget:CreateTexture() return child("Texture") end
+    function Widget:CreateTexture()
+        local t = child("Texture")
+        t.parent = self
+        captured.textures[#captured.textures + 1] = t
+        return t
+    end
     function Widget:CreateMaskTexture() return child("MaskTexture") end
     function Widget:CreateAnimationGroup() return child("AnimationGroup") end
     function Widget:CreateAnimation() return child("Animation") end
@@ -69,7 +74,7 @@ local function New(saved, libGlass)
         captured.fontStrings[#captured.fontStrings + 1] = fs
         return fs
     end
-    captured.fontStrings, captured.widgets = {}, {}
+    captured.fontStrings, captured.widgets, captured.textures = {}, {}, {}
     env.UIParent = setmetatable({ scripts = {}, shown = true, width = 1024, height = 768 }, { __index = Widget })
     env.GameTooltip = setmetatable({ scripts = {}, shown = false }, { __index = Widget })
     function env.GameTooltip:SetOwner() end

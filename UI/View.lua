@@ -45,6 +45,19 @@ function View.panels(S)
     -- In space, probes build: factoryDivSpace and droneDivSpace replace the rows.
     show.factorySpace = space
     show.droneSpace = space
+    -- Phase III.
+    show.space = space
+    show.probeDesign = space
+    show.increaseProbeTrust = space
+    show.increaseMaxTrust = S.project121.flag ~= 0
+    show.honor = S.project121.flag ~= 0
+    show.drifters = not looseZero(S.battleFlag)
+    show.battle = not looseZero(S.battleFlag)
+    show.combatAllocation = S.project131.flag ~= 0
+    show.lostHazards = not (S.probesLostHaz < 1)
+    show.lostDrift = not (S.probesLostDrift < 1)
+    show.lostCombat = not (S.probesLostCombat < 1)
+    show.prestige = not (S.prestigeU < 1 and S.prestigeS < 1)
     return show
 end
 
@@ -59,6 +72,10 @@ View.TERMS = {
     harvesters = "Compact Harvest Reapers", wireDrones = "Delicate Arcanite Converters", factories = "Bolt Foundries",
     farms = "Gold Power Cores", batteries = "9-60 Battery Packs", swarm = "Company Network",
     swarmGifts = "Network Breakthroughs",
+    colonized = "Cosmos Surveyed", drift = "Charter Drift", drifters = "Breakaway Franchises",
+    probeTrust = "Dragonling Trust", honor = "Renown", probeSpeed = "Rift Engines", probeNav = "Cosmic Surveying",
+    probeRep = "Franchise Replication", probeHaz = "Protective Wards", probeFac = "Foundry Deployment",
+    probeHarv = "Salvage Deployment", probeWire = "Refinery Deployment", probeCombat = "Enforcement",
 }
 
 -- A count for display: whole, with thousands separators. Display only: the
@@ -320,4 +337,57 @@ local SWARM = { [0] = "Active", [1] = "Hungry", [2] = "Confused", [3] = "Bored",
     [5] = "Disorganized", [6] = "Sleeping", [8] = "Lonely", [9] = "NO RESPONSE..." }
 function View.swarmStatus(S)
     return SWARM[S.swarmStatus]
+end
+
+-- Number.prototype.toFixed for the display: with no decimals it rounds an exact tie
+-- up (JavaScript picks the larger n), which %.0f would round to even.
+function View.toFixed(x, digits)
+    if isNaN(x) then return "NaN" end
+    if x == math.huge or x == -math.huge then return ns.JSMath.toString(x) end
+    if digits == 0 then
+        local a = math.abs(x)
+        local n = math.floor(a)
+        if a - n >= 0.5 then n = n + 1 end
+        return ((x < 0 and n > 0) and "-" or "") .. string.format("%.0f", n)
+    end
+    return string.format("%." .. digits .. "f", x)
+end
+
+-- numberCruncher (main.js): a count divided down to its place name, toFixed.
+local CRUNCH = { { 51, "sexdecillion" }, { 48, "quindecillion" }, { 45, "quattuordecillion" },
+    { 42, "tredecillion" }, { 39, "duodecillion" }, { 36, "undecillion" }, { 33, "decillion" },
+    { 30, "nonillion" }, { 27, "octillion" }, { 24, "septillion" }, { 21, "sextillion" },
+    { 18, "quintillion" }, { 15, "quadrillion" }, { 12, "trillion" }, { 9, "billion" }, { 6, "million" },
+    { 3, "thousand" } }
+for _, step in ipairs(CRUNCH) do
+    -- The reference's literals: 999...9 (k nines) and 1000...0, parsed as doubles
+    -- exactly as JavaScript parses them.
+    step.above = tonumber(string.rep("9", step[1]))
+    step.divisor = tonumber("1" .. string.rep("0", step[1]))
+end
+function View.numberCruncher(number, decimals)
+    local precision = decimals or 2
+    local suffix = ""
+    for _, step in ipairs(CRUNCH) do
+        if number > step.above then
+            number, suffix = number / step.divisor, step[2]
+            break
+        end
+    end
+    if suffix == "" and number < 1000 then precision = 0 end
+    return View.toFixed(number, precision) .. " " .. suffix
+end
+
+-- The share of the universe explored, as the reference prints it.
+function View.colonized(S)
+    return View.toFixed(ns.JSMath.div(100, ns.JSMath.div(S.totalMatter, S.foundMatter)), 12)
+end
+
+-- checkForBattleEnd's result panel: shown while a battle has ended on one side, once
+-- Renown exists; VICTORY with the honor won, or DEFEAT with the left side's ships.
+function View.battleResult(S)
+    if #S.battles == 0 or S.project121.flag ~= 1 then return nil end
+    if S.numLeftShips == 0 then return "DEFEAT", "-" .. View.count(S.battleLEFTSHIPS) end
+    if S.numRightShips == 0 then return "VICTORY", "+" .. View.count(S.honorReward) end
+    return nil
 end
