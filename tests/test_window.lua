@@ -26,7 +26,9 @@ assert(View.priceTag("project216", S0) == "(1,234 Operations)")
 -- boolean, so creativityOn === 0 never holds and its row shows with the Ledger.
 local fresh = ns.Workshop.new({ draw = function() return 0.5 end }, false).S
 local panels = View.panels(fresh)
-assert(panels.business and panels.manufacturing and panels.trust and not panels.computing and panels.creativity)
+assert(panels.business and panels.manufacturing and not panels.computing and panels.creativity)
+-- trustDiv sits inside compDiv: hidden with it.
+assert(not panels.trust)
 assert(not panels.projects and not panels.autoClippers and not panels.wireBuyer)
 
 -- No company: /tim says how to start one; the window is not built.
@@ -48,7 +50,9 @@ local h = dofile("tests/window_harness.lua").Helpers(captured)
 local button, shownText, digest = h.button, h.shownText, h.digest
 
 -- The opening: production and sales; no computing, no projects yet.
-assert(shownText("Handfuls of Copper Bolts") and shownText("Company Funds") and shownText("Board Trust"))
+assert(shownText("Handfuls of Copper Bolts") and shownText("Company Funds"))
+-- Board Trust lives inside the computing panel (trustDiv in compDiv): not yet.
+assert(not shownText("Board Trust"))
 assert(not button("btnAddProc") and not button("btnMakeClipper"))
 local make = assert(button("btnMakePaperclip"))
 assert(make.enabled and make.label.text == "Make Copper Bolts")
@@ -142,6 +146,7 @@ assert(Window.frame:IsShown())
 -- Last in the file: it edits the company's state directly.
 local S = game.S
 S.investmentEngineFlag, S.strategyEngineFlag, S.qFlag = 1, 1, 1
+S.compFlag = 1 -- the Resonance Calculator sits inside the computing panel
 S.funds, S.operations, S.standardOps, S.memory = 500, 5000, 5000, 10
 Host.update(0.02)
 Window.Refresh()

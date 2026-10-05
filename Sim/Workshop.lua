@@ -701,8 +701,11 @@ end
 -- each dismantling, the photonic chips at rest and the wire they release, and the
 -- closing credits once memory is gone and the last wire is used. The panels it
 -- hides are presentation.
-local creditWire = { [10] = true, [60] = true, [100] = true, [130] = true, [150] = true, [160] = true,
-    [165] = true, [169] = true, [172] = true, [174] = true }
+-- The ending's chip schedule: at these endTimer4 values a chip goes (chip 10 first,
+-- chip 1 last; the window hides it) and its bar of wire is released.
+Workshop.chipTimes = { 10, 60, 100, 130, 150, 160, 165, 169, 172, 174 }
+local creditWire = {}
+for _, t in ipairs(Workshop.chipTimes) do creditWire[t] = true end
 local credits = {
     { 500, 15, "Universal Paperclips" },
     { 600, 16, "a game by Frank Lantz" },

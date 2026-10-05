@@ -60,6 +60,43 @@ function View.panels(S)
     show.lostDrift = not lt(S.probesLostDrift, 1)
     show.lostCombat = not lt(S.probesLostCombat, 1)
     show.prestige = not (S.prestigeU < 1 and S.prestigeS < 1)
+    show.swarmGift = show.swarm
+    show.clipsPerSec, show.processor, show.qCompute = true, true, true
+    -- The ending (main.js "// Ending", which runs after buttonUpdate in the same main
+    -- loop tick, so its hiding wins): each dismantling and its end timer close panels
+    -- in order until only manual production remains.
+    -- The reference checks endTimer1/2/4 before the same tick increments them; the
+    -- view reads the state after the tick, so it takes the value the check saw.
+    local d, t1, t2, t4 = S.dismantle, View.checkedTimer(S, 1), View.checkedTimer(S, 2), View.checkedTimer(S, 4)
+    if d >= 1 then
+        show.probeDesign = false
+        if t1 >= 50 then show.increaseProbeTrust = false end
+        if t1 >= 100 then show.increaseMaxTrust = false end
+        if t1 >= 150 then show.space = false end
+        if t1 >= 175 then show.battle = false end
+        if t1 >= 190 then show.honor = false end
+    end
+    if d >= 2 then
+        show.wireProduction, show.wireTrans = false, true
+        if t2 >= 50 then show.swarmGift = false end
+        if t2 >= 100 then show.swarm = false end
+        if t2 >= 150 then show.swarmSlider = false end
+    end
+    if d >= 3 then show.factorySpace, show.clipsPerSec, show.toth = false, false, false end
+    if d >= 4 then show.strategy = false end
+    if d >= 5 then
+        show.qCompute = false
+        if t4 >= 250 then show.quantum = false end
+    end
+    if d >= 6 then show.processor = false end
+    if d >= 7 then show.computing, show.projects = false, false end
+    if S.endTimer6 >= 250 then show.creation = false end -- incremented before its check
+    -- compDiv holds trustDiv, swarmGiftDiv, processorDisplay, swarmEngine,
+    -- swarmSliderDiv and qComputing: hidden with it.
+    if not show.computing then
+        show.trust, show.swarmGift, show.processor = false, false, false
+        show.swarm, show.swarmSlider, show.quantum = false, false, false
+    end
     return show
 end
 
@@ -305,6 +342,23 @@ function View.spell(x)
     local lead = #text - 3 * (groups - 1)
     local num = JSMath.toNumber(text:sub(1, lead) .. "." .. text:sub(lead + 1, lead + 2))
     return ns.Workshop.formatWithCommas(num, 1) .. (PLACES[groups] or "")
+end
+
+-- An end timer as the reference's ending block checked it this tick: endTimer1, 2
+-- and 4 are incremented after the checks when their project is bought (148, 211,
+-- 213), so the state after the tick is one ahead of what was checked.
+local TIMER_PROJECT = { [1] = "project148", [2] = "project211", [4] = "project213" }
+function View.checkedTimer(S, n)
+    local value = S["endTimer" .. n]
+    if S[TIMER_PROJECT[n]].flag == 1 then value = value - 1 end
+    return value
+end
+
+-- The photonic chips the ending has not yet taken: from the fifth dismantling, chip
+-- 10 goes at the first time in Workshop.chipTimes, ... chip 1 at the last.
+function View.chipShown(S, i)
+    local times = ns.Workshop.chipTimes
+    return not (S.dismantle >= 5 and View.checkedTimer(S, 4) >= times[#times + 1 - i])
 end
 
 -- updateUpgrades: the next factory and drone counts that unlock an upgrade.

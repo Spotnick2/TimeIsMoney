@@ -39,19 +39,28 @@ end
 -- Shown widgets and text, for assertions.
 local function Helpers(captured)
     local h = {}
+    -- Visible as the client decides: shown, and every parent shown.
+    local function visible(w)
+        while w do
+            if w.shown == false then return false end
+            w = w.parent
+        end
+        return true
+    end
+    h.visible = visible
     function h.button(id)
         for _, w in ipairs(captured.widgets) do
-            if w.kind == "Button" and w.id == id and w.shown then return w end
+            if w.kind == "Button" and w.id == id and visible(w) then return w end
         end
     end
     function h.labelled(text)
         for _, w in ipairs(captured.widgets) do
-            if w.kind == "Button" and w.shown and w.label and w.label.text == text then return w end
+            if w.kind == "Button" and visible(w) and w.label and w.label.text == text then return w end
         end
     end
     function h.shownText(fragment)
         for _, fs in ipairs(captured.fontStrings) do
-            if fs.shown and fs.text and tostring(fs.text):find(fragment, 1, true) then return fs end
+            if visible(fs) and fs.text and tostring(fs.text):find(fragment, 1, true) then return fs end
         end
     end
     function h.digest(t, seen)
