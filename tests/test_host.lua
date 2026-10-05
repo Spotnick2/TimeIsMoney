@@ -175,8 +175,9 @@ do
     assert(saved == 1 and game.S.saveTimer <= 1)
 end
 
--- A prestige choice awards and saves its prestige, then requests the restart: the
--- old company halts, so the reward cannot be collected twice (Codex review of #54).
+-- A prestige choice awards and saves its prestige, then the next company starts
+-- with it at once (#23): the old company never runs again, so the reward cannot be
+-- collected twice (Codex review of #54).
 for _, route in ipairs({ { "projectButton200", "prestigeU", { compFlag = 1, standardOps = 400000, memory = 400 } },
         { "projectButton201", "prestigeS", { creativity = 400000 } } }) do
     local Host = Load()
@@ -186,14 +187,37 @@ for _, route in ipairs({ { "projectButton200", "prestigeU", { compFlag = 1, stan
     for k, v in pairs(route[3]) do S[k] = v end
     game:advanceTo(game.clock.now + 30) -- the project appears and its cost is met
     assert(game.projectElements[route[1]] and not game.disabled[route[1]], route[1] .. " is offered")
-    local ok, err = Host.click(route[1])
-    assert(not ok and err:find("reset after a prestige choice", 1, true))
-    assert(not Host.running and S[route[2]] == 1 and game.savedPrestige[route[2]] == 1)
-    ok, err = Host.click(route[1])
-    assert(not ok and err:find("the company stopped", 1, true) and S[route[2]] == 1, "no second award")
+    local ok, how = Host.click(route[1])
+    assert(ok and how == "restart" and S[route[2]] == 1 and game.savedPrestige[route[2]] == 1)
+    local fresh = Host.game
+    assert(fresh ~= game and Host.running and fresh.S[route[2]] == 1 and fresh.S.clips == 0,
+        "the next company starts with the prestige")
+    assert(fresh.projectElements[route[1]] == nil, "and without the old offer: no second award")
     local now = game.clock.now
     Host.update(1)
-    assert(game.clock.now == now, "the old company does not run on")
+    assert(game.clock.now == now and fresh.clock.now > 0, "the old company does not run on")
+    -- Logout writes the new company and the prestige.
+    local db = Host.persist()
+    assert(db.company and db.prestige[route[2]] == 1)
+end
+
+-- Quantum Temporal Reversion and the new-game control: a fresh company, the
+-- prestige kept (the reference's reset()); refused while saving is off.
+do
+    local Host = Load()
+    local game = Host.start({ 51, 53 })
+    game.S.prestigeU = 2
+    game.S.standardOps, game.S.compFlag = -20000, 1
+    game:advanceTo(game.clock.now + 30)
+    assert(game.projectElements.projectButton217, "the reversion is offered")
+    local ok, how = Host.click("projectButton217")
+    assert(ok and how == "restart" and Host.game ~= game and Host.game.S.prestigeU == 2 and Host.game.S.clips == 0)
+    local before = Host.game
+    before.S.clips = 50
+    assert(Host.newGame() and Host.game ~= before and Host.game.S.clips == 0 and Host.game.S.prestigeU == 2)
+    Host.blocked = "a save from a newer version"
+    local refused, why = Host.newGame()
+    assert(not refused and why:find("saving is off", 1, true))
 end
 
 -- Saves (#19): what logout writes in each case.

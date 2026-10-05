@@ -38,11 +38,19 @@ use a separate stream so it cannot change outcomes.
 `Host.click(id)` and `Host.setValue(id, value)` accept only known controls and apply
 them at the current logical time, between scheduler callbacks. A control the game
 refuses (an unported path, a project button not shown) raises before changing state;
-the host reports it and the game keeps running. The one exception is a prestige
-choice: it awards and saves the prestige (`game.savedPrestige`) and requests the
-restart into a new game (`game.restartRequested`, #23); that company is over, so the
-host halts it and the reward cannot be collected twice. An error inside a tick halts
-the simulation: the tick has partly run, so it must not continue.
+the host reports it and the game keeps running.
+
+**Restarts (#23).** A click that ends the company requests the restart into a new
+game (`game.restartRequested`, with the prestige in `game.savedPrestige`): a prestige
+choice, or Quantum Temporal Reversion after the window's confirmation. The host then
+starts the next company at once with that prestige (`Host.restart`). The old one is
+never run again, so a reward cannot be collected twice. This is the reference's
+`reset()`: the company's save is cleared and the prestige kept. The new-game control
+(`Host.newGame`, behind an explicit confirmation) does the same. A restart is refused
+while saving is off, so blocked data is never replaced.
+
+An error inside a tick halts the simulation: the tick has partly run, so it must not
+continue.
 
 Until the ledger window (#20), developer slash commands drive it: `/tim start`,
 `/tim status` (logical time, clips, funds, wire, CPU per frame, dropped time),

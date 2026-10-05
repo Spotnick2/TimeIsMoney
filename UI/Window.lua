@@ -35,10 +35,22 @@ local function Report(message)
 end
 
 -- Commands: the host validates and applies them at the current logical time.
-local function Click(id)
+-- Controls that end the company ask first (the reference's confirm()): the click
+-- reaches the simulation only after an explicit yes.
+local CONFIRM = { projectButton217 = "confirm.reversion" }
+
+local function Send(id)
     local ok, err = ns.Host.click(id)
     if not ok then Report("not done: " .. tostring(err)) end
     Window.Refresh()
+end
+
+local function Click(id)
+    if CONFIRM[id] then
+        Window.Confirm(CONFIRM[id], function() Send(id) end)
+        return
+    end
+    Send(id)
 end
 
 -- Tooltips: one renderer. lines[1] is the white title, the rest wrap muted.
@@ -988,6 +1000,53 @@ function Window.Refresh()
     -- in both directions: it scales down when it would not.
     f:SetScale(math.min(1, (UIParent:GetWidth() - 2 * Window.GAP) / width,
         (UIParent:GetHeight() - 2 * Window.GAP) / height))
+end
+
+-- An explicit yes/no for an action that ends the company: a dialog above the window
+-- with the localized question, "yes" and "no". Nothing happens until "yes".
+function Window.Confirm(questionKey, onYes)
+    if not Window.frame then Build() end
+    local d = Window.dialog
+    if not d then
+        d = CreateFrame("Frame", "TimeIsMoneyConfirm", UIParent)
+        d:SetSize(340, 120)
+        d:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
+        d:SetFrameStrata("DIALOG")
+        d:EnableMouse(true) -- clicks stop here, not on the window behind
+        local g = Glass.Apply(d, "large")
+        local content = CreateFrame("Frame", nil, d)
+        content:SetAllPoints(d)
+        content:SetFrameLevel(Glass.ContentLevel(d))
+        d.question = Glass.Font(g.top, 12, "CENTER")
+        d.question:SetPoint("TOPLEFT", d, "TOPLEFT", 14, -14)
+        d.question:SetPoint("TOPRIGHT", d, "TOPRIGHT", -14, -14)
+        d.question:SetWordWrap(true)
+        d.yes = NewButton(content, nil)
+        d.yes:SetSize(150, Window.BUTTON)
+        d.yes:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 14, 14)
+        d.no = NewButton(content, nil)
+        d.no:SetSize(150, Window.BUTTON)
+        d.no:SetPoint("BOTTOMRIGHT", d, "BOTTOMRIGHT", -14, 14)
+        d.no:SetScript("OnClick", function() d:Hide() end)
+        Window.dialog = d
+    end
+    d.question:SetText(ns.L[questionKey])
+    d.yes.label:SetText(ns.L["confirm.yes"])
+    d.no.label:SetText(ns.L["confirm.no"])
+    d.yes:SetScript("OnClick", function()
+        d:Hide()
+        onYes()
+    end)
+    d:Show()
+end
+
+-- The new-game control: a fresh company, the prestige kept, after an explicit yes.
+function Window.NewGame()
+    Window.Confirm("confirm.newGame", function()
+        local ok, err = ns.Host.newGame()
+        if not ok then Report("not done: " .. tostring(err)) return end
+        if Window.frame:IsShown() then Window.Refresh() else Window.Toggle() end
+    end)
 end
 
 function Window.Toggle()

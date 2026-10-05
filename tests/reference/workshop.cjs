@@ -315,8 +315,8 @@ const traces={
         commands:[...buy(20,"140","141","142","143","144","145","146","148"),click(400,"projectButton210"),
             click(4300,"projectButton211")]},
     // Accept: the two new universes appear. Their purchase resets, a reload the
-    // reference host refuses (the new-game control, #23); tests/test_sim.lua covers
-    // the saved prestige and the explicit stop.
+    // reference host cannot trace; tests/test_sim.lua and tests/test_host.lua cover
+    // the saved prestige and the host's restart (#23).
     endingAccept:{until:400,fixture:{globals:space({clips:Math.pow(10,54)*30,availableMatter:1e30,
         processors:600000})},commands:[...buy(20,"140","141","142","143","144","145","146","147")]},
     // The dismantling (timers from fixtures near their thresholds): factories, the

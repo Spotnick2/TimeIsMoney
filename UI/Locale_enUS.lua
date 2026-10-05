@@ -4,6 +4,12 @@
 local _, ns = ...
 
 ns.Locale.Register("enUS", {
+    -- Confirmations for what ends the company (the reference's confirm()).
+    ["confirm.reversion"] = "Turn back the hourglass? This company starts over from nothing; its prestige carries over.",
+    ["confirm.newGame"] = "Start a new company? Everything this one owns is lost; its prestige carries over.",
+    ["confirm.yes"] = "Yes, start over",
+    ["confirm.no"] = "Keep this company",
+
     -- Speakers.
     ["speaker.director"] = "Director",
     ["speaker.ledger"] = "The Ledger",
@@ -144,6 +150,7 @@ ns.Locale.Register("enUS", {
     ["msg.dismantleProcessors"] = "Dismantling the Copper Modulators.",
     ["msg.dismantleMemory"] = "Dismantling the White Punch Cards.",
     ["msg.newUniverse"] = "Entering another Azeroth.",
+    ["msg.restart"] = "Back to the beginning.",
     ["msg.simulatedUniverse"] = "Entering the dream within the Ledger.",
     ["msg.tourneySecond"] = "The backed strategy finished second (or tied): +30,000 Cunning.",
     ["msg.tourneyThird"] = "The backed strategy finished third (or tied): +20,000 Cunning.",

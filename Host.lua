@@ -230,11 +230,28 @@ function Host.update(elapsed)
     if cost > stats.worst then stats.worst = cost end
 end
 
+-- Restarts (#23): the reference's reset() clears the company's save, keeps the
+-- prestige and reloads. A prestige choice or Quantum Temporal Reversion requests it
+-- from inside the simulation; the new-game control asks for it directly. The next
+-- company starts at once with the prestige; the old one is never run again.
+function Host.restart(prestige)
+    if Host.blocked then return false, "saving is off (" .. Host.blocked .. "); the saved data is kept untouched" end
+    if prestige then Host.prestige = { prestigeU = prestige.prestigeU, prestigeS = prestige.prestigeS } end
+    Host.start()
+    return true
+end
+
+-- The new-game control: a fresh company, the account's prestige kept (as reset()).
+-- The window asks for explicit confirmation first.
+function Host.newGame()
+    return Host.restart(nil)
+end
+
 -- Validated commands: a known control, applied at the current logical time. A
 -- control the slice refuses (an unported path, a project not shown) raises before
--- changing state, so the game keeps running and the refusal is reported. The one
--- exception is a prestige choice: it awards and saves the prestige, then requests
--- the restart into a new game (#23). That company is over, so the host halts it.
+-- changing state, so the game keeps running and the refusal is reported. A click
+-- that ends the company (a prestige choice, Quantum Temporal Reversion) requests a
+-- restart, and the next company starts with the saved prestige.
 function Host.click(id)
     local game = Host.game
     if not game then return false, "no company (/tim start)" end
@@ -242,10 +259,14 @@ function Host.click(id)
     local known = ns.Workshop.clicks[id] or ns.Workshop.projectById[id]
     if not known then return false, "unknown control " .. tostring(id) end
     local ok, err = pcall(game.click, game, id)
-    if not ok then
-        if game.restartRequested then Host.halt(err) end
-        return false, tostring(err)
+    if game.restartRequested then
+        -- The company is over whatever happened next: never run it again.
+        if not ok then Host.halt(err) return false, tostring(err) end
+        local restarted, why = Host.restart(game.savedPrestige)
+        if not restarted then Host.halt(why) return false, why end
+        return true, "restart"
     end
+    if not ok then return false, tostring(err) end
     return true
 end
 
