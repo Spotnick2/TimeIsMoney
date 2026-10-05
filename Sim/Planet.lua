@@ -440,8 +440,11 @@ end
 
 -- Matter ---------------------------------------------------------------------
 
+-- The rates the reference prints (maps, wpps) are presentation: kept on the game
+-- for the window (per tick; 0 when nothing moved), never in the state or the save.
 function Game:acquireMatter()
     local S = self.S
+    self.matterRate = 0
     if S.availableMatter > 0 then
         local dbsth = 1
         if S.droneBoost > 1 then dbsth = S.droneBoost * floor(S.harvesterLevel) end
@@ -450,11 +453,13 @@ function Game:acquireMatter()
         if mtr > S.availableMatter then mtr = S.availableMatter end
         S.availableMatter = S.availableMatter - mtr
         S.acquiredMatter = S.acquiredMatter + mtr
+        self.matterRate = mtr
     end
 end
 
 function Game:processMatter()
     local S = self.S
+    self.wireRate = 0
     if S.acquiredMatter > 0 then
         local dbstw = 1
         if S.droneBoost > 1 then dbstw = S.droneBoost * floor(S.wireDroneLevel) end
@@ -463,6 +468,7 @@ function Game:processMatter()
         if a > S.acquiredMatter then a = S.acquiredMatter end
         S.acquiredMatter = S.acquiredMatter - a
         S.wire = S.wire + a
+        self.wireRate = a
     end
 end
 

@@ -153,6 +153,7 @@ function Game:exploreUniverse()
     if xRate > S.totalMatter - S.foundMatter then xRate = S.totalMatter - S.foundMatter end
     S.foundMatter = S.foundMatter + xRate
     S.availableMatter = S.availableMatter + xRate
+    self.exploreRate = xRate -- mdps (presentation, on the game; never saved)
 end
 
 function Game:encounterHazards()
