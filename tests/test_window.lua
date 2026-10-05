@@ -245,18 +245,56 @@ assert(lines[1] == "Pick strategy, run tournament, gain Cunning" and lines[2]:fi
 assert(Host.click("btnRunTournament"))
 lines = View.tournament(game)
 assert(lines[1] == "Round 1" and lines[2] == S.hStrat.name .. " vs " .. S.vStrat.name)
--- Results replace the grid; the picked strategy (strats[pick]) is marked; rolling
--- over shows the grid again. Played out by the simulation, not edited in.
+-- Results replace the grid; the picked strategy (strats[pick]) is marked. Played
+-- out by the simulation, not edited in.
 Host.update(60)
 assert(S.tourneyInProg == 0 and game.resultsTableDisplay == "", "the tournament finished")
 lines = View.tournament(game)
 assert(lines[1]:find("^TOURNAMENT RESULTS %(roll over for ") and lines[2]:find("^> 1%. RANDOM: "))
-assert(View.tournament(game, true)[2]:find(" / ", 1, true), "roll-over reveals the grid")
--- The window stays within a short screen with every engine open: columns continue.
-env.UIParent.height = 500
+-- Hovering the tournament area is the reference's mouseover: the grid comes back
+-- and resultsTimer resets, holding automatic tournaments until the pointer leaves
+-- (Codex review of #57). The hover area keeps its size across the swap.
 Window.Refresh()
-assert(Window.frame.height <= 500, "window taller than the screen: " .. tostring(Window.frame.height))
+local area
+for _, w in ipairs(captured.widgets) do
+    if w.kind == "Frame" and w.scripts.OnEnter and w.shown then area = w end
+end
+assert(area, "the tournament hover area")
+local resultsHeight = area.height
+S.autoTourneyFlag, S.autoTourneyStatus, S.resultsTimer = 1, 1, 299
+S.operations, S.standardOps = 50000, 50000
+area.scripts.OnEnter(area)
+assert(S.resultsTimer == 0 and game.resultsTableDisplay == "none")
+assert(View.tournament(game)[2]:find(" / ", 1, true), "the grid shows while hovered")
+assert(area.height == resultsHeight, "the hover area keeps its size")
+local level = S.tourneyLvl
+Host.update(4) -- 400 buttonUpdates: no automatic tournament while the grid is held
+assert(S.tourneyLvl == level and S.resultsTimer == 0)
+area.scripts.OnLeave(area)
+assert(game.resultsTableDisplay == "" and View.tournament(game)[2]:find("^> 1%. RANDOM: "))
+S.autoTourneyStatus = 0
+-- The window fits the screen in both directions, whatever is open: every engine,
+-- five stocks, both selects open, on a 1024x500 screen.
+for i = 1, 5 do
+    S.stocks[i] = { id = i, symbol = "S" .. i, amount = 1000000, price = 15, total = 15000000, profit = -123456, age = 0 }
+end
+S.portfolioSize = 5
+env.UIParent.height = 500
+for _, text in ipairs({ "High Risk  v", "RANDOM  v" }) do
+    local b = assert(labelled(text))
+    b.scripts.OnClick(b)
+end
+Window.Refresh()
+local scale = Window.frame.scale or 1
+assert(Window.frame.width * scale <= 1024 and Window.frame.height * scale <= 500,
+    "window does not fit: " .. Window.frame.width .. "x" .. Window.frame.height .. " at " .. scale)
+for _, text in ipairs({ "High Risk  ^", "RANDOM  ^" }) do
+    local b = assert(labelled(text))
+    b.scripts.OnClick(b)
+end
 env.UIParent.height = 768
+Window.Refresh()
+assert((Window.frame.scale or 1) <= 1)
 -- The Resonance Calculator: no crystals yet, then a computed result that fades.
 assert(Host.click("btnQcompute") and View.qComp(game) == "Need Arcane Crystals")
 S.qChips[1].active, S.qChips[1].value = 1, 0.5

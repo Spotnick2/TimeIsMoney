@@ -50,13 +50,22 @@ the embedded LibGlass-1.0 material.
   does.
 - **Tournament grid and results:** both tables start shown, the results one empty.
   After a tournament the results replace the grid, with the picked strategy
-  (`strats[pick]`) marked. Rolling over them shows the grid again.
+  (`strats[pick]`) marked.
+- **Hovering the tournament area** is the reference's `tournamentStuff` mouseover
+  and mouseout, sent as host commands (`tournamentStuff:mouseover` and `:mouseout`,
+  Game:revealGrid and Game:revealResults).
+  - Entering shows the grid and resets `resultsTimer`, which holds automatic
+    tournaments; leaving shows the results again.
+  - The area keeps one size for both views, so the swap never moves the pointer
+    out of it.
+  - Pointer moves on a stopped company are not reported.
 - **Stocks** show the reference's whole numbers (`Math.ceil`), two lines per stock.
   After a sale, the slot just past the last stock keeps what it showed. This
   reproduces the reference's off-by-one clear (the "Frank Fix" comment); later
   slots are blank.
-- **Tall columns continue in the next column**, so the window stays within the
-  screen with every engine open.
+- **The window fits the screen in both directions.** A column too tall for the
+  screen continues in the next one. If the window is still larger than the screen
+  (open selects, many columns), it scales down to fit.
 
 ## Project text
 

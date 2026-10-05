@@ -40,6 +40,8 @@ local function New(saved, libGlass)
     function Widget:SetWidth(w) self.width = w end
     function Widget:SetHeight(h) self.height = h end
     function Widget:GetHeight() return self.height or 0 end
+    function Widget:GetWidth() return self.width or 0 end
+    function Widget:SetScale(s) self.scale = s end
     function Widget:Show() self.shown = true end
     function Widget:Hide() self.shown = false end
     function Widget:SetShown(v) self.shown = not not v end
@@ -68,7 +70,7 @@ local function New(saved, libGlass)
         return fs
     end
     captured.fontStrings, captured.widgets = {}, {}
-    env.UIParent = setmetatable({ scripts = {}, shown = true, height = 768 }, { __index = Widget })
+    env.UIParent = setmetatable({ scripts = {}, shown = true, width = 1024, height = 768 }, { __index = Widget })
     env.GameTooltip = setmetatable({ scripts = {}, shown = false }, { __index = Widget })
     function env.GameTooltip:SetOwner() end
     function env.GameTooltip:AddLine() end

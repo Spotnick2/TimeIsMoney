@@ -354,4 +354,22 @@ clicks.btnNewTournament = Game.newTourney
 clicks.btnRunTournament = Game.runTourney
 clicks.btnToggleAutoTourney = Game.toggleAutoTourney
 
+-- tournamentStuff's mouseover/mouseout (main.js revealGrid/revealResults): with
+-- results shown, hovering swaps the grid back in and resets resultsTimer, which
+-- holds automatic tournaments until the results show again.
+function Game:revealGrid()
+    local S = self.S
+    if S.resultsFlag == 1 then
+        S.resultsTimer = 0
+        self.resultsTableDisplay = "none"
+    end
+end
+
+function Game:revealResults()
+    if self.S.resultsFlag == 1 then self.resultsTableDisplay = "" end
+end
+
+clicks["tournamentStuff:mouseover"] = Game.revealGrid
+clicks["tournamentStuff:mouseout"] = Game.revealResults
+
 return Workshop

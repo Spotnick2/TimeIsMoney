@@ -131,8 +131,8 @@ end
 --   heading (kept on the game as presentation by the simulation);
 -- - the two strategies of the current round (vertStrat/horizStrat);
 -- - the payoff grid with the move names it drew, unless the results replaced it;
---   rolling over the results shows the grid again.
-function View.tournament(game, revealGrid)
+--   hovering the area (revealGrid, a host command) shows the grid again.
+function View.tournament(game)
     local S, T = game.S, View.TERMS
     local lines = {}
     local report = game.tourneyReport
@@ -146,7 +146,7 @@ function View.tournament(game, revealGrid)
     if game.matchup then lines[#lines + 1] = game.matchup.h .. " vs " .. game.matchup.v end
     -- The grid table shows unless displayTourneyReport swapped in the results (both
     -- tables start shown, the results one empty).
-    if S.resultsFlag == 1 and game.resultsTableDisplay == "" and not revealGrid then
+    if S.resultsFlag == 1 and game.resultsTableDisplay == "" then
         local picked = View.picked(S)
         for i, strat in ipairs(S.results) do
             if i > 8 then break end
@@ -169,6 +169,13 @@ end
 
 -- The Resonance Calculator's result: nil before any compute, else the reference's
 -- text with the plan's name for the chips.
+-- Lines the tournament area keeps, whichever of grid or results it shows, so the
+-- area (and its hover target) does not change size when they swap.
+function View.tournamentLines(game)
+    local S = game.S
+    return 1 + (game.matchup and 1 or 0) + math.max(4, math.min(8, #S.results))
+end
+
 function View.qComp(game)
     local result = game.qCompResult
     if result == nil then return nil end

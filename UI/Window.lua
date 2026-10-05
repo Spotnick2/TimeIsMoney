@@ -153,19 +153,24 @@ function Card:Select(id, caption, show)
     return row
 end
 
--- Up to max lines of text; lines(S, game, row) returns them (fewer take less room).
--- alpha(S), when given, fades them; hover makes the lines a mouse area that sets
--- row.hovered (the reference's roll-over).
-function Card:Lines(max, lines, show, alpha, hover)
-    local row = { kind = "lines", height = 0, lines = lines, show = show, strings = {}, alpha = alpha }
+-- Up to max lines of text; lines(S, game) returns them (fewer take less room, down
+-- to reserve(game) lines when given). alpha(S), when given, fades them. hover, when
+-- given, is { over = control, out = control }: the lines become a mouse area whose
+-- enter and leave are host commands (the reference's mouseover/mouseout).
+function Card:Lines(max, lines, show, alpha, hover, reserve)
+    local row = { kind = "lines", height = 0, lines = lines, show = show, strings = {}, alpha = alpha,
+        reserve = reserve }
     for i = 1, max do
         row.strings[i] = Glass.Font(self.glass.top, 10, "LEFT")
     end
     if hover then
         row.mouse = CreateFrame("Frame", nil, self.content)
         row.mouse:EnableMouse(true)
-        row.mouse:SetScript("OnEnter", function() row.hovered = true Window.Refresh() end)
-        row.mouse:SetScript("OnLeave", function() row.hovered = false Window.Refresh() end)
+        -- Pointer moves are not player decisions: a refusal (a stopped company) is
+        -- not reported on every move.
+        local function send(id) ns.Host.click(id) Window.Refresh() end
+        row.mouse:SetScript("OnEnter", function() send(hover.over) end)
+        row.mouse:SetScript("OnLeave", function() send(hover.out) end)
     end
     self.rows[#self.rows + 1] = row
     return row
@@ -242,7 +247,7 @@ function Card:Update(game, panels)
                 end
                 for i = (row.open and #select.options or 0) + 1, #row.choices do row.choices[i]:Hide() end
             elseif row.kind == "lines" then
-                local lines = row.lines(S, game, row)
+                local lines = row.lines(S, game)
                 local alpha = row.alpha and math.max(0, math.min(1, row.alpha(S))) or 1
                 row.height = 0
                 for i, fs in ipairs(row.strings) do
@@ -256,6 +261,7 @@ function Card:Update(game, panels)
                         row.height = i * 14 + 4
                     end
                 end
+                if row.reserve then row.height = math.max(row.height, row.reserve(game) * 14 + 4) end
                 if row.mouse then
                     place(row.mouse, self, y, inset)
                     row.mouse:SetSize(width, math.max(row.height, 14))
@@ -484,7 +490,8 @@ local function Build()
     negotiate:Action("btnToggleAutoTourney", function(S)
         return "Auto Tournaments: " .. (S.autoTourneyStatus == 1 and "ON" or "OFF")
     end, function(S, p) return p.strategy and S.autoTourneyFlag == 1 end)
-    negotiate:Lines(10, function(_, game, row) return View.tournament(game, row.hovered) end, strategy, nil, true)
+    negotiate:Lines(10, function(_, game) return View.tournament(game) end, strategy, nil,
+        { over = "tournamentStuff:mouseover", out = "tournamentStuff:mouseout" }, View.tournamentLines)
 
     -- Resonance Calculator: the photonic chips and the compute button.
     local quantum = function(_, p) return p.quantum end
@@ -544,7 +551,12 @@ function Window.Refresh()
     Window.message:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
     Window.message:SetWidth(width - 2 * inset)
     Window.message:SetText(game.readouts[1])
-    f:SetSize(width, tallest + Window.MESSAGE + inset)
+    local height = tallest + Window.MESSAGE + inset
+    f:SetSize(width, height)
+    -- Whatever the content (open selects, many columns), the window fits the screen
+    -- in both directions: it scales down when it would not.
+    f:SetScale(math.min(1, (UIParent:GetWidth() - 2 * Window.GAP) / width,
+        (UIParent:GetHeight() - 2 * Window.GAP) / height))
 end
 
 function Window.Toggle()
