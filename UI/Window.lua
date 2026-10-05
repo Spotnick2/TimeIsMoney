@@ -20,7 +20,9 @@ Window.BUTTON = 24     -- button height ("small" glass: under ~40 px tall)
 -- Square buttons stay 32x32: sliced masks fail on boxes small in both directions
 -- (16-22 px measured; 32x32 known good; LibGlass GLASS-MATERIAL.md section 6).
 Window.SQUARE = 32
-Window.MESSAGE = 30    -- the message line under the cards
+-- Room under the cards. The reference's messages are not shown: every one is in its
+-- own wording; the Director's dialogue strip (#22) presents them.
+Window.MESSAGE = 4
 
 local COPPER = { 0.85, 0.6, 0.4 }
 local MUTED = { 0.7, 0.7, 0.7 }
@@ -556,7 +558,7 @@ end
 -- Offers stay while the player defers them, so the list can outgrow the screen:
 -- it shows a page that fits UIParent's height, with Prev/Next to reach the rest.
 Window.PROJECT = 40       -- one project button and its gap
-Window.CHROME = 200       -- window title, card title, paging row and message line
+Window.CHROME = 200       -- window title, card title, paging row and margins
 function Window.ProjectsPerPage()
     return math.max(3, math.floor((UIParent:GetHeight() - Window.CHROME) / Window.PROJECT))
 end
@@ -914,10 +916,6 @@ local function Build()
     Window.columns = { { production }, { sales, ledger, factories, wire }, { invest, negotiate, resonance, power, network },
         { cosmos, design, combat }, { NewProjects(content) } }
 
-    -- Messages: the newest reference message (the Director's strip is #22).
-    Window.message = Glass.Font(g.top, 11, "LEFT")
-    Window.message:SetWordWrap(true)
-
     f:SetScript("OnUpdate", function(_, elapsed)
         Window.elapsed = (Window.elapsed or 0) + elapsed
         Window.battleElapsed = (Window.battleElapsed or 0) + elapsed
@@ -967,10 +965,6 @@ function Window.Refresh()
         if shown then x = x + Window.COLUMN + Window.GAP end
     end
     local width = math.max(x - Window.GAP + inset, Window.COLUMN + 2 * inset)
-    Window.message:ClearAllPoints()
-    Window.message:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
-    Window.message:SetWidth(width - 2 * inset)
-    Window.message:SetText(game.readouts[1])
     Window.UpdateLiveTip()
     local height = tallest + Window.MESSAGE + inset
     f:SetSize(width, height)
