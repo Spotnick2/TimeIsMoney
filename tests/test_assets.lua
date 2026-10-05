@@ -52,6 +52,30 @@ assert(icon == Assets.FALLBACK and status == "fallback" and #captured.requested 
 Assets.IdentityIcon("expansion")
 captured:ItemLoaded(18984, true)
 assert(select(2, Assets.IdentityIcon("expansion")) == "fallback")
+-- No event at all (as measured on 1.60.1.70205): pending until the icon answers or
+-- the timeout passes; then the fallback, for good.
+icon, status = Assets.Icon("tinkering") -- item 6219, unknown
+assert(status == "pending")
+captured.now = 9.9
+assert(select(2, Assets.Icon("tinkering")) == "pending")
+captured.now = 10
+assert(select(2, Assets.Icon("tinkering")) == "fallback")
+captured.itemIcons[6219] = 4242 -- too late: a fallback is final
+assert(select(2, Assets.Icon("tinkering")) == "fallback")
+-- An icon that answers while pending resolves, without any event.
+Assets.Icon("precision") -- item 4389, unknown
+captured.itemIcons[4389] = 4389
+assert(Assets.Icon("precision") == 4389 and select(2, Assets.Icon("precision")) == "resolved")
+-- The question mark's file ID is a missing item, never resolved.
+captured.itemIcons[5507] = Assets.QUESTION_MARK_ID
+assert(select(2, Assets.Icon("foresight")) == "fallback")
+-- Final answers are kept: no further lookups.
+local lookups = 0
+local real = env.C_Item.GetItemIconByID
+env.C_Item.GetItemIconByID = function(id) lookups = lookups + 1 return real(id) end
+for _ = 1, 5 do Assets.IdentityIcon("clips") end
+assert(lookups == 0, "resolved icons are cached")
+env.C_Item.GetItemIconByID = real
 -- An unrelated item's load result is ignored.
 captured:ItemLoaded(1, true)
 -- Spells resolve by ID; texture paths are used as given.
@@ -87,6 +111,20 @@ local cells = 0
 for _, cell in ipairs(Window.icons.cells) do if cell.shown ~= false then cells = cells + 1 end end
 assert(cells == 14 + families, cells .. " entries")
 assert(h.shownText("Handfuls of Copper Bolts") and h.shownText("Blacksmithing") and h.shownText("fallback"))
+-- Statuses have their own colours: only resolved is green.
+local colours = {}
+for _, cell in ipairs(Window.icons.cells) do colours[cell.status.text:match("^(%a+)")] = cell.status.color end
+assert(colours.resolved[1] == 0.6 and colours.fallback[1] == 1 and colours.path and colours.path[2] == 0.6)
+-- The panel looks again while open: an item that answers later shows without
+-- reopening, with or without an event.
+local pendingCell
+for _, cell in ipairs(Window.icons.cells) do
+    if cell.status.text:find("^pending") then pendingCell = cell end
+end
+assert(pendingCell, "an item still waiting shows as pending")
+captured.itemIcons[pendingCell.entry.source.id] = 777
+Window.icons.scripts.OnUpdate(Window.icons, 0.5)
+assert(pendingCell.icon.texture == 777 and pendingCell.status.text:find("^resolved"))
 -- Hovering an entry gives its source and the projects that use it.
 local lines = {}
 env.GameTooltip.AddLine = function(_, text) lines[#lines + 1] = text end

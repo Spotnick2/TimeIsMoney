@@ -11,22 +11,36 @@ status stays `database-listed` until it is checked in the client.
 
 ## Resolution
 
-- **Items:** `C_Item.GetItemIconByID`. A nil result requests the item's data
-  (`C_Item.RequestLoadItemDataByID`) once. The `ITEM_DATA_LOAD_RESULT` listener is
-  registered at load, before any request.
-  - A successful load is looked up once more.
-  - A failed load, or one that still has no icon, falls back for good. Retries are
-    bounded and nothing is requested again.
-  - A late load redraws the window.
+Resolution never waits on an event. All client calls go through `TIM.API` in
+Compat.lua.
+
+- **Items:** `C_Item.GetItemIconByID`, polled on each lookup. On 1.60.1.70205 it
+  answered at once for the uncached 9-60 Battery Pack, while no item-load event
+  arrived within 10 s (forever-api-notes, #9).
+  - A nil answer requests the item's data once. The item stays `pending` until the
+    icon answers or 10 s pass, then falls back for good.
+  - `ITEM_DATA_LOAD_RESULT` only shortens the wait: a failed load falls back at
+    once.
+  - The question mark's file ID (134400) counts as a missing item, never as
+    resolved.
 - **Spells:** `C_Spell.GetSpellTexture` by ID (spell data is local).
 - **Texture paths** are used as given. Only the client can show whether they exist.
 - **Fallback:** `Interface\Icons\INV_Misc_QuestionMark`.
+- **Caching:** final answers are kept per source, so redraws don't look up again,
+  and the window sets a texture only when it changes.
 
 ## Checking in the client
 
-`/tim icons` lists every identity and family with its icon and status (`resolved`,
-`pending`, `fallback`, `path`). Hovering an entry shows its source ID, URL, and the
-projects that use it.
+`/tim icons` lists every identity and family with its icon and status. Only
+resolved is green:
+
+- `resolved` (green);
+- `pending` (yellow);
+- `path` (amber: a texture path, unchecked);
+- `fallback` (red).
+
+The panel looks again twice a second while open. Hovering an entry shows its source
+ID, URL, and the projects that use it.
 
 Record the result per entry below:
 - the build tested;

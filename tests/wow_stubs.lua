@@ -92,6 +92,8 @@ local function New(saved, libGlass)
         RequestLoadItemDataByID = function(id) captured.requested[#captured.requested + 1] = id end,
     }
     env.C_Spell = { GetSpellTexture = function(id) return 100000 + id end }
+    captured.now = 0
+    env.GetTime = function() return captured.now end
     function captured:ItemLoaded(id, success)
         for _, frame in ipairs(self.frames) do
             if frame.events.ITEM_DATA_LOAD_RESULT then frame.scripts.OnEvent(frame, "ITEM_DATA_LOAD_RESULT", id, success) end

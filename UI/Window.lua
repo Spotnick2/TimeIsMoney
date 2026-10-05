@@ -502,8 +502,13 @@ function Card:Update(game, panels)
             else
                 if row.icon then
                     place(row.icon, self, y - 2, inset)
-                    row.icon:SetTexture((ns.Assets.IdentityIcon(row.iconKey)))
+                    local icon = ns.Assets.IdentityIcon(row.iconKey)
+                    if row.icon.value ~= icon then
+                        row.icon:SetTexture(icon)
+                        row.icon.value = icon
+                    end
                     place(row.label, self, y - 4, inset + 20)
+                    row.label:SetWidth(width - 20 - 80) -- truncated before the value
                 else
                     place(row.label, self, y - 4, inset)
                 end
@@ -591,7 +596,11 @@ local function NewProjects(parent)
                 self.buttons[i] = b
             end
             b.id = project.id
-            b.icon:SetTexture((ns.Assets.ProjectIcon(project.name)))
+            local icon = ns.Assets.ProjectIcon(project.name)
+            if b.icon.value ~= icon then
+                b.icon:SetTexture(icon)
+                b.icon.value = icon
+            end
             b.tip = { project.title, project.priceTag, project.purpose }
             b:ClearAllPoints()
             b:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, y)
@@ -628,10 +637,8 @@ end
 local function Build()
     Glass = LibStub("LibGlass-1.0"):New()
     -- An item icon that loads later redraws whatever shows it.
-    ns.Assets.onLoaded = function()
-        Window.Refresh()
-        if Window.icons and Window.icons:IsShown() then Window.FillIcons() end
-    end
+    -- The main window redraws every 0.1 s anyway; the check panel on its next tick.
+    ns.Assets.onLoaded = function() Window.iconsDirty = true end
     local f = CreateFrame("Frame", "TimeIsMoneyWindow", UIParent)
     f:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
     f:SetFrameStrata("MEDIUM")
@@ -983,11 +990,15 @@ end
 -- /tim icons: every identity and icon family with its icon, source and status
 -- (resolved, pending, fallback or path), so each can be checked in the client.
 -- Hovering an entry lists its source ID and URL and the projects that use it.
+-- Only resolved is green: pending waits (yellow), a path is unchecked (amber),
+-- a fallback failed (red).
+local STATUS_COLOUR = { resolved = { 0.6, 0.9, 0.6 }, pending = { 1, 0.85, 0.3 }, path = { 1, 0.6, 0.2 },
+    fallback = { 1, 0.4, 0.3 } }
+
 local function IconEntries()
     local Assets, list = ns.Assets, {}
     for _, entry in ipairs(Assets.IDENTITIES) do
-        list[#list + 1] = { title = entry.name, source = { kind = "item", id = entry.item, name = entry.name,
-            url = "https://www.wowhead.com/forever/item=" .. entry.item }, users = {} }
+        list[#list + 1] = { title = entry.name, source = Assets.IdentitySource(entry.key), users = {} }
     end
     local families = {}
     for family in pairs(Assets.FAMILIES) do
@@ -1036,6 +1047,15 @@ local function BuildIcons()
     close.label:SetText("x")
     close:SetScript("OnClick", function() f:Hide() end)
     f.content, f.cells = content, {}
+    -- While shown, look again twice a second: an item can answer later, with or
+    -- without a load event.
+    f:SetScript("OnUpdate", function(_, elapsed)
+        f.elapsed = (f.elapsed or 0) + elapsed
+        if f.elapsed >= 0.5 or Window.iconsDirty then
+            f.elapsed, Window.iconsDirty = 0, false
+            Window.FillIcons()
+        end
+    end)
     f:Hide() -- a new frame is shown; the toggle opens it
     Window.icons = f
 end
@@ -1077,7 +1097,8 @@ function Window.FillIcons()
         cell.status:ClearAllPoints()
         cell.status:SetPoint("TOPLEFT", cell, "TOPLEFT", 38, -18)
         cell.status:SetText(status .. (#entry.users > 0 and ("  (" .. #entry.users .. " projects)") or ""))
-        if status == "fallback" then cell.status:SetTextColor(1, 0.4, 0.3) else cell.status:SetTextColor(0.6, 0.9, 0.6) end
+        local colour = STATUS_COLOUR[status] or STATUS_COLOUR.fallback
+        cell.status:SetTextColor(colour[1], colour[2], colour[3])
         cell:Show()
     end
     local rows = math.ceil(#entries / columns)
