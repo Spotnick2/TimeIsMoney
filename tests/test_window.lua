@@ -182,6 +182,55 @@ game.S.activeProjects = saved
 env.UIParent.height = 768
 Window.Refresh()
 
+-- Slice 2: Cartel Investments, the Negotiation Simulator and the Resonance Calculator.
+local S = game.S
+S.investmentEngineFlag, S.strategyEngineFlag, S.qFlag = 1, 1, 1
+S.funds, S.operations, S.standardOps, S.memory = 500, 5000, 5000, 10
+Host.update(0.02)
+Window.Refresh()
+assert(shownText("Cartel Investments") and shownText("Negotiation Simulator") and shownText("Resonance Calculator"))
+-- Drawing the engines never changes the company either.
+local beforeEngines = digest(game.S) .. digest(game.disabled) .. digest(game.selects)
+draws = Host.random.count
+for _ = 1, 5 do Window.Refresh() end
+assert(digest(game.S) .. digest(game.disabled) .. digest(game.selects) == beforeEngines and Host.random.count == draws)
+-- Deposit routes through the host.
+local deposit = assert(button("btnInvest"))
+deposit.scripts.OnClick(deposit)
+assert(S.funds == 0 and S.bankroll == 500)
+-- A select button picks the next option through Host.setValue.
+local function select(fragment)
+    for _, w in ipairs(captured.widgets) do
+        if w.kind == "Button" and w.shown and w.label and w.label.text and w.label.text:find(fragment, 1, true) then
+            return w
+        end
+    end
+end
+local risk = assert(select("Risk: Low Risk"))
+risk.scripts.OnClick(risk)
+assert(game.selects.investStrat.value == "med" and risk.label.text == "Risk: Med Risk")
+local picker = assert(select("Pick a Strategy"))
+picker.scripts.OnClick(picker)
+assert(game.selects.stratPicker.value == "0" and picker.label.text == "Strategy: RANDOM")
+-- A tournament: the grid with the move names it drew, then the round.
+Host.update(0.02)
+assert(Host.click("btnNewTournament") and S.tourneyInProg == 1 and game.gridLabel)
+local lines = View.tournament(game)
+assert(lines[1]:find("Pick a strategy", 1, true) and lines[2]:find(S.choiceANames[game.gridLabel], 1, true))
+assert(Host.click("btnRunTournament"))
+assert(View.tournament(game)[1]:find("^Round 1 of "))
+-- Results, the picked strategy marked.
+S.tourneyInProg, S.resultsFlag, S.pick = 0, 1, "0"
+S.results = { S.allStrats[1] }
+lines = View.tournament(game)
+assert(lines[1] == "Tournament results" and lines[2]:find("^> 1%. RANDOM: "))
+-- The Resonance Calculator: no chips yet, then a computed result.
+assert(Host.click("btnQcompute") and game.qCompText == "Need Photonic Chips")
+S.qChips[1].active, S.qChips[1].value = 1, 0.5
+assert(Host.click("btnQcompute") and game.qCompText == "qOps: 180")
+Window.Refresh()
+assert(shownText("qOps: 180"))
+
 -- Hidden: the window stops drawing, the company keeps running.
 Window.Toggle()
 assert(not Window.frame:IsShown())

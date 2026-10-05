@@ -131,6 +131,51 @@ function Card:Meter(label, value, show)
     return row
 end
 
+-- A select control: a button showing the selected option's label; a click picks
+-- the next option through the host (Host.setValue), as choosing it would.
+function Card:Select(id, caption, show)
+    local row = { kind = "select", height = Window.BUTTON + 4, id = id, caption = caption, show = show }
+    row.button = NewButton(self.content, nil)
+    row.button:SetScript("OnClick", function()
+        local game = ns.Host.game
+        local select = game and game.selects[id]
+        if not select or #select.options == 0 then return end
+        local nextIndex = 1
+        for i, option in ipairs(select.options) do
+            if option == select.value then nextIndex = i % #select.options + 1 end
+        end
+        local ok, err = ns.Host.setValue(id, select.options[nextIndex])
+        if not ok then Report("not done: " .. tostring(err)) end
+        Window.Refresh()
+    end)
+    self.rows[#self.rows + 1] = row
+    return row
+end
+
+-- Up to max lines of text; lines(S, game) returns them (fewer take less room).
+function Card:Lines(max, lines, show)
+    local row = { kind = "lines", height = 0, lines = lines, show = show, strings = {} }
+    for i = 1, max do
+        row.strings[i] = Glass.Font(self.glass.top, 10, "LEFT")
+    end
+    self.rows[#self.rows + 1] = row
+    return row
+end
+
+-- The photonic chips: ten cells whose brightness follows each chip's value, as the
+-- reference sets each chip's opacity (a negative value shows nothing).
+function Card:Chips(show)
+    local row = { kind = "chips", height = 20, show = show, cells = {} }
+    for i = 1, 10 do
+        local cell = self.content:CreateTexture(nil, "ARTWORK")
+        cell:SetColorTexture(0.45, 0.85, 1, 1)
+        cell:SetSize(16, 16)
+        row.cells[i] = cell
+    end
+    self.rows[#self.rows + 1] = row
+    return row
+end
+
 local function place(region, card, y, inset)
     region:ClearAllPoints()
     region:SetPoint("TOPLEFT", card.content, "TOPLEFT", inset, y)
@@ -153,6 +198,7 @@ function Card:Update(game, panels)
             for _, r in pairs({ row.label, row.text, row.button, row.lower, row.raise, row.bar }) do
                 row.regions[#row.regions + 1] = r
             end
+            for _, r in ipairs(row.strings or row.cells or {}) do row.regions[#row.regions + 1] = r end
         end
         for _, r in ipairs(row.regions) do r:SetShown(visible) end
         if visible then
@@ -161,10 +207,33 @@ function Card:Update(game, panels)
                 place(row.button, self, y - 2, inset)
                 row.button:SetWidth(width)
                 SetButton(row.button, row.caption(S), not game.disabled[row.id])
+            elseif row.kind == "select" then
+                place(row.button, self, y - 2, inset)
+                row.button:SetWidth(width)
+                SetButton(row.button, row.caption(game.selects[row.id].value, S), true)
+            elseif row.kind == "lines" then
+                local lines = row.lines(S, game)
+                row.height = 0
+                for i, fs in ipairs(row.strings) do
+                    local text = lines[i]
+                    fs:SetShown(text ~= nil)
+                    if text then
+                        place(fs, self, y - 2 - (i - 1) * 14, inset)
+                        fs:SetWidth(width)
+                        fs:SetText(text)
+                        row.height = i * 14 + 4
+                    end
+                end
+            elseif row.kind == "chips" then
+                for i, cell in ipairs(row.cells) do
+                    place(cell, self, y - 2, inset + (i - 1) * 20)
+                    local v = S.qChips[i].value
+                    cell:SetAlpha(v > 0 and math.min(v, 1) or 0)
+                end
             else
                 place(row.label, self, y - 4, inset)
                 row.text:ClearAllPoints()
-                row.text:SetText(row.value(S))
+                row.text:SetText(row.value(S, game))
                 if row.kind == "adjust" then
                     row.raise:ClearAllPoints()
                     row.raise:SetPoint("TOPRIGHT", self.content, "TOPLEFT", inset + width, y)
@@ -345,7 +414,56 @@ local function Build()
     ledger:Stat(T.creativity, function(S) return View.count(S.creativity) end,
         function(_, p) return p.computing and p.creativity end)
 
-    Window.columns = { { production }, { sales, ledger }, { NewProjects(content) } }
+    -- Cartel Investments: risk, cash and stocks, deposits and the engine upgrade.
+    local investing = function(_, p) return p.investments end
+    local invest = NewCard(content, "Cartel Investments")
+    local RISK = { low = "Low Risk", med = "Med Risk", hi = "High Risk" }
+    invest:Select("investStrat", function(value) return "Risk: " .. (RISK[value] or value) end, investing)
+    invest:Stat("Cash", function(S) return View.coins(S.bankroll) end, investing)
+    invest:Stat("Stocks", function(S) return View.coins(S.secTotal) end, investing)
+    invest:Stat("Total", function(S) return View.coins(S.portTotal) end, investing)
+    invest:Action("btnInvest", function() return "Deposit" end, investing)
+    invest:Action("btnWithdraw", function() return "Withdraw" end, investing)
+    invest:Lines(5, function(S)
+        local lines = {}
+        for i = 1, math.min(5, #S.stocks) do
+            local stock = S.stocks[i]
+            lines[i] = string.format("%s  x%s @ %s  = %s  (%s)", stock.symbol, View.count(stock.amount),
+                View.coins(stock.price), View.coins(stock.total), View.coins(stock.profit))
+        end
+        return lines
+    end, investing)
+    invest:Stat("Engine Level", function(S) return View.count(S.investLevel) end, investing)
+    invest:Action("btnImproveInvestments", function(S)
+        return "Upgrade Engine (" .. View.count(S.investUpgradeCost) .. " " .. T.yomi .. ")"
+    end, investing)
+
+    -- Negotiation Simulator: strategy tournaments for Cunning.
+    local strategy = function(_, p) return p.strategy end
+    local negotiate = NewCard(content, "Negotiation Simulator")
+    negotiate:Stat(T.yomi, function(S) return View.count(S.yomi) end, strategy)
+    negotiate:Select("stratPicker", function(value, S)
+        if value == "10" then return "Pick a Strategy" end
+        local strat = S.allStrats[(tonumber(value) or -1) + 1]
+        return "Strategy: " .. (strat and strat.name or value)
+    end, strategy)
+    negotiate:Action("btnNewTournament", function(S)
+        return "New Tournament (" .. View.count(S.tourneyCost) .. " " .. T.operations .. ")"
+    end, strategy)
+    negotiate:Action("btnRunTournament", function() return "Run" end, strategy)
+    negotiate:Action("btnToggleAutoTourney", function(S)
+        return "Auto Tournaments: " .. (S.autoTourneyStatus == 1 and "ON" or "OFF")
+    end, function(S, p) return p.strategy and S.autoTourneyFlag == 1 end)
+    negotiate:Lines(9, function(S, game) return View.tournament(game) end, strategy)
+
+    -- Resonance Calculator: the photonic chips and the compute button.
+    local quantum = function(_, p) return p.quantum end
+    local resonance = NewCard(content, "Resonance Calculator")
+    resonance:Chips(quantum)
+    resonance:Action("btnQcompute", function() return "Compute" end, quantum)
+    resonance:Lines(1, function(_, game) return { game.qCompText } end, quantum)
+
+    Window.columns = { { production }, { sales, ledger }, { invest, negotiate, resonance }, { NewProjects(content) } }
 
     -- Messages: the newest reference message (the Director's strip is #22).
     Window.message = Glass.Font(g.top, 11, "LEFT")

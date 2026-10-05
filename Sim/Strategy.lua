@@ -116,7 +116,9 @@ function Game:generateGrid()
     grid.valueBA = ceil(self.draw("main.js:1946:41") * 10)
     grid.valueBB = ceil(self.draw("main.js:1947:41") * 10)
     S.aa, S.ab, S.ba, S.bb = grid.valueAA, grid.valueAB, grid.valueBA, grid.valueBB
-    self.draw("main.js:1954:29") -- picks the choice labels (presentation)
+    -- The choice labels are presentation: the pair index is kept on the game for the
+    -- window (not in the state, never saved), and the draw is consumed as before.
+    self.gridLabel = floor(self.draw("main.js:1954:29") * #S.choiceANames) + 1
 end
 
 function Game:toggleAutoTourney()

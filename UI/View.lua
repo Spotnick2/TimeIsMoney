@@ -117,3 +117,37 @@ function View.projects(game)
     end
     return list
 end
+
+-- The Negotiation Simulator's text, as the reference shows it: while a tournament
+-- runs, its round, the two strategies and the payoff grid (with the move names the
+-- grid drew); afterwards, the results by score, the picked strategy marked.
+function View.tournament(game)
+    local S = game.S
+    local lines = {}
+    if S.tourneyInProg == 1 then
+        -- Run stays disabled while the rounds play (roundSetup reports roundNum + 1).
+        if game.disabled.btnRunTournament then
+            lines[1] = "Round " .. View.count(math.min(S.currentRound + 1, S.rounds)) .. " of " .. View.count(S.rounds) .. ": "
+                .. S.hStrat.name .. " vs " .. S.vStrat.name
+        else
+            lines[1] = "Pick a strategy, run the tournament, gain " .. View.TERMS.yomi
+        end
+        local label = game.gridLabel
+        local a = label and S.choiceANames[label] or "Move A"
+        local b = label and S.choiceBNames[label] or "Move B"
+        local grid = S.payoffGrid
+        lines[2] = a .. "/" .. a .. ": " .. grid.valueAA .. "," .. grid.valueAA
+            .. "   " .. a .. "/" .. b .. ": " .. grid.valueAB .. "," .. grid.valueBA
+        lines[3] = b .. "/" .. a .. ": " .. grid.valueBA .. "," .. grid.valueAB
+            .. "   " .. b .. "/" .. b .. ": " .. grid.valueBB .. "," .. grid.valueBB
+    elseif S.resultsFlag == 1 then
+        lines[1] = "Tournament results"
+        local picked = S.allStrats[(tonumber(S.pick) or -1) + 1]
+        for i, strat in ipairs(S.results) do
+            if i > 8 then break end
+            local mark = (picked and strat.name == picked.name) and "> " or ""
+            lines[#lines + 1] = mark .. i .. ". " .. strat.name .. ": " .. View.count(strat.currentScore)
+        end
+    end
+    return lines
+end

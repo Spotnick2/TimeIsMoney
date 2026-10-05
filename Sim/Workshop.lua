@@ -566,6 +566,9 @@ function Game:qComp()
     local S = self.S
     S.qFade = 1
     local q = 0
+    -- qCompDisplay's text is presentation: kept on the game for the window, not in
+    -- the state (never saved; a reloaded company shows it empty until the next run).
+    if S.qChips[1].active == 0 then self.qCompText = "Need Photonic Chips" end
     if S.qChips[1].active ~= 0 then
         for _, chip in ipairs(S.qChips) do q = q + chip.value end
         local qq = ceil(q * 360)
@@ -578,6 +581,7 @@ function Game:qComp()
             S.opFadeTimer = 0
         end
         S.standardOps = S.standardOps + qq
+        self.qCompText = "qOps: " .. Workshop.formatWithCommas(ceil(q * 360))
     end
 end
 
