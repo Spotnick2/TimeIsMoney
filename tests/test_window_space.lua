@@ -9,7 +9,10 @@ local View, Host, Window = ns.View, ns.Host, ns.Window
 -- reference's 999...9 literals, so 1e30 is "1000 octillion").
 assert(View.numberCruncher(1500, 0) == "2 thousand" and View.numberCruncher(2500, 0) == "3 thousand")
 assert(View.numberCruncher(5, 0) == "5 " and View.numberCruncher(1e30, 0) == "1000 octillion")
-assert(View.toFixed(2.5, 0) == "3" and View.toFixed(-0.4, 0) == "0" and View.toFixed(0.5, 0) == "1")
+assert(View.toFixed(2.5, 0) == "3" and View.toFixed(-0.4, 0) == "-0" and View.toFixed(0.5, 0) == "1")
+assert(View.toFixed(1e21, 0) == "1e+21" and View.numberCruncher(1.5e6) == "1.50 million")
+-- NaN as JavaScript compares it (WoW's Lua compares NaN true): "NaN ".
+assert(View.numberCruncher(0 / 0, 0) == "NaN ")
 
 env.SlashCmdList.TIMEISMONEY("start")
 local game = Host.game
@@ -64,23 +67,56 @@ Window.Refresh()
 local alive = 0
 for _, ship in ipairs(S.ships) do if ship.alive then alive = alive + 1 end end
 assert(alive > 0 and h.shownText(S.battleName) and h.shownText("Scale"))
+-- Every live ship has a dot in its team's colour at its own position in the box.
 local box
 for _, w in ipairs(captured.widgets) do
-    if w.kind == "Frame" and w.shown and w.width and w.height and math.abs(w.width / w.height - 310 / 150) < 0.01 then box = w end
+    if w.kind == "Frame" and w.shown and w.width and w.height and math.abs(w.width / w.height - 310 / 150) < 0.01 then
+        box = w
+    end
 end
 assert(box, "the battle box keeps the canvas's proportions")
-local drawn = 0
+local scale = box.width / S.battleWIDTH
+local dots = {}
 for _, t in ipairs(captured.textures) do
-    if t.parent == box and t.shown and t ~= nil and t.width and t.width <= 3 then drawn = drawn + 1 end
+    if t.parent == box and t.shown and t.point then
+        dots[string.format("%.3f,%.3f", t.point[4], t.point[5])] = t
+    end
 end
-assert(drawn >= alive, "every live ship drawn: " .. drawn .. " of " .. alive)
+for _, ship in ipairs(S.ships) do
+    if ship.alive then
+        local dot = dots[string.format("%.3f,%.3f", ship.x * scale, -ship.y * scale)]
+        assert(dot, "a live ship is not drawn")
+        local want = ship.team == 0 and 0.45 or 1
+        assert(dot.colorTexture[1] == want, "a live ship drawn in the wrong colour")
+    end
+end
+-- The combat view redraws on its own faster cadence, between full redraws.
+Window.elapsed = 0
+local moved
+for _, ship in ipairs(S.ships) do if ship.alive then moved = ship break end end
+moved.x, moved.y = 7, 9
+Window.frame.scripts.OnUpdate(Window.frame, Window.BATTLE_REFRESH)
+local found = false
+for _, t in ipairs(captured.textures) do
+    if t.parent == box and t.shown and t.point and math.abs(t.point[4] - 7 * scale) < 1e-9
+        and math.abs(t.point[5] + 9 * scale) < 1e-9 then found = true end
+end
+assert(found, "the combat view redraws between full redraws")
+
 -- The result panel follows checkForBattleEnd: VICTORY with the Renown won.
 S.numRightShips, S.honorReward = 0, 230
 local result, amount = View.battleResult(S)
 assert(result == "VICTORY" and amount == "+230")
+-- Both fleets fall together: the VICTORY branch runs last and keeps the left count.
 S.numLeftShips = 0
 result, amount = View.battleResult(S)
-assert(result == "DEFEAT" and amount == "-" .. View.count(S.battleLEFTSHIPS))
+assert(result == "VICTORY" and amount == "+" .. ns.JSMath.toString(S.battleLEFTSHIPS))
+S.numRightShips = 5
+result, amount = View.battleResult(S)
+assert(result == "DEFEAT" and amount == "-" .. ns.JSMath.toString(S.battleLEFTSHIPS))
+-- Raw numbers, as the reference writes them.
+S.numRightShips, S.numLeftShips, S.honorReward = 0, 5, 1010
+assert(select(2, View.battleResult(S)) == "+1010")
 
 -- The window fits a 1024x500 screen with every phase III card open.
 env.UIParent.height = 500

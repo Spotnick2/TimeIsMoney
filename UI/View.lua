@@ -9,6 +9,8 @@ ns.View = View
 -- matches only the number (creativityOn === 0 is never true: the reference
 -- keeps creativityOn a boolean, so its row always shows once the Ledger does).
 local function looseZero(v) return v == 0 or v == false end
+-- JavaScript's < (false for NaN; WoW's Lua compares NaN true).
+local function lt(a, b) return ns.JSMath.lt(a, b) end
 local function strictZero(v) return v == 0 end
 
 -- Panel visibility, in buttonUpdate's order (main.js), for the panels this window
@@ -54,9 +56,9 @@ function View.panels(S)
     show.drifters = not looseZero(S.battleFlag)
     show.battle = not looseZero(S.battleFlag)
     show.combatAllocation = S.project131.flag ~= 0
-    show.lostHazards = not (S.probesLostHaz < 1)
-    show.lostDrift = not (S.probesLostDrift < 1)
-    show.lostCombat = not (S.probesLostCombat < 1)
+    show.lostHazards = not lt(S.probesLostHaz, 1)
+    show.lostDrift = not lt(S.probesLostDrift, 1)
+    show.lostCombat = not lt(S.probesLostCombat, 1)
     show.prestige = not (S.prestigeU < 1 and S.prestigeS < 1)
     return show
 end
@@ -341,16 +343,20 @@ end
 
 -- Number.prototype.toFixed for the display: with no decimals it rounds an exact tie
 -- up (JavaScript picks the larger n), which %.0f would round to even.
+-- A negative value keeps its sign even when it rounds to zero ("-0"), and from
+-- 1e21 up JavaScript gives the number's own text.
 function View.toFixed(x, digits)
+    local JSMath = ns.JSMath
     if isNaN(x) then return "NaN" end
-    if x == math.huge or x == -math.huge then return ns.JSMath.toString(x) end
+    if math.abs(x) >= 1e21 then return JSMath.toString(x) end
+    local sign = JSMath.lt(x, 0) and "-" or ""
+    local a = math.abs(x)
     if digits == 0 then
-        local a = math.abs(x)
         local n = math.floor(a)
         if a - n >= 0.5 then n = n + 1 end
-        return ((x < 0 and n > 0) and "-" or "") .. string.format("%.0f", n)
+        return sign .. string.format("%.0f", n)
     end
-    return string.format("%." .. digits .. "f", x)
+    return sign .. string.format("%." .. digits .. "f", a)
 end
 
 -- numberCruncher (main.js): a count divided down to its place name, toFixed.
@@ -369,12 +375,12 @@ function View.numberCruncher(number, decimals)
     local precision = decimals or 2
     local suffix = ""
     for _, step in ipairs(CRUNCH) do
-        if number > step.above then
+        if ns.JSMath.gt(number, step.above) then
             number, suffix = number / step.divisor, step[2]
             break
         end
     end
-    if suffix == "" and number < 1000 then precision = 0 end
+    if suffix == "" and ns.JSMath.lt(number, 1000) then precision = 0 end
     return View.toFixed(number, precision) .. " " .. suffix
 end
 
@@ -384,10 +390,17 @@ function View.colonized(S)
 end
 
 -- checkForBattleEnd's result panel: shown while a battle has ended on one side, once
--- Renown exists; VICTORY with the honor won, or DEFEAT with the left side's ships.
+-- Renown exists. Its DEFEAT branch runs first and always writes the left side's
+-- ships; the VICTORY branch then overwrites the text and sign, writing the reward
+-- only on the battle's first award. So when both fleets fall together it reads
+-- VICTORY with the left side's count. Numbers are written raw (no separators).
 function View.battleResult(S)
     if #S.battles == 0 or S.project121.flag ~= 1 then return nil end
-    if S.numLeftShips == 0 then return "DEFEAT", "-" .. View.count(S.battleLEFTSHIPS) end
-    if S.numRightShips == 0 then return "VICTORY", "+" .. View.count(S.honorReward) end
+    local JSMath = ns.JSMath
+    if S.numRightShips == 0 then
+        local amount = S.numLeftShips == 0 and S.battleLEFTSHIPS or S.honorReward
+        return "VICTORY", "+" .. JSMath.toString(amount)
+    end
+    if S.numLeftShips == 0 then return "DEFEAT", "-" .. JSMath.toString(S.battleLEFTSHIPS) end
     return nil
 end

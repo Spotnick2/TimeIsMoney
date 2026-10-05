@@ -102,11 +102,22 @@ the embedded LibGlass-1.0 material.
   - Live ships are 2x2 squares: loyal (left) in blue, breakaway (right) in red.
   - A destroyed ship flashes white and fades over its ten explosion frames, where
     the reference draws four expanding pixels.
-  - Textures are pooled and reused, and the simulation's ships are only read.
-- **The result** follows `checkForBattleEnd`: VICTORY with the Renown won, or
-  DEFEAT with the left side's ship count, once Renown exists.
-- **The scale** uses the reference's `numberCruncher`, with `toFixed` rounding ties
-  up.
+  - Dots stay at least 2 px (3 for an explosion), so a scaled-down window keeps
+    them visible.
+  - The view redraws every 0.03 s on its own, so the explosions' 16 ms frames are
+    seen. The rest of the window keeps its 0.1 s cadence.
+  - Textures are pooled; a dot changes colour or size only when its ship's state
+    does. The simulation's ships are only read.
+- **The result** follows `checkForBattleEnd`, once Renown exists: VICTORY with the
+  Renown won, or DEFEAT with the left side's ship count.
+  - When both fleets fall together, its VICTORY branch runs last, so it reads
+    VICTORY with the left count.
+  - Numbers are written raw, without separators.
+- **numberCruncher** gives the scale and the combat losses, as the reference writes
+  them.
+  - `toFixed` rounds ties up and keeps "-0".
+  - From 1e21 up it gives the number's own text.
+  - NaN compares as in JavaScript.
 - **Increase Max Trust** keeps the reference's page default cost text,
   "91,117.99". The reference's update of that text is commented out. The button is
   enabled by the real cost.

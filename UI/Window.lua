@@ -12,6 +12,7 @@ ns.Window = Window
 TimeIsMoney.Window = Window
 
 Window.REFRESH = 0.1   -- seconds between redraws while shown (not the logical step)
+Window.BATTLE_REFRESH = 0.03 -- the combat view's own redraw while a battle shows
 Window.COLUMN = 236    -- column width
 Window.GAP = 8
 Window.ROW = 22        -- one line of a card
@@ -233,6 +234,42 @@ function Card:Battle(show)
     return row
 end
 
+-- Draws the battle's ships into its box. A dot changes colour or size only when its
+-- ship's team or state changes; each redraw moves it and sets its fade.
+local WHITE = { 1, 1, 1 }
+function Window.DrawBattle(row, S)
+    local scale, used = row.scale, 0
+    for _, ship in ipairs(S.ships) do
+        local alpha, kind, color
+        if ship.alive then
+            alpha, kind, color = 1, ship.team, TEAM[ship.team] or TEAM[0]
+        elseif ship.framesDead < 10 then
+            alpha, kind, color = 1 - ship.framesDead / 10, "dead", WHITE
+        end
+        if alpha then
+            used = used + 1
+            local dot = row.dots[used]
+            if not dot then
+                dot = row.box:CreateTexture(nil, "ARTWORK")
+                row.dots[used] = dot
+            end
+            if dot.kind ~= kind or dot.scale ~= scale then
+                -- At least 2 px (3 for an explosion), so a scaled-down view keeps them.
+                local size = math.max(kind == "dead" and 3 or 2, (kind == "dead" and 3 or 2) * scale)
+                dot:SetColorTexture(color[1], color[2], color[3], 1)
+                dot:SetSize(size, size)
+                dot.kind, dot.scale = kind, scale
+            end
+            dot:SetAlpha(alpha)
+            dot:SetPoint("CENTER", row.box, "TOPLEFT", ship.x * scale, -ship.y * scale)
+            dot:Show()
+        end
+    end
+    for i = used + 1, #row.dots do
+        if row.dots[i]:IsShown() then row.dots[i]:Hide() end
+    end
+end
+
 -- The photonic chips: ten cells whose brightness follows each chip's value, as the
 -- reference sets each chip's opacity (a negative value shows nothing).
 function Card:Chips(show)
@@ -357,35 +394,13 @@ function Card:Update(game, panels)
                 row.bar:SetPoint("RIGHT", row.raise, "LEFT", -6, 0)
                 Glass.SetBar(row.bar, row.max, math.max(0, math.min(range.number, row.max)), true)
             elseif row.kind == "battle" then
-                local W, H = S.battleWIDTH, S.battleHEIGHT
-                local scale = width / W
-                row.height = H * scale + 6
+                local scale = width / S.battleWIDTH
+                row.height = S.battleHEIGHT * scale + 6
                 place(row.box, self, y - 2, inset)
-                row.box:SetSize(width, H * scale)
-                local used = 0
-                for _, ship in ipairs(S.ships) do
-                    local alpha, size, color
-                    if ship.alive then
-                        alpha, size, color = 1, 2, TEAM[ship.team] or TEAM[0]
-                    elseif ship.framesDead < 10 then
-                        alpha, size, color = 1 - ship.framesDead / 10, 3, { 1, 1, 1 }
-                    end
-                    if alpha then
-                        used = used + 1
-                        local dot = row.dots[used]
-                        if not dot then
-                            dot = row.box:CreateTexture(nil, "ARTWORK")
-                            row.dots[used] = dot
-                        end
-                        dot:SetColorTexture(color[1], color[2], color[3], 1)
-                        dot:SetAlpha(alpha)
-                        dot:SetSize(math.max(1, size * scale), math.max(1, size * scale))
-                        dot:ClearAllPoints()
-                        dot:SetPoint("CENTER", row.box, "TOPLEFT", ship.x * scale, -ship.y * scale)
-                        dot:Show()
-                    end
-                end
-                for i = used + 1, #row.dots do row.dots[i]:Hide() end
+                row.box:SetSize(width, S.battleHEIGHT * scale)
+                row.scale = scale
+                Window.DrawBattle(row, S)
+                Window.battleRow = row
             elseif row.kind == "chips" then
                 for i, cell in ipairs(row.cells) do
                     place(cell, self, y - 2, inset + (i - 1) * 20)
@@ -722,7 +737,8 @@ local function Build()
         function(_, p) return p.space and p.lostHazards end)
     cosmos:Stat("Lost to " .. T.drift, function(S) return "(" .. View.spell(S.probesLostDrift) .. ")" end,
         function(_, p) return p.space and p.lostDrift end)
-    cosmos:Stat("Lost in combat", function(S) return "(" .. View.spell(S.probesLostCombat) .. ")" end,
+    -- The reference writes this one only through numberCruncher (combat.js).
+    cosmos:Stat("Lost in combat", function(S) return "(" .. View.numberCruncher(S.probesLostCombat) .. ")" end,
         function(_, p) return p.space and p.lostCombat end)
     cosmos:Stat("Total", function(S) return View.spell(S.probeCount) end, spaceShown)
     local drifting = function(_, p) return p.space and p.drifters end
@@ -772,9 +788,16 @@ local function Build()
 
     f:SetScript("OnUpdate", function(_, elapsed)
         Window.elapsed = (Window.elapsed or 0) + elapsed
+        Window.battleElapsed = (Window.battleElapsed or 0) + elapsed
         if Window.elapsed >= Window.REFRESH then
-            Window.elapsed = 0
+            Window.elapsed, Window.battleElapsed = 0, 0
             Window.Refresh()
+        elseif Window.battleElapsed >= Window.BATTLE_REFRESH then
+            -- The combat view alone redraws faster, so an explosion's ten 16 ms
+            -- frames are seen; nothing else is laid out.
+            Window.battleElapsed = 0
+            local row, game = Window.battleRow, ns.Host.game
+            if row and game and row.box:IsShown() then Window.DrawBattle(row, game.S) end
         end
     end)
     f:Hide()
