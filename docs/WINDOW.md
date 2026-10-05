@@ -206,9 +206,9 @@ number in the tag when `project215` is bought; it is display only.
 ## Slices
 
 1. The window, the phase I Production, Sales and Ledger cards, and projects (#56).
-   - The window doesn't show the reference's messages. Every one is in its own
-     wording ("Welcome to Universal Paperclips"), and the Director's dialogue strip
-     (#22) will present them.
+   - The window never shows the reference's messages in their own wording. The
+     Director's strip shows them as localized company reports (#22). The opening
+     "Welcome to Universal Paperclips" reads "Time is money, my friend!".
 2. Cartel Investments (risk, cash, stocks, deposit, withdraw, the
    engine upgrade), the Negotiation Simulator (Cunning, strategy picker, new and
    run tournament, auto tournaments, the report line, matchup, payoff grid and

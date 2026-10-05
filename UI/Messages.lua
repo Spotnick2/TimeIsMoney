@@ -13,6 +13,8 @@ ns.Locale.Use(GetLocale())
 
 -- Exact reference text -> key.
 Messages.EXACT = {
+    -- The reference's opening readout (owner's wording, 2026-10-05).
+    ["Welcome to Universal Paperclips"] = "msg.welcome",
     ["AutoClippers available for purchase"] = "msg.gizmosAvailable",
     ["AutoClippper performance boosted by 25%"] = "msg.gizmos25",
     ["AutoClippper performance boosted by another 50%"] = "msg.gizmos50",
@@ -112,9 +114,8 @@ Messages.EXACT = {
     ["Selected strategy won the tournament (or tied for first). +50,000 yomi"] = "msg.tourneyFirst",
 }
 
--- The reference's opening readout is not a report: the Director's greeting beat
--- takes its place, so it is never shown.
-Messages.SILENT = { ["Welcome to Universal Paperclips"] = true }
+-- Messages the window never shows (none at present).
+Messages.SILENT = {}
 
 -- The original game's credits, shown as written (attribution).
 Messages.CREDITS = {
