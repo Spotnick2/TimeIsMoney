@@ -106,6 +106,8 @@ function Game:pickStrats(roundNum)
     S.hStrat = S.strats[S.h + 1]
     S.strats[S.h + 1].currentPos = 1
     S.strats[S.v + 1].currentPos = 2
+    -- vertStrat/horizStrat (presentation, kept on the game for the window).
+    self.matchup = { h = S.hStrat.name, v = S.vStrat.name }
 end
 
 function Game:generateGrid()
@@ -116,7 +118,9 @@ function Game:generateGrid()
     grid.valueBA = ceil(self.draw("main.js:1946:41") * 10)
     grid.valueBB = ceil(self.draw("main.js:1947:41") * 10)
     S.aa, S.ab, S.ba, S.bb = grid.valueAA, grid.valueAB, grid.valueBA, grid.valueBB
-    self.draw("main.js:1954:29") -- picks the choice labels (presentation)
+    -- The choice labels are presentation: the pair index is kept on the game for the
+    -- window (not in the state, never saved), and the draw is consumed as before.
+    self.gridLabel = floor(self.draw("main.js:1954:29") * #S.choiceANames) + 1
 end
 
 function Game:toggleAutoTourney()
@@ -139,6 +143,8 @@ function Game:newTourney()
     S.tourneyLvl = S.tourneyLvl + 1
     self:generateGrid()
     self.disabled.btnRunTournament = false
+    -- tourneyDisplay and the strategy names (presentation, on the game).
+    self.tourneyReport, self.matchup = { kind = "pick" }, nil
 end
 
 function Game:calcPayoff(hm, vm)
@@ -183,6 +189,7 @@ Workshop.timers.tourneyLoop = function(game) game:roundLoop() end
 function Game:round(roundNum)
     self.S.rCounter = 0
     self:pickStrats(roundNum)
+    self.tourneyReport = { kind = "round", round = roundNum + 1 } -- tourneyReport("Round " + ...)
     self:roundLoop()
 end
 
@@ -280,6 +287,7 @@ function Game:declareWinner()
         else
             bB = beatBoost
         end
+        self.tourneyReport = { kind = "results", grid = "payoff grid" }
         S.yomi = S.yomi + strat.currentScore * S.yomiBoost * beatBoost
         if S.milestoneFlag < 15 then
             self:displayMessage(strat.name .. " scored " .. toString(strat.currentScore) .. " and beat " ..
@@ -302,12 +310,15 @@ function Game:declareWinner()
             if S.milestoneFlag < 15 then
                 self:displayMessage("Selected strategy finished in (or tied for) third place. +20,000 yomi")
             end
+        else
+            self.tourneyReport = { kind = "results", grid = "grid" }
         end
         -- populateTourneyReport (presentation, but its loop leaves i):
         S.i = #S.results
         -- displayTourneyReport:
         S.resultsFlag = 1
         self.resultsTableDisplay = ""
+        self.matchup = nil
     end
 end
 
@@ -342,5 +353,23 @@ local clicks = Workshop.clicks
 clicks.btnNewTournament = Game.newTourney
 clicks.btnRunTournament = Game.runTourney
 clicks.btnToggleAutoTourney = Game.toggleAutoTourney
+
+-- tournamentStuff's mouseover/mouseout (main.js revealGrid/revealResults): with
+-- results shown, hovering swaps the grid back in and resets resultsTimer, which
+-- holds automatic tournaments until the results show again.
+function Game:revealGrid()
+    local S = self.S
+    if S.resultsFlag == 1 then
+        S.resultsTimer = 0
+        self.resultsTableDisplay = "none"
+    end
+end
+
+function Game:revealResults()
+    if self.S.resultsFlag == 1 then self.resultsTableDisplay = "" end
+end
+
+clicks["tournamentStuff:mouseover"] = Game.revealGrid
+clicks["tournamentStuff:mouseout"] = Game.revealResults
 
 return Workshop

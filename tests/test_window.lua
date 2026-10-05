@@ -194,5 +194,128 @@ assert(make.label.text == text)
 Window.Toggle()
 assert(Window.frame:IsShown())
 
+-- Slice 2: Cartel Investments, the Negotiation Simulator and the Resonance Calculator.
+-- Last in the file: it edits the company's state directly.
+local S = game.S
+S.investmentEngineFlag, S.strategyEngineFlag, S.qFlag = 1, 1, 1
+S.funds, S.operations, S.standardOps, S.memory = 500, 5000, 5000, 10
+Host.update(0.02)
+Window.Refresh()
+assert(shownText("Cartel Investments") and shownText("Negotiation Simulator") and shownText("Resonance Calculator"))
+-- Before any tournament: the reference's opening text and a Move A/B grid.
+assert(shownText("Pick strategy, run tournament, gain Cunning") and shownText("Move A / Move B: 0, 0"))
+-- Drawing the engines never changes the company either.
+local beforeEngines = digest(game.S) .. digest(game.disabled) .. digest(game.selects)
+draws = Host.random.count
+for _ = 1, 5 do Window.Refresh() end
+assert(digest(game.S) .. digest(game.disabled) .. digest(game.selects) == beforeEngines and Host.random.count == draws)
+-- Deposit routes through the host.
+local deposit = assert(button("btnInvest"))
+deposit.scripts.OnClick(deposit)
+assert(S.funds == 0 and S.bankroll == 500)
+-- A select opens its options; choosing one sets it in a single step (no passing
+-- through the options in between).
+local function labelled(text)
+    for _, w in ipairs(captured.widgets) do
+        if w.kind == "Button" and w.shown and w.label and w.label.text == text then return w end
+    end
+end
+local risk = assert(labelled("Low Risk  v"))
+risk.scripts.OnClick(risk)
+assert(labelled("Low Risk  ^") and labelled("Med Risk") and labelled("High Risk"))
+local values = {}
+local realSet = Host.setValue
+Host.setValue = function(id, value) values[#values + 1] = value return realSet(id, value) end
+local high = labelled("High Risk")
+high.scripts.OnClick(high)
+Host.setValue = realSet
+assert(#values == 1 and values[1] == "hi" and game.selects.investStrat.value == "hi")
+assert(labelled("High Risk  v") and not labelled("Med Risk"), "the list closes after a choice")
+local picker = assert(labelled("Pick a Strat  v"))
+picker.scripts.OnClick(picker)
+local random = assert(labelled("RANDOM"))
+random.scripts.OnClick(random)
+assert(game.selects.stratPicker.value == "0" and labelled("RANDOM  v"))
+-- A tournament: the grid with the move names it drew, then "Round n" and the matchup.
+Host.update(0.02)
+assert(Host.click("btnNewTournament") and S.tourneyInProg == 1 and game.gridLabel)
+local lines = View.tournament(game)
+local a = S.choiceANames[game.gridLabel]
+assert(lines[1] == "Pick strategy, run tournament, gain Cunning" and lines[2]:find(a .. " / " .. a, 1, true))
+assert(Host.click("btnRunTournament"))
+lines = View.tournament(game)
+assert(lines[1] == "Round 1" and lines[2] == S.hStrat.name .. " vs " .. S.vStrat.name)
+-- Results replace the grid; the picked strategy (strats[pick]) is marked. Played
+-- out by the simulation, not edited in.
+Host.update(60)
+assert(S.tourneyInProg == 0 and game.resultsTableDisplay == "", "the tournament finished")
+lines = View.tournament(game)
+assert(lines[1]:find("^TOURNAMENT RESULTS %(roll over for ") and lines[2]:find("^> 1%. RANDOM: "))
+-- Hovering the tournament area is the reference's mouseover: the grid comes back
+-- and resultsTimer resets, holding automatic tournaments until the pointer leaves
+-- (Codex review of #57). The hover area keeps its size across the swap.
+Window.Refresh()
+local area
+for _, w in ipairs(captured.widgets) do
+    if w.kind == "Frame" and w.scripts.OnEnter and w.shown then area = w end
+end
+assert(area, "the tournament hover area")
+local resultsHeight = area.height
+S.autoTourneyFlag, S.autoTourneyStatus, S.resultsTimer = 1, 1, 299
+S.operations, S.standardOps = 50000, 50000
+area.scripts.OnEnter(area)
+assert(S.resultsTimer == 0 and game.resultsTableDisplay == "none")
+assert(View.tournament(game)[2]:find(" / ", 1, true), "the grid shows while hovered")
+assert(area.height == resultsHeight, "the hover area keeps its size")
+local level = S.tourneyLvl
+Host.update(4) -- 400 buttonUpdates: no automatic tournament while the grid is held
+assert(S.tourneyLvl == level and S.resultsTimer == 0)
+area.scripts.OnLeave(area)
+assert(game.resultsTableDisplay == "" and View.tournament(game)[2]:find("^> 1%. RANDOM: "))
+S.autoTourneyStatus = 0
+-- The window fits the screen in both directions, whatever is open: every engine,
+-- five stocks, both selects open, on a 1024x500 screen.
+for i = 1, 5 do
+    S.stocks[i] = { id = i, symbol = "S" .. i, amount = 1000000, price = 15, total = 15000000, profit = -123456, age = 0 }
+end
+S.portfolioSize = 5
+env.UIParent.height = 500
+for _, text in ipairs({ "High Risk  v", "RANDOM  v" }) do
+    local b = assert(labelled(text))
+    b.scripts.OnClick(b)
+end
+Window.Refresh()
+local scale = Window.frame.scale or 1
+assert(Window.frame.width * scale <= 1024 and Window.frame.height * scale <= 500,
+    "window does not fit: " .. Window.frame.width .. "x" .. Window.frame.height .. " at " .. scale)
+for _, text in ipairs({ "High Risk  ^", "RANDOM  ^" }) do
+    local b = assert(labelled(text))
+    b.scripts.OnClick(b)
+end
+env.UIParent.height = 768
+Window.Refresh()
+assert((Window.frame.scale or 1) <= 1)
+-- The Resonance Calculator: no crystals yet, then a computed result that fades.
+assert(Host.click("btnQcompute") and View.qComp(game) == "Need Arcane Crystals")
+S.qChips[1].active, S.qChips[1].value = 1, 0.5
+assert(Host.click("btnQcompute") and View.qComp(game) == "qOps: 180")
+Window.Refresh()
+local result = assert(shownText("qOps: 180"))
+assert(result.alpha == nil or result.alpha > 0.9)
+S.qFade = 0.2
+Window.Refresh()
+assert(math.abs(result.alpha - 0.2) < 1e-9, "the result fades with qFade")
+-- Stocks: two lines each; after a sale the slot just past the last stock keeps what
+-- it showed (the reference's off-by-one clear), later slots are blank.
+local slots = {}
+local stocks = {}
+for i = 1, 5 do stocks[i] = { symbol = "S" .. i, amount = 10.2, price = 1.5, total = 15, profit = -0.4 } end
+local fake = { stocks = stocks }
+assert(#View.stockLines(fake, slots) == 10)
+assert(View.stockLines(fake, slots)[1] == "S1  x11 @ 2s" and View.stockLines(fake, slots)[2]:find("P/L 0c", 1, true))
+stocks[5], stocks[4] = nil, nil
+lines = View.stockLines(fake, slots)
+assert(#lines == 8 and lines[7] == "S4  x11 @ 2s", "slot 4 keeps the sold stock; slot 5 cleared")
+
 print((libGlass and "window (real LibGlass at " .. libGlass .. ")" or "window (LibGlass stand-in)")
     .. ": display text, price tags, panel rules, routing, no state change from drawing, disabled labels, projects and hidden refresh passed")
