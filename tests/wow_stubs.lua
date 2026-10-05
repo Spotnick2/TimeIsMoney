@@ -27,6 +27,9 @@ local function New(saved, libGlass)
         "ClearAllPoints", "SetAllPoints", "SetFrameStrata", "SetToplevel", "SetClampedToScreen",
         "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing",
         "SetMotionScriptsWhileDisabled", "SetJustifyH", "SetWordWrap", "SetStatusBarColor",
+        -- The Director's ModelScene (#22; measured in the client by the #10 probe).
+        "SetCameraFieldOfView", "SetCameraNearClip", "SetCameraFarClip", "SetCameraPosition",
+        "SetCameraOrientationByYawPitchRoll", "SetUseCenterForOrigin", "SetParticleOverrideScale",
         -- What LibGlass-1.0 r1 calls (its own test_methods checks them against the dump).
         "AddMaskTexture", "Play", "SetBlendMode", "SetClipsChildren",
         "SetDuration", "SetFont", "SetFromAlpha", "SetGradient", "SetHorizTile", "SetMinMaxValues",
@@ -54,6 +57,11 @@ local function New(saved, libGlass)
     function Widget:GetText() return self.text end
     -- About 6 px per character at the window's sizes (stubs cannot measure text).
     function Widget:GetStringWidth() return #tostring(self.text or "") * 6 end
+    -- Wrapped height: 14 px per line at the set width (stubs cannot measure text).
+    function Widget:GetStringHeight()
+        local perLine = math.max(1, math.floor((self.width or 1000) / 6))
+        return 14 * math.max(1, math.ceil(#tostring(self.text or "") / perLine))
+    end
     function Widget:SetPoint(...) self.point = { ... } end
     function Widget:SetAlpha(a) self.alpha = a end
     function Widget:SetTexture(t) self.texture = t end
@@ -61,6 +69,24 @@ local function New(saved, libGlass)
     function Widget:SetTextColor(r, g, b) self.color = { r, g, b } end
     local function child(kind)
         return setmetatable({ kind = kind, scripts = {}, shown = true }, { __index = Widget })
+    end
+    -- The model actor: tests choose whether a display loads (captured.modelOK) and the
+    -- box it reports once streamed (captured.modelBox, six numbers).
+    function Widget:CreateActor()
+        local actor = child("Actor")
+        function actor:SetModelByCreatureDisplayID(id)
+            self.display = id
+            captured.modelLoads = (captured.modelLoads or 0) + 1
+            return captured.modelOK ~= false
+        end
+        function actor:ClearModel() self.display = nil end
+        function actor:SetScale(v) self.scaleValue = v end
+        function actor:SetPosition(x, y, z) self.position = { x, y, z } end
+        function actor:GetActiveBoundingBox()
+            if self.display and captured.modelBox then return unpack(captured.modelBox) end
+        end
+        captured.actor = actor
+        return actor
     end
     function Widget:CreateTexture()
         local t = child("Texture")
@@ -94,6 +120,17 @@ local function New(saved, libGlass)
         RequestLoadItemDataByID = function(id) captured.requested[#captured.requested + 1] = id end,
     }
     env.C_Spell = { GetSpellTexture = function(id) return 100000 + id end }
+    -- C_Timer.After: callbacks queue until the test runs them (captured:RunTimers()).
+    captured.timers = {}
+    env.C_Timer = { After = function(_, fn) captured.timers[#captured.timers + 1] = fn end }
+    function captured:RunTimers()
+        local due = self.timers
+        self.timers = {}
+        for _, fn in ipairs(due) do fn() end
+        return #due
+    end
+    env.SetPortraitTextureFromCreatureDisplayID = function(texture, id) texture.portraitDisplay = id end
+    env.unpack = unpack
     captured.now = 0
     env.GetTime = function() return captured.now end
     function captured:ItemLoaded(id, success)
@@ -142,7 +179,8 @@ local function New(saved, libGlass)
     end end
     env.CreateFrame = function(kind, name, parent)
         if kind ~= "Frame" or parent ~= nil or name ~= nil then
-            assert(kind == "Frame" or kind == "Button" or kind == "StatusBar", "widget kind " .. tostring(kind))
+            assert(kind == "Frame" or kind == "Button" or kind == "StatusBar" or kind == "ModelScene",
+                "widget kind " .. tostring(kind))
             local w = setmetatable({ kind = kind, name = name, parent = parent, scripts = {}, shown = true },
                 { __index = Widget })
             if name then env[name] = w end

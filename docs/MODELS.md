@@ -61,3 +61,47 @@ while simulation continues.
 Test real strip size/UI scales, texture/crop/clipping, late/missing display, emotes,
 particles, mouse input, repeated open/close/phase changes and frame time.
 Record observations in forever-api-notes.md before making measured claims.
+
+## Integration (#22)
+
+`UI/Director.lua` puts the Director's strip under the window's cards.
+
+- **Model:** one mouse-disabled ModelScene with Gazlowe, display 7052. Idle runs;
+  no reaction animations until they are measured.
+  - It uses the measured recipe above: camera at +40 on X facing back, field of
+    view 0.15, clip 0.1-100, centred origin, particles at scale 0.
+  - It is framed on the 0.40 crop with a 1.15 margin, from Gazlowe's **measured
+    height, 1.39**. The live box follows the idle pose and differs between loads
+    (PORTING-TBC-TO-FOREVER, 70205), so it only signals that the model is in. The
+    offset is divided by the scale, because the client scales the actor's position.
+  - A drift test keeps the box reading and framing equal to the probe's.
+- **Loading:** the model loads once per appearance. The window's own redraw polls
+  the box every 0.1 s, at most 30 times. The strip has no timers of its own, so a
+  hidden window polls nothing, and Host.lua stays the only clock. A token drops the
+  poll on hide, on a speaker change, or on a toggle.
+  - With no box, or a failed `SetModelByCreatureDisplayID`, it shows the 2D
+    portrait from the same display, with no retry per redraw. `/tim model` off and
+    on retries.
+- **`/tim model`** switches between the live model and the portrait. It works
+  before the window is opened. This session only; saving it is a setting (#23).
+- **Speakers:** from `UI/Dialogue.lua`, a pure function of the saved state.
+  - The Director speaks in phase I.
+  - After the takeover the model is dropped, and the Ledger's reports show the
+    company mark (the bolts icon).
+  - The Unlisted Director's letters show a dragonling.
+- **The strip's text** belongs to the strip and hides with it. A long line makes
+  the strip, and the window, taller.
+- **No cosmetic effect on the game:** no randomness, no game state, no logical
+  timers. A test redraws repeatedly and checks the state and draw count are
+  unchanged.
+
+### Client check — 2026-10-05, 1.60.1.70205 (owner)
+
+- **The live model:** Gazlowe renders textured in the strip. The head-and-shoulders
+  crop frames him, and he stays inside the glass.
+- **`/tim model`:** shows the round 2D portrait from the same display.
+- **Margin:** the model sat on the window's bottom edge, so the bottom margin is now
+  10 px.
+
+Still to watch over longer play: the idle animation, repeated hide/show and phase
+changes, and frame time.

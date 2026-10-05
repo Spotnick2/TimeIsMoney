@@ -43,6 +43,24 @@ the embedded LibGlass-1.0 material.
   projects card shows a page sized to UIParent's height, with Prev/Next and a page
   count to reach the rest.
 
+## The Director's strip (#22)
+
+Under the cards: the speaker's picture, name and line (docs/MODELS.md, "Integration").
+
+**The line** is the plan's dialogue beat (Original Plan section 3), chosen by
+`UI/Dialogue.lua` as a pure function of the saved state. It shows the last beat, in
+campaign order, whose condition holds, so a reload shows the same line:
+
+- phase I: the Director's greeting and his reactions to the first bolt, sale,
+  gizmo, the computing approval, investments, negotiation, resonance and the Mind
+  Control Cap network;
+- after the takeover: the Ledger's reports;
+- the Unlisted Director's seven letters;
+- the liquidation's closing readouts;
+- after a prestige restart, "New premises. New customers. Same excellent product."
+
+The reference's own messages come back here in goblin wording in #22's second PR.
+
 ## Selects and presentation state
 
 - **Selects** (risk, strategy) are buttons showing the selected option. A click
