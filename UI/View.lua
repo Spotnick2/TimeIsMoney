@@ -60,6 +60,35 @@ function View.panels(S)
     show.lostDrift = not lt(S.probesLostDrift, 1)
     show.lostCombat = not lt(S.probesLostCombat, 1)
     show.prestige = not (S.prestigeU < 1 and S.prestigeS < 1)
+    show.swarmGift = show.swarm
+    show.clipsPerSec, show.processor, show.qCompute = true, true, true
+    -- The ending (main.js "// Ending", which runs after buttonUpdate in the same main
+    -- loop tick, so its hiding wins): each dismantling and its end timer close panels
+    -- in order until only manual production remains.
+    local d, t1, t2, t4 = S.dismantle, S.endTimer1, S.endTimer2, S.endTimer4
+    if d >= 1 then
+        show.probeDesign = false
+        if t1 >= 50 then show.increaseProbeTrust = false end
+        if t1 >= 100 then show.increaseMaxTrust = false end
+        if t1 >= 150 then show.space = false end
+        if t1 >= 175 then show.battle = false end
+        if t1 >= 190 then show.honor = false end
+    end
+    if d >= 2 then
+        show.wireProduction, show.wireTrans = false, true
+        if t2 >= 50 then show.swarmGift = false end
+        if t2 >= 100 then show.swarm = false end
+        if t2 >= 150 then show.swarmSlider = false end
+    end
+    if d >= 3 then show.factorySpace, show.clipsPerSec, show.toth = false, false, false end
+    if d >= 4 then show.strategy = false end
+    if d >= 5 then
+        show.qCompute = false
+        if t4 >= 250 then show.quantum = false end
+    end
+    if d >= 6 then show.processor = false end
+    if d >= 7 then show.computing, show.projects = false, false end
+    if S.endTimer6 >= 250 then show.creation = false end
     return show
 end
 
@@ -305,6 +334,13 @@ function View.spell(x)
     local lead = #text - 3 * (groups - 1)
     local num = JSMath.toNumber(text:sub(1, lead) .. "." .. text:sub(lead + 1, lead + 2))
     return ns.Workshop.formatWithCommas(num, 1) .. (PLACES[groups] or "")
+end
+
+-- The photonic chips the ending has not yet taken: from the fifth dismantling, chip
+-- 10 goes at endTimer4 10, then 9 at 60, ... and chip 1 at 174 (main.js).
+local CHIP_GONE = { 174, 172, 169, 165, 160, 150, 130, 100, 60, 10 }
+function View.chipShown(S, i)
+    return not (S.dismantle >= 5 and S.endTimer4 >= CHIP_GONE[i])
 end
 
 -- updateUpgrades: the next factory and drone counts that unlock an upgrade.

@@ -48,7 +48,9 @@ local h = dofile("tests/window_harness.lua").Helpers(captured)
 local button, shownText, digest = h.button, h.shownText, h.digest
 
 -- The opening: production and sales; no computing, no projects yet.
-assert(shownText("Handfuls of Copper Bolts") and shownText("Company Funds") and shownText("Board Trust"))
+assert(shownText("Handfuls of Copper Bolts") and shownText("Company Funds"))
+-- Board Trust lives inside the computing panel (trustDiv in compDiv): not yet.
+assert(not shownText("Board Trust"))
 assert(not button("btnAddProc") and not button("btnMakeClipper"))
 local make = assert(button("btnMakePaperclip"))
 assert(make.enabled and make.label.text == "Make Copper Bolts")

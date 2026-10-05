@@ -406,6 +406,7 @@ function Card:Update(game, panels)
                     place(cell, self, y - 2, inset + (i - 1) * 20)
                     local v = S.qChips[i].value
                     cell:SetAlpha(v > 0 and math.min(v, 1) or 0)
+                    cell:SetShown(View.chipShown(S, i))
                 end
             else
                 place(row.label, self, y - 4, inset)
@@ -584,11 +585,15 @@ local function Build()
 
     -- The Ledger: trust, its allocation and the operations it buys.
     local ledger = NewCard(content, "The Ledger")
-    local trust = function(_, p) return p.trust end
     local computing = function(_, p) return p.computing end
+    -- trustDiv and swarmGiftDiv sit inside compDiv: they show only with it.
+    local trust = function(_, p) return p.trust and p.computing end
     ledger:Stat(T.trust, function(S) return View.count(S.trust) end, trust)
     ledger:Stat("Next Trust at", function(S) return View.count(S.nextTrust) .. " bolts" end, trust)
-    ledger:Adjust(T.processors, function(S) return View.count(S.processors) end, nil, "btnAddProc", computing)
+    ledger:Stat(T.swarmGifts, function(S) return View.count(S.swarmGifts) end,
+        function(_, p) return p.computing and p.swarmGift end)
+    ledger:Adjust(T.processors, function(S) return View.count(S.processors) end, nil, "btnAddProc",
+        function(_, p) return p.computing and p.processor end)
     ledger:Adjust(T.memory, function(S) return View.count(S.memory) end, nil, "btnAddMem", computing)
     ledger:Meter(T.operations, function(S) return S.operations, S.memory * 1000 end, computing)
     ledger:Stat(T.creativity, function(S) return View.count(S.creativity) end,
@@ -635,7 +640,7 @@ local function Build()
     local quantum = function(_, p) return p.quantum end
     local resonance = NewCard(content, "Resonance Calculator")
     resonance:Chips(quantum)
-    resonance:Action("btnQcompute", function() return "Compute" end, quantum)
+    resonance:Action("btnQcompute", function() return "Compute" end, function(_, p) return p.quantum and p.qCompute end)
     resonance:Lines(1, function(_, game) return { View.qComp(game) } end, quantum, function(S) return S.qFade end)
 
     -- Phase II: manufacturing from Available Bolts, the material pipeline, power and
@@ -645,7 +650,8 @@ local function Build()
     local factories = NewCard(content, "Manufacturing")
     factories:Stat("Next Upgrade at", function(S) local nfup = View.nextUpgrades(S) return View.count(nfup) .. " Foundries" end,
         function(_, p) return p.creation and p.factoryUpgrade end)
-    factories:Stat("Bolts per Second", function(S) return View.spell(S.clipRate) end, creation)
+    factories:Stat("Bolts per Second", function(S) return View.spell(S.clipRate) end,
+        function(_, p) return p.creation and p.clipsPerSec end)
     factories:Stat(T.unused, function(S) return View.spell(S.unusedClips) end,
         function(_, p) return p.creation and p.toth end)
     local factory = function(_, p) return p.creation and p.factory end
@@ -723,7 +729,6 @@ local function Build()
     network:Action("btnSynchSwarm", function(S)
         return "Synchronize the Network (" .. View.count(S.synchCost) .. " " .. T.yomi .. ")"
     end, function(S, p) return p.swarm and S.swarmStatus == 5 end)
-    network:Stat(T.swarmGifts, function(S) return View.count(S.swarmGifts) end, swarming)
     network:Range("slider", "Work  <  >  Think", 200, function(_, p) return p.swarmSlider end)
 
     -- Phase III: exploration, the dragonling design and combat.
