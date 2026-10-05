@@ -27,9 +27,9 @@ Director.POLLS, Director.POLL_STEP = 30, 0.1 -- the box poll: about 3 s
 Director.MIN_STRIP = 92                   -- the strip's height when the line is short
 Director.modelEnabled = true              -- /tim model toggles (session; settings are #23)
 -- "Time is money, friend!": a goblin NPC greeting from the client's own files
--- (sound/creature/goblinmalezanynpc/goblinmalezanynpcgreeting01.ogg, file 550805;
+-- (sound/creature/goblinmalegruffnpc/goblinmalegruffnpcgreeting01.ogg, file 550785;
 -- picked by ear by the owner, 2026-10-05, from the community listfile).
-Director.GREETING_SOUND = 550805
+Director.GREETING_SOUND = 550785
 Director.state, Director.token = "none", 0 -- none | loading | live | portrait
 
 -- Framing for a camera at distance d whose field of view spans the frame's larger

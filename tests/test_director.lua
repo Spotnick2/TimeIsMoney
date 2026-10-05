@@ -173,7 +173,7 @@ assert(Director.ReadBox({ x = 0, y = 0, z = 0 }, { x = 1, y = 1, z = 1 }).h == 1
 -- aloud, once per opening (never on redraws); after the takeover, nobody does.
 local env4, captured4, ns4 = Harness.Load()
 env4.SlashCmdList.TIMEISMONEY("start") -- opens the window
-assert(#captured4.sounds == 1 and captured4.sounds[1][1] == 550805 and captured4.sounds[1][2] == "Dialog")
+assert(#captured4.sounds == 1 and captured4.sounds[1][1] == 550785 and captured4.sounds[1][2] == "Dialog")
 for _ = 1, 5 do ns4.Window.Refresh() end
 assert(#captured4.sounds == 1, "not on redraws")
 ns4.Window.Toggle() -- close: silent

@@ -84,7 +84,7 @@ Record observations in forever-api-notes.md before making measured claims.
     on retries.
 - **Voice:** opening the window while the Director is speaking plays "Time is
   money, friend!" on the dialog channel, so the player's dialog volume and mute
-  apply. The file is 550805, `sound/creature/goblinmalezanynpc/goblinmalezanynpcgreeting01.ogg`
+  apply. The file is 550785, `sound/creature/goblinmalegruffnpc/goblinmalegruffnpcgreeting01.ogg`
   from the community listfile, picked by ear by the owner (2026-10-05).
   - It plays once per opening, never on redraws.
   - Nothing plays after the takeover.
