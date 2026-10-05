@@ -27,6 +27,24 @@ function View.panels(S)
     local human = not strictZero(S.humanFlag)
     show.business, show.manufacturing, show.trust = human, human, human
     show.quantum = not strictZero(S.qFlag)
+    -- Phase II (buttonUpdate, then the space branch that hides the planetary panels).
+    local space = not strictZero(S.spaceFlag)
+    show.creation = not human
+    show.factoryUpgrade = not (S.maxFactoryLevel >= 50 or S.project45.flag == 0)
+    show.droneUpgrade = S.maxDroneLevel < 50000
+    show.toth = not strictZero(S.tothFlag)
+    show.factory = not strictZero(S.factoryFlag) and not space
+    show.wireProduction = not strictZero(S.wireProductionFlag)
+    show.wireTrans = not show.wireProduction -- hidden once wire production starts
+    show.harvester = not strictZero(S.harvesterFlag) and not space
+    show.wireDrone = not strictZero(S.wireDroneFlag) and not space
+    show.power = S.project127.flag == 1 and S.spaceFlag == 0
+    show.mdps = S.spaceFlag == 1
+    show.swarm = not looseZero(S.swarmFlag)
+    show.swarmSlider = S.swarmFlag == 1
+    -- In space, probes build: factoryDivSpace and droneDivSpace replace the rows.
+    show.factorySpace = space
+    show.droneSpace = space
     return show
 end
 
@@ -37,6 +55,10 @@ View.TERMS = {
     marketing = "Sales Campaigns", autoClippers = "Whirring Bronze Gizmos", megaClippers = "Thorium Widgets",
     trust = "Board Trust", processors = "Copper Modulators", memory = "White Punch Cards",
     operations = "Operations", creativity = "Ingenuity", yomi = "Cunning", chips = "Arcane Crystals",
+    unused = "Available Bolts", availableMatter = "Unclaimed Material", acquiredMatter = "Reclaimed Material",
+    harvesters = "Compact Harvest Reapers", wireDrones = "Delicate Arcanite Converters", factories = "Bolt Foundries",
+    farms = "Gold Power Cores", batteries = "9-60 Battery Packs", swarm = "Company Network",
+    swarmGifts = "Network Breakthroughs",
 }
 
 -- A count for display: whole, with thousands separators. Display only: the
@@ -208,4 +230,94 @@ function View.stockLines(S, slots)
         end
     end
     return lines
+end
+
+-- spellf (main.js), as written: the whole part's digits (JavaScript's toString,
+-- with "e+" expanded), then its leading group with the next two digits after a
+-- point, through formatWithCommas(num, 1), and the place name. 12345678 shows as
+-- "12.3 million ". Its quirks stay: below 1,000 ".0" is added and any fraction
+-- dropped, and a tiny "Ne-k" value is read as text ("1e-7" gives "NaN.0 thousand ").
+local PLACES = {
+    "", " thousand ", " million ", " billion ", " trillion ", " quadrillion ", " quintillion ", " sextillion ",
+    " septillion ", " octillion ", " nonillion ", " decillion ", " undecillion ", " duodecillion ",
+    " tredecillion ", " quattuordecillion ", " quindecillion ", " sexdecillion ", " septendecillion ",
+    " octodecillion ", " novemdecillion  ", " vigintillion ", " unvigintillion ", " duovigintillion ",
+    " trevigintillion ", " quattuorvigintillion ", " quinvigintillion ", " sexvigintillion ",
+    " septenvigintillion ", " octovigintillion ", " novemvigintillion ", " trigintillion ", " untrigintillion ",
+    " duotrigintillion ", " tretrigintillion ", " quattuortrigintillion ", " quintrigintillion ",
+    " sextrigintillion ", " septentrigintillion ", " octotrigintillion ", " novemtrigintillion ",
+    " quadragintillion ", " unquadragintillion ", " duoquadragintillion ", " trequadragintillion ",
+    " quattuorquadragintillion ", " quinquadragintillion ", " sexquadragintillion ", " septenquadragintillion ",
+    " octoquadragintillion ", " novemquadragintillion ", " quinquagintillion ", " unquinquagintillion ",
+    " duoquinquagintillion ", " trequinquagintillion ", " quattuorquinquagintillion ", " quinquinquagintillion ",
+    " sexquinquagintillion ", " septenquinquagintillion ", " octoquinquagintillion ", " novemquinquagintillion ",
+    " sexagintillion ", " unsexagintillion ", " duosexagintillion ", " tresexagintillion ",
+    " quattuorsexagintillion ", " quinsexagintillion ", " sexsexagintillion ", " septsexagintillion ",
+    " octosexagintillion ", " octosexagintillion ", " septuagintillion ", " unseptuagintillion ",
+    " duoseptuagintillion ", " treseptuagintillion ", " quinseptuagintillion", " sexseptuagintillion",
+    " septseptuagintillion", " octoseptuagintillion", " novemseptuagintillion", " octogintillion",
+    " unoctogintillion", " duooctogintillion", " treoctogintillion", " quattuoroctogintillion",
+    " quinoctogintillion", " sexoctogintillion", " septoctogintillion", " octooctogintillion",
+    " novemoctogintillion", " nonagintillion", " unnonagintillion", " duononagintillion", " trenonagintillion ",
+    " quattuornonagintillion ", " quinnonagintillion ", " sexnonagintillion ", " septnonagintillion ",
+    " octononagintillion ", " novemnonagintillion ", " centillion"
+}
+function View.spell(x)
+    local JSMath = ns.JSMath
+    if JSMath.lt(x, 0) then return JSMath.toString(x) end
+    local text = JSMath.toString(x)
+    local mantissa, exponent = text:match("^(.-)e%+(%d+)$")
+    if mantissa then
+        local whole, fraction = mantissa:match("^(%d+)%.(%d+)$")
+        exponent = tonumber(exponent)
+        if whole then
+            exponent = exponent - #fraction
+            mantissa = whole .. fraction
+        end
+        text = mantissa .. string.rep("0", exponent)
+    elseif text:find(".", 1, true) then
+        text = text:match("^(.-)%.")
+    end
+    -- The reference throws "Number out of bonds!" here; the window shows the count.
+    if #text >= 303 then return View.count(x) end
+    local asNumber = JSMath.toNumber(text)
+    if not isNaN(asNumber) and asNumber == 0 then return "0" end
+    local groups = math.ceil(#text / 3)
+    local lead = #text - 3 * (groups - 1)
+    local num = JSMath.toNumber(text:sub(1, lead) .. "." .. text:sub(lead + 1, lead + 2))
+    return ns.Workshop.formatWithCommas(num, 1) .. (PLACES[groups] or "")
+end
+
+-- updateUpgrades: the next factory and drone counts that unlock an upgrade.
+function View.nextUpgrades(S)
+    local nfup, ndup = 0, 0
+    if S.maxFactoryLevel < 10 then nfup = 10 elseif S.maxFactoryLevel < 20 then nfup = 20
+    elseif S.maxFactoryLevel < 50 then nfup = 50 end
+    if S.maxDroneLevel < 500 then ndup = 500 elseif S.maxDroneLevel < 5000 then ndup = 5000
+    elseif S.maxDroneLevel < 50000 then ndup = 50000 end
+    return nfup, ndup
+end
+
+-- updatePower's printed figures (MW-seconds per tick times 100, as the reference
+-- prints them), recomputed from the state it uses.
+function View.power(S)
+    local supply = S.farmLevel * S.farmRate / 100
+    local dDemand = (S.harvesterLevel * S.dronePowerRate / 100) + (S.wireDroneLevel * S.dronePowerRate / 100)
+    local fDemand = S.factoryLevel * S.factoryPowerRate / 100
+    local performance = 0
+    if not (S.factoryLevel == 0 and S.harvesterLevel == 0 and S.wireDroneLevel == 0) then
+        performance = math.floor(S.powMod * 100 + 0.5)
+    end
+    return {
+        production = supply * 100, consumption = (dDemand + fDemand) * 100, factories = fDemand * 100,
+        drones = dDemand * 100, stored = S.storedPower, capacity = S.batteryLevel * S.batterySize,
+        performance = performance,
+    }
+end
+
+-- The Company Network's status text (swarmStatus); 7 hides the status line.
+local SWARM = { [0] = "Active", [1] = "Hungry", [2] = "Confused", [3] = "Bored", [4] = "Cold",
+    [5] = "Disorganized", [6] = "Sleeping", [8] = "Lonely", [9] = "NO RESPONSE..." }
+function View.swarmStatus(S)
+    return SWARM[S.swarmStatus]
 end

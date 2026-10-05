@@ -1,38 +1,6 @@
 -- The ledger window (#20): what it shows, that its controls route through the host,
 -- and that drawing it never changes the company.
-local Stubs = dofile("tests/wow_stubs.lua")
-
-local files = {}
-for line in io.lines("TimeIsMoney.toc") do
-    line = line:match("^%s*(.-)%s*$")
-    if line ~= "" and line:sub(1, 1) ~= "#" and line:gsub("\\", "/"):sub(1, 5) ~= "Libs/" then
-        files[#files + 1] = line
-    end
-end
-
--- The real LibGlass-1.0 when a checkout is at hand (LIBGLASS, which CI's Windows
--- job sets to the pinned ref, else ..\LibGlass); otherwise the recording stand-in.
-local libGlass = os.getenv("LIBGLASS")
-if libGlass == "none" then
-    libGlass = nil -- forces the stand-in
-elseif not libGlass or libGlass == "" then
-    libGlass = nil
-    local probe = io.open("../LibGlass/LibGlass-1.0.xml", "rb")
-    if probe then probe:close() libGlass = "../LibGlass" end
-end
-local env, captured, libFiles = Stubs.New(nil, libGlass)
-for _, path in ipairs(libFiles or {}) do
-    local chunk = assert(loadfile(path))
-    setfenv(chunk, env)
-    chunk("TimeIsMoney", {})
-end
-local ns = {}
-for _, path in ipairs(files) do
-    local chunk = assert(loadfile(path))
-    setfenv(chunk, env)
-    chunk("TimeIsMoney", ns)
-end
-captured:Fire("TimeIsMoney")
+local env, captured, ns, libGlass = dofile("tests/window_harness.lua").Load()
 local View, Host, Window = ns.View, ns.Host, ns.Window
 
 -- Display text: one reference unit is one silver; counts keep their sign.
@@ -56,8 +24,8 @@ assert(View.priceTag("project133", S0) == "(50,000 Ingenuity, 20,000 Cunning)")
 assert(View.priceTag("project216", S0) == "(1,234 Operations)")
 -- Panels follow buttonUpdate, including its strict comparisons: creativityOn is a
 -- boolean, so creativityOn === 0 never holds and its row shows with the Ledger.
-local panels = View.panels({ wireBuyerFlag = 0, investmentEngineFlag = 0, strategyEngineFlag = 0, megaClipperFlag = 0,
-    autoClipperFlag = 0, revPerSecFlag = 0, compFlag = 0, creativityOn = false, projectsFlag = 0, humanFlag = 1, qFlag = 0 })
+local fresh = ns.Workshop.new({ draw = function() return 0.5 end }, false).S
+local panels = View.panels(fresh)
 assert(panels.business and panels.manufacturing and panels.trust and not panels.computing and panels.creativity)
 assert(not panels.projects and not panels.autoClippers and not panels.wireBuyer)
 
@@ -76,16 +44,8 @@ else
     assert(captured.glass.applied > 0, "drawn with the glass material")
 end
 
-local function button(id)
-    for _, w in ipairs(captured.widgets) do
-        if w.kind == "Button" and w.id == id and w.shown then return w end
-    end
-end
-local function shownText(fragment)
-    for _, fs in ipairs(captured.fontStrings) do
-        if fs.shown and fs.text and tostring(fs.text):find(fragment, 1, true) then return fs end
-    end
-end
+local h = dofile("tests/window_harness.lua").Helpers(captured)
+local button, shownText, digest = h.button, h.shownText, h.digest
 
 -- The opening: production and sales; no computing, no projects yet.
 assert(shownText("Handfuls of Copper Bolts") and shownText("Company Funds") and shownText("Board Trust"))
@@ -104,22 +64,6 @@ Window.Refresh()
 assert(button("btnLowerPrice").label.text == "(-)" and button("btnRaisePrice").label.text == "+")
 
 -- Drawing never changes the company: the state is identical after many refreshes.
-local function digest(t, seen)
-    seen = seen or {}
-    if type(t) ~= "table" then return tostring(t) end
-    if seen[t] then return "<cycle>" end
-    seen[t] = true
-    local keys = {}
-    for k in pairs(t) do keys[#keys + 1] = tostring(k) end
-    table.sort(keys)
-    local out = {}
-    for _, k in ipairs(keys) do
-        local v = t[k]
-        if v == nil then v = t[tonumber(k)] end
-        out[#out + 1] = k .. "=" .. digest(v, seen)
-    end
-    return "{" .. table.concat(out, ",") .. "}"
-end
 local before = digest(game.S) .. digest(game.disabled) .. digest(game.readouts)
 local draws = Host.random.count
 for _ = 1, 20 do Window.Refresh() end
@@ -215,11 +159,7 @@ deposit.scripts.OnClick(deposit)
 assert(S.funds == 0 and S.bankroll == 500)
 -- A select opens its options; choosing one sets it in a single step (no passing
 -- through the options in between).
-local function labelled(text)
-    for _, w in ipairs(captured.widgets) do
-        if w.kind == "Button" and w.shown and w.label and w.label.text == text then return w end
-    end
-end
+local labelled = h.labelled
 local risk = assert(labelled("Low Risk  v"))
 risk.scripts.OnClick(risk)
 assert(labelled("Low Risk  ^") and labelled("Med Risk") and labelled("High Risk"))
