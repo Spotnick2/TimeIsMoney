@@ -33,7 +33,8 @@ the embedded LibGlass-1.0 material.
     stay visible.
     - The number's own text decides: 0.29 is whole copper, even though 0.29 * 100
       isn't exactly 29 in doubles.
-    - While hovered, the tooltip follows the amount on every redraw.
+    - While hovered, every tooltip follows the company on every redraw, a row's or
+      a button's. A purchase made without moving the pointer shows the next cost.
     - The area covers the label and value, never the row's buttons, and still lets
       the window be dragged.
 - **Disabled controls say so** in their label, not only in colour: "(not yet)" on

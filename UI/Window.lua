@@ -73,11 +73,19 @@ local function NewButton(parent, id, height)
     b.label:SetPoint("RIGHT", b, "RIGHT", -4, 0)
     b.id = id
     b:SetScript("OnClick", function(self) if self.id then Click(self.id) end end)
+    -- Live like every hover tooltip: re-read on each redraw while hovered, so a cost
+    -- that changes under the pointer (a purchase) shows its new value and title.
     b:SetScript("OnEnter", function(self)
-        if self.tipFn then self.tip = self.tipFn() end
-        if self.tip then ShowTip(self, self.tip) end
+        Window.liveTip = { owner = self, lines = function()
+            if self.tipFn then self.tip = self.tipFn() end
+            return self.tip
+        end }
+        Window.UpdateLiveTip()
     end)
-    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b:SetScript("OnLeave", function(self)
+        if Window.liveTip and Window.liveTip.owner == self then Window.liveTip = nil end
+        GameTooltip:Hide()
+    end)
     b:SetMotionScriptsWhileDisabled(true)
     return b
 end
@@ -127,21 +135,26 @@ local function TipArea(row, parent, tip)
     row.tipArea:EnableMouse(true)
     Draggable(row.tipArea)
     row.tipArea:SetScript("OnEnter", function(area)
-        Window.liveTip = { owner = area, title = row.label, line = line }
+        Window.liveTip = { owner = area, lines = function()
+            local text = line()
+            return text and { row.label:GetText() or "", text } or nil
+        end }
         Window.UpdateLiveTip()
     end)
-    row.tipArea:SetScript("OnLeave", function()
-        Window.liveTip = nil
+    row.tipArea:SetScript("OnLeave", function(area)
+        if Window.liveTip and Window.liveTip.owner == area then Window.liveTip = nil end
         GameTooltip:Hide()
     end)
 end
 
+-- The hovered tooltip (a button or a row), refreshed on each redraw: it appears,
+-- changes or goes as its lines do.
 function Window.UpdateLiveTip()
     local tip = Window.liveTip
     if not tip then return end
-    local line = tip.line()
-    if line then
-        ShowTip(tip.owner, { tip.title:GetText() or "", line })
+    local lines = tip.lines()
+    if lines then
+        ShowTip(tip.owner, lines)
         tip.shown = true
     elseif tip.shown then
         GameTooltip:Hide()

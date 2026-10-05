@@ -62,6 +62,28 @@ Window.Refresh()
 assert(shown == "Exactly 12.3457 silver (12s 35c shown)")
 fundsArea.scripts.OnLeave(fundsArea)
 assert(shown == nil and Window.liveTip == nil)
+-- A purchase button keeps its exact cost live while the pointer stays on it
+-- (Codex review of #61): buy a gizmo without moving, the tooltip shows the next one.
+local title
+tooltip.SetText = function(_, text) title = text end
+game.S.funds = 1000
+Host.update(0.02)
+Window.Refresh()
+local gizmo = assert(h.button("btnMakeClipper"))
+gizmo.scripts.OnEnter(gizmo)
+local first = shown
+for _ = 1, 3 do
+    gizmo.scripts.OnClick(gizmo)
+    Host.update(0.02)
+    Window.Refresh()
+end
+assert(game.S.clipmakerLevel >= 3)
+local exact = View.exactMoney(game.S.clipperCost)
+assert(exact and shown == exact, "the tooltip follows the cost: " .. tostring(shown))
+assert(shown ~= first and title == gizmo.label.text, "and its title")
+gizmo.scripts.OnLeave(gizmo)
+assert(Window.liveTip == nil)
+
 -- Dragging from a tooltip area moves the window.
 local moved = false
 Window.frame.StartMoving = function() moved = true end
