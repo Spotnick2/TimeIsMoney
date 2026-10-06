@@ -80,39 +80,42 @@ for _, id in ipairs({
 
 -- Building costs ------------------------------------------------------------
 
--- Math.pow(n, e) for a cost: the reference profile's value (Sim/CostPow.lua) where
--- it differs from JSMath.pow.
--- A cost is a pure function of its integer base, so computed values are kept
--- (the pure-Lua pow is slow and the price sums revisit the same bases). Beyond the
--- table the memo is bounded: it starts over after MEMO_BEYOND entries, since levels
--- only move forward and the sums look at most 1,000 bases ahead.
-local memo, beyond, MEMO_BEYOND = {}, {}, 4096
+-- Math.pow(n, e) for a cost. Inside the verified domain (integer bases up to the
+-- table's limit) it is the pinned reference profile's value, exactly
+-- (Sim/CostPow.lua). Beyond it, and for fractional bases (probes build fractional
+-- drone levels in space), it is JSMath.pow; the reference's platform pow there is
+-- not reproducible (#24, owner decision 2026-10-06; docs/reference/WORKSHOP.md).
+-- Values are memoized: the pure-Lua pow is slow and a purchase revisits the same
+-- bases (the cost loop, then the +10/+100/+1k sums). Inside the table the memo is
+-- permanent; beyond it there are two bounded generations: when the current one
+-- fills, it becomes the previous one, so bases still in use survive a turnover.
+local memo, beyond, MEMO_BEYOND = {}, {}, 8192
 for e, domain in pairs(CostPow) do
-    if type(domain) == "table" then memo[e], beyond[e] = {}, { count = 0 } end
+    if type(domain) == "table" then memo[e], beyond[e] = {}, { current = {}, previous = {}, count = 0 } end
 end
--- Inside the verified domain (integer bases up to the table's limit) the value is
--- the pinned reference profile's, exactly. Beyond it, or for a fractional base
--- (probes build fractional drone levels in space), it is the correctly rounded
--- pow: within one binary64 step of the reference's platform pow, which no portable
--- implementation reproduces (#24, owner decision 2026-10-06; docs/reference/WORKSHOP.md).
--- Only integer bases are memoized: fractional levels change every tick.
 local function costPow(n, e)
     local domain = CostPow[e]
-    if n ~= floor(n) then return JSMath.pow(n, tonumber(e)) end
-    local inside = n >= 1 and n <= domain.limit
-    local cache = inside and memo[e] or beyond[e]
-    local value = cache[n]
-    if value == nil then
-        local fix = inside and domain.fixes[n]
-        value = fix and JSMath.fromWords(fix[1], fix[2]) or JSMath.pow(n, tonumber(e))
-        if not inside then
-            if cache.count >= MEMO_BEYOND then
-                cache = { count = 0 }
-                beyond[e] = cache
-            end
-            cache.count = cache.count + 1
+    -- A NaN level compares true to everything in WoW and cannot index a table: stop
+    -- explicitly on both hosts.
+    if JSMath.isNaN(n) then Unported("building cost Math.pow(NaN, " .. e .. ")", "#24") end
+    if n >= 1 and n <= domain.limit and n == floor(n) then
+        local value = memo[e][n]
+        if value == nil then
+            local fix = domain.fixes[n]
+            value = fix and JSMath.fromWords(fix[1], fix[2]) or JSMath.pow(n, tonumber(e))
+            memo[e][n] = value
         end
-        cache[n] = value
+        return value
+    end
+    local gen = beyond[e]
+    local value = gen.current[n]
+    if value == nil then
+        value = gen.previous[n] or JSMath.pow(n, tonumber(e))
+        if gen.count >= MEMO_BEYOND then
+            gen.previous, gen.current, gen.count = gen.current, {}, 0
+        end
+        gen.current[n] = value
+        gen.count = gen.count + 1
     end
     return value
 end

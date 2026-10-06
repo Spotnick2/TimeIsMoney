@@ -487,7 +487,7 @@ local function looseOne(v) return v == 1 or v == true end
 
 -- Math.pow(processors, 1.1) matches V8 for every count up to this bound
 -- (tests/reference/jsmath.test.cjs); the first known difference is at 3,425. Beyond
--- it the correctly rounded pow is within one binary64 step of V8's (#24).
+-- it JSMath.pow is a declared difference (#24, docs/reference/WORKSHOP.md).
 Workshop.VERIFIED_PROCESSORS = 3424
 
 function Game:addProc()

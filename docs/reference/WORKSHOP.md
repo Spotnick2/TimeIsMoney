@@ -230,7 +230,7 @@ table ended. The owner chose (2026-10-06) to keep exact parity where it is
 demonstrated, declare narrowly scoped differences elsewhere, and remove halts
 caused only by running out of tables. No other stop changed.
 
-| Value | Exact (demonstrated) | Beyond: JSMath.pow, correctly rounded |
+| Value | Exact (demonstrated) | Beyond: JSMath.pow |
 | --- | --- | --- |
 | Building costs and price sums, Math.pow(n, 2.25) (drones) | integer n ≤ 200,000 (pinned table) | n > 200,000, and fractional drone levels (probes build them in space) |
 | Math.pow(n, 2.54) and Math.pow(n, 2.78) (batteries, farms) | integer n ≤ 30,000 | n > 30,000 |
@@ -241,9 +241,15 @@ caused only by running out of tables. No other stop changed.
 - **Size of the difference:** every measured difference between JSMath.pow and
   the reference profile's platform pow, across all the verified domains, is one
   binary64 step (tests/reference/cost_pow.cjs, jsmath.test.cjs). Beyond the
-  tables the two are expected to stay within one step (correct rounding against
-  a platform pow that is not correctly rounded); that bound is not measured
-  there, since no portable implementation reproduces the platform's pow.
+  tables this is an expectation, not a measured bound: JSMath.pow is correctly
+  rounded except within about 2⁻⁹⁰ of a rounding boundary, and the platform pow
+  is close to but not always correctly rounded. No portable implementation
+  reproduces the platform's pow, so there is no reference to measure against.
+  A NaN level stops explicitly (#24), as before.
+- **Cost:** with probe-built fractional drone levels, each purchase or reboot
+  recomputes the +10/+100/+1k price sums with up to 2,000 uncached pow calls,
+  about 60 ms in offline Lua 5.1 (2026-10-06). It happens on the click, never per
+  tick; the memo beyond the tables is bounded (two generations of 8,192 bases).
 - **Effect:** a one-step cost difference changes a decision only when the
   balance lies within that step of the cost (purchase affordability, a disabled
   button), and then the following balances differ by about one step of the cost.
@@ -332,8 +338,8 @@ caused only by running out of tables. No other stop changed.
     value still passes.
   - **Beyond the verified domains (#24, owner decision 2026-10-06):** the
     simulation no longer stops where a verification table ends. Exact parity is
-    kept wherever it was demonstrated; elsewhere the value is JSMath.pow, correctly
-    rounded. See *Declared numeric differences* below.
+    kept wherever it was demonstrated; elsewhere the value is JSMath.pow. See
+    *Declared numeric differences* below.
 - **Math.log (#13):** V8's base::ieee754::log is fdlibm's __ieee754_log, which
   JSMath already used inside log10; JSMath.log exposes it. It matched V8 in
   250,000 cases (every swarm size to 200,000 and random magnitudes);
@@ -346,7 +352,7 @@ caused only by running out of tables. No other stop changed.
   `__kernel_cos` with `qx`, and the `__ieee754_log`-based log10. The FreeBSD
   revisions and the C library differ. JSMath ports exactly those routines,
   building IEEE words with frexp/ldexp because Lua 5.1 has no bit library. They
-  match V8 in all 227,686 cases in jsmath.test.cjs:
+  match V8 in all 227,682 cases in jsmath.test.cjs:
   - quantum-clock arguments, including far beyond 19 days;
   - large arguments (#24): every binary exponent from 2²⁰ to 2¹⁰²³ with random
     mantissas and signs, the reduction boundary, n·π/2 for large n, and the

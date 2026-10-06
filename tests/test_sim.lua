@@ -79,6 +79,13 @@ assert(JSMath.sin(0.8280000000000005) == 0.7365801446274045 and same(JSMath.sin(
 assert(same(JSMath.sin(math.huge), 0 / 0) and JSMath.sin(-3) == -0.1411200080598672)
 -- Beyond 2^20 * pi/2, __kernel_rem_pio2 (#24); exact V8 values.
 assert(JSMath.sin(2e6) == -0.65571431556347004 and JSMath.sin(1e22) == -0.85220084976718879)
+-- The large-argument reduction allocates nothing (the quantum chips call it every tick).
+JSMath.sin(3e6)
+collectgarbage("stop")
+local before = collectgarbage("count")
+for i = 1, 200 do JSMath.sin(2e6 + i * 0.37) end
+assert(collectgarbage("count") == before, "no allocation per call")
+collectgarbage("restart")
 assert(JSMath.sin(1e6) == -0.34999350217129294)
 assert(JSMath.log10(11) == 1.041392685158225 and JSMath.log10(40) == 1.6020599913279625)
 assert(JSMath.log10(1000) == 3 and JSMath.log10(1) == 0 and JSMath.log10(0) == -math.huge)
@@ -141,6 +148,10 @@ assert(costPow(2969, "2.25") == JSMath.fromWords(0x418F06F8, 0xB0418DE1), "pinne
 assert(costPow(2969, "2.25") ~= JSMath.pow(2969, 2.25), "JSMath alone differs there")
 assert(costPow(2, "2.25") == JSMath.pow(2, 2.25))
 assert(costPow(200001, "2.25") == JSMath.pow(200001, 2.25) and costPow(2.5, "2.25") == JSMath.pow(2.5, 2.25))
+fails("Math%.pow%(NaN, 2%.25%) %(issue #24%)", costPow, 0 / 0, "2.25")
+-- Beyond the table the memo keeps two bounded generations (both drone types share it).
+for n = 300001, 300001 + 8192 do assert(costPow(n, "2.25") == JSMath.pow(n, 2.25)) end
+assert(costPow(300001, "2.25") == JSMath.pow(300001, 2.25), "a turned-over base")
 -- Purchases and reboots past the tables go through (no stop where verification ends).
 local planet = Workshop.new(stub, {})
 planet.S.harvesterLevel, planet.S.unusedClips = 199000, 1e25

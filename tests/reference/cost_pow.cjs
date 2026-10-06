@@ -3,8 +3,9 @@
 // bases (phase-two building costs, probe trust and rates), where they differ from Sim/JSMath.lua's correctly
 // rounded pow. V8 13.6 calls the platform C library's pow (--use-std-math-pow
 // defaults to true), so these results belong to the pinned profile below, not to
-// every browser. Every integer base in each domain is compared; costs beyond a
-// domain stop explicitly (#24).
+// every browser. Every integer base in each domain is compared; beyond a domain
+// the simulation uses JSMath.pow, a declared difference (#24,
+// docs/reference/WORKSHOP.md).
 //   node tests/reference/cost_pow.cjs          check (exit 1 when stale)
 //   node tests/reference/cost_pow.cjs --write  regenerate
 const fs=require("node:fs"), path=require("node:path"), os=require("node:os");

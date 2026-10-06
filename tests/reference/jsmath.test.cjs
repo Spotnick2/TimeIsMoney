@@ -106,7 +106,8 @@ test("fdlibm Math.sin, Math.log and Math.log10 match V8 exactly, including the q
         list.push(["sin",(rnd()<0.5?-1:1)*m*Math.pow(2,e)]);
     }
     for (let k=0;k<20000;k++) { const t=1.6e6+rnd()*1e9; for (const s of [.1,.5,1]) list.push(["sin",t*s]); }
-    for (const d of [-2,-1,0,1,2]) list.push(["sin",fromWords(0x413921fb+d,0)],["sin",fromWords(0x413921fb,0xffffffff)]);
+    for (const d of [-2,-1,0,1,2]) list.push(["sin",fromWords(0x413921fb+d,0)]);
+    list.push(["sin",fromWords(0x413921fb,0xffffffff)]);
     list.push(["sin",6381956970095103*Math.pow(2,797)],["sin",-6381956970095103*Math.pow(2,797)]);
     for (let n=1;n<=4000;n++) { const x=(1048576+n*977)*Math.PI/2; list.push(["sin",x],["sin",-x]); }
     for (const x of [1e22,1e100,1e200,1e300,1.7976931348623157e308,-1.7976931348623157e308,2**53,2**60,2**1023])

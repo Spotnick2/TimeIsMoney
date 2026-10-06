@@ -386,12 +386,20 @@ local two_over_pi = {
     0x91615E, 0xE61B08, 0x659985, 0x5F14A0, 0x68408D, 0xFFD880,
     0x4D7327, 0x310606, 0x1556CA, 0x73A8C9, 0x60E27B, 0xC08C6B,
 }
--- PIo2: pi/2 in 24-bit pieces (fdlibm's table, computed the same way).
-local PIo2 = { 1.570796251296997, 7.549789415861596e-08, 5.390302529957765e-15, 3.282003415807913e-22,
-    1.270655753080676e-29, 1.2293330898111133e-36, 2.7337005381646456e-44, 2.1674168387780482e-51 }
+-- PIo2: pi/2 in 24-bit pieces (fdlibm's table, computed the same way), as exact
+-- words so no decimal parsing is involved.
+local PIo2 = {
+    W(0x3FF921FB, 0x40000000), W(0x3E74442D, 0x00000000), W(0x3CF84698, 0x80000000), W(0x3B78CC51, 0x60000000),
+    W(0x39F01B83, 0x80000000), W(0x387A2520, 0x40000000), W(0x36E38222, 0x80000000), W(0x3569F31D, 0x00000000),
+}
 local two24, twon24 = 16777216, 5.9604644775390625e-08
 
+-- Scratch arrays, reused: the quantum chips call sin every tick, so the reduction
+-- allocates nothing. Every entry read in a call is written earlier in that call.
+local remF, remQ, remIQ, remFQ, remTX = {}, {}, {}, {}, {}
+
 local function kernelRemPio2(x, e0, nx)
+    local f, q, iq, fq = remF, remQ, remIQ, remFQ
     local jk = 4 -- init_jk[prec = 2]
     local jp = jk
     local jx = nx - 1
@@ -399,7 +407,6 @@ local function kernelRemPio2(x, e0, nx)
     if jv < 0 then jv = 0 end
     -- C's (e0-3)/24 truncates toward zero; e0 >= 0 here, so floor is the same.
     local q0 = e0 - 24 * (jv + 1)
-    local f, q, iq, fq = {}, {}, {}, {}
     local j, m = jv - jx, jx + jk
     for i = 0, m do
         f[i] = (j < 0) and 0 or two_over_pi[j + 1]
@@ -558,10 +565,10 @@ local function remPio2(x, hx)
     if ix > 0x413921fb then
         -- Beyond 2^20 * pi/2: z = |x| scaled to [2^23, 2^24), cut into three 24-bit
         -- pieces, reduced by __kernel_rem_pio2 (e_rem_pio2.c).
+        local tx = remTX
         local _, low = toWords(x)
         local e0 = floor(ix / 2 ^ 20) - 1046
         local z = fromWords(ix - e0 * 2 ^ 20, low)
-        local tx = {}
         for i = 0, 1 do
             tx[i] = floor(z)
             z = (z - tx[i]) * two24
