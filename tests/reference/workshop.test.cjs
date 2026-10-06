@@ -240,7 +240,9 @@ const PROJECT_RUNS=["projectsProduction","projectsCreativity","projectsStrategy"
     "planetChain","planetPipeline","planetUpgrades","swarmGifts","spaceGate","spaceProjects","battleVictory",
     "correspondence","memorials","memoryRelease","endingReject","endingAccept","endingDismantle"];
 const REPEATABLE=new Set(["project2","project40b","project51","project219","project133","project135"]);
-// project200/201 run their effect and stop at the reset (#23); project217 is #23.
+// project200/201/217 end the company (the reference resets and reloads, which its
+// host cannot trace); tests/test_sim.lua and tests/test_host.lua cover their
+// effects and the host's restart (#23).
 const STOPS=new Set(["project200","project201","project217"]);
 test("every purchasable project is bought in a trace, with eligibility compared",()=>{
     const projected=run("projectsProduction").port.projection.state.filter(k=>/^project\d/.test(k));

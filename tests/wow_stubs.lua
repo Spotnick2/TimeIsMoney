@@ -15,7 +15,7 @@ local function New(saved, libGlass)
         GetServerTime = function() return 1790000000 end,
         debugprofilestop = function() captured.clock = (captured.clock or 0) + 0.01 return captured.clock end,
     }
-    local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true }
+    local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true, TimeIsMoneyConfirm = true }
     setmetatable(env, { __index = function(_, key)
         if allowedNil[key] then return nil end
         error("Unvalidated global: " .. tostring(key), 2)
@@ -46,7 +46,12 @@ local function New(saved, libGlass)
     function Widget:GetWidth() return self.width or 0 end
     function Widget:SetScale(s) self.scale = s end
     function Widget:Show() self.shown = true end
-    function Widget:Hide() self.shown = false end
+    -- Hiding a shown widget fires its OnHide, as the client does.
+    function Widget:Hide()
+        local was = self.shown
+        self.shown = false
+        if was and self.scripts and self.scripts.OnHide then self.scripts.OnHide(self) end
+    end
     function Widget:SetShown(v) self.shown = not not v end
     function Widget:IsShown() return self.shown end
     function Widget:SetFrameLevel(l) self.level = l end

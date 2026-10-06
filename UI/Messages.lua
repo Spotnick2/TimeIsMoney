@@ -108,6 +108,7 @@ Messages.EXACT = {
     ["Dismantling processors"] = "msg.dismantleProcessors",
     ["Dismantling memory"] = "msg.dismantleMemory",
     ["Entering New Universe."] = "msg.newUniverse",
+    ["Restart"] = "msg.restart",
     ["Entering Simulated Universe."] = "msg.simulatedUniverse",
     ["Selected strategy finished in (or tied for) second place. +30,000 yomi"] = "msg.tourneySecond",
     ["Selected strategy finished in (or tied for) third place. +20,000 yomi"] = "msg.tourneyThird",

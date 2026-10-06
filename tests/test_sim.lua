@@ -192,12 +192,12 @@ war.S.battles, war.S.numRightShips, war.S.numLeftShips, war.S.battleLEFTSHIPS = 
 war.S.battleName = "Ulm 2"
 Battle.checkForBattleEnd(war.S)
 assert(war.S.honor == 6 and war.S.bonusHonor == 0 and war.S.threnodyTitle == "Ulm 2")
--- A prestige choice (#17) saves the next game's prestige, then stops at the restart
--- (the host's new-game control, #23).
+-- A prestige choice (#17) saves the next game's prestige and requests the restart,
+-- which the host performs (#23).
 war.S.standardOps, war.S.prestigeU = 400000, 2
-fails("reset after a prestige choice %(a new game with the saved prestige%) %(issue #23%)",
-    Workshop.projectById.projectButton200.effect, war)
+Workshop.projectById.projectButton200.effect(war)
 assert(war.S.prestigeU == 3 and war.savedPrestige.prestigeU == 3 and war.savedPrestige.prestigeS == 0)
+assert(war.restartRequested == "prestige")
 assert(war.readouts[1] == "Entering New Universe.")
 
 -- The swarm (#13): with no drones and the slider at 0, a repeating gift is
@@ -225,14 +225,22 @@ for _, ship in ipairs(empty.S.ships) do ship.alive = false end
 empty:advanceTo(200)
 assert(empty.S.ships[1].framesDead == 10 and empty.S.i == empty.S.numShips)
 
--- Project purchases: a button must be in the document; restart is refused (#23).
+-- Project purchases: a button must be in the document.
 local projects = Workshop.new(stub, {})
 local ok, message = pcall(projects.click, projects, "projectButton1")
 assert(not ok and message == "Unknown clickable ID", tostring(message))
 ok, message = pcall(projects.click, projects, "projectButton18")
 assert(not ok and message == "Unknown clickable ID", tostring(message))
+-- Quantum Temporal Reversion (the window confirms first): the Operations come
+-- back, "Restart", the prestige is kept and the host is asked to reset (#23).
 projects.projectElements.projectButton217 = true
-fails("Quantum Temporal Reversion restart .*%(issue #23%)", projects.click, projects, "projectButton217")
+projects.S.activeProjects[#projects.S.activeProjects + 1] = projects.S.project217
+projects.S.standardOps, projects.S.prestigeU = -10000, 1
+projects:click("projectButton217")
+assert(projects.S.standardOps == 0 and projects.S.project217.flag == 1 and projects.readouts[1] == "Restart")
+assert(projects.restartRequested == "reversion" and projects.savedPrestige == nil,
+    "a reversion keeps the account's prestige (the host's), not the company's")
+assert(not projects.projectElements.projectButton217)
 
 -- Milestones after the transition: full autonomy, then clip-count milestones.
 local later = Workshop.new(stub, {})

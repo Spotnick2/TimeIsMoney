@@ -38,11 +38,31 @@ use a separate stream so it cannot change outcomes.
 `Host.click(id)` and `Host.setValue(id, value)` accept only known controls and apply
 them at the current logical time, between scheduler callbacks. A control the game
 refuses (an unported path, a project button not shown) raises before changing state;
-the host reports it and the game keeps running. The one exception is a prestige
-choice: it awards and saves the prestige (`game.savedPrestige`) and requests the
-restart into a new game (`game.restartRequested`, #23); that company is over, so the
-host halts it and the reward cannot be collected twice. An error inside a tick halts
-the simulation: the tick has partly run, so it must not continue.
+the host reports it and the game keeps running.
+
+**Restarts (#23).** A click that ends the company requests the restart into a new
+game (`game.restartRequested`). The host then starts the next company at once
+(`Host.restart`). The old one is never run again, so a reward cannot be collected
+twice. This is the reference's `reset()`: the company's save is cleared.
+
+- **A prestige choice** carries its earned prestige (`game.savedPrestige`).
+- **Quantum Temporal Reversion** keeps the account's stored prestige, as `reset()`
+  reloads it.
+  - It needs the player's confirmation, the reference's `confirm()`, at the host:
+    `Host.click(id, confirmed)` refuses it unless confirmed. The window's dialog
+    confirms; `/tim click` cannot.
+  - A confirmation that arrives after the offer lapsed reports "no longer
+    available".
+- **The new-game control** (`Host.newGame`, behind an explicit confirmation) does
+  the same. A company that halted on its prestige choice still hands its earned
+  prestige on.
+- **Saving off:** a restart is refused, so blocked data is never replaced.
+
+The game keeps running while the dialog is open. A dialog left open closes with the
+window, and a "yes" for a company that has since been replaced does nothing.
+
+An error inside a tick halts the simulation: the tick has partly run, so it must not
+continue.
 
 Until the ledger window (#20), developer slash commands drive it: `/tim start`,
 `/tim status` (logical time, clips, funds, wire, CPU per frame, dropped time),

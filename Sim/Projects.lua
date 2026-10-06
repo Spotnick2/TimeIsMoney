@@ -582,19 +582,19 @@ departure("project147")
 departure("project148")
 -- The prestige routes: one more universe (prestigeU, +10 % demand) or one more
 -- simulation (prestigeS, +10 % creativity), saved for the next game; reset() then
--- clears the save and reloads the page. Starting that next game is the host's
--- new-game control (#23), so the slice stops there with the saved prestige kept.
+-- clears the save and reloads the page. The reload is the host's: the effect saves
+-- the prestige and requests the restart, and the host starts the next company with
+-- that prestige (#23).
 local function universe(name, cost, message, apply)
     add(name, flag("project147"), cost, function(game)
         local S = game.S
         S[name].flag = 1
         apply(S)
         game.savedPrestige = { prestigeU = S.prestigeU, prestigeS = S.prestigeS }
-        -- This company is over (the reference reloads the page): the host must not
-        -- keep running it after the stop below.
+        -- This company is over (the reference reloads the page): the host starts the
+        -- next one and never runs this one again.
         game.restartRequested = "prestige"
         game:displayMessage(message)
-        Unported("reset after a prestige choice (a new game with the saved prestige)", "#23")
     end)
 end
 universe("project200", ops(300000), "Entering New Universe.", function(S)
@@ -683,9 +683,20 @@ add("project216", function(S) return S.project215.flag == 1 and S.endTimer5 >= 1
     game:displayMessage("Dismantling memory")
     game:removeProject("project216")
 end)
--- Restart asks confirm() and resets the game (explicit new-game control, #23).
+-- Quantum Temporal Reversion: the reference asks confirm() and, if the player agrees,
+-- returns the Operations, marks the project, says "Restart" and resets (the save is
+-- cleared; the stored prestige is reloaded). The confirmation is the host's (an
+-- explicit confirmed click, asked by the window), the reset is the host's too, with
+-- the account's prestige (#23).
 add("project217", function(S) return S.operations <= -10000 end, function(S) return S.operations <= -10000 end,
-    function() Unported("Quantum Temporal Reversion restart (confirm and reset)", "#23") end, "#23")
+    function(game)
+        local S = game.S
+        S.standardOps = S.standardOps + 10000
+        S.project217.flag = 1
+        game:displayMessage("Restart")
+        game:removeProject("project217")
+        game.restartRequested = "reversion"
+    end)
 add("project218", creat(1000000), creat(1000000), function(game)
     local S = game.S
     S.creativity = S.creativity - 1000000

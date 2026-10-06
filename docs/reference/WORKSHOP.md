@@ -176,8 +176,9 @@ State uses the reference global names, formulas and statement order: `clips`
   - Accept or Reject the exile; either removes both buttons;
   - Accept: The Universe Next Door (prestigeU) and The Universe Within (prestigeS),
     each saved for the next game (game.savedPrestige for the host); their reset()
-    reloads the page, which is the host's new-game control, so the slice stops there
-    (#23) with the prestige kept. A new game's prestige is a fixture global until then;
+    reloads the page, which the host does: the next company starts with the
+    prestige kept (#23). Traces cannot follow a reload, so a new game's prestige is a
+    fixture global in them;
   - Reject: end timers unlock the dismantling of the probes, the swarm, the
     factories, the strategy engine (50 wire back), quantum computing (the photonic
     chips rest at 0.5 and release ten more wire on fixed timer ticks), the processors
@@ -219,9 +220,7 @@ Reference paths outside the slice raise
 | Path | Issue |
 | --- | --- |
 | Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #20 |
-| Quantum Temporal Reversion (confirm() then reset) | #23 |
 | toLocaleString of negative, fractional or unsafe-integer values | #21 |
-| Reset after a prestige choice (The Universe Next Door or Within): the reload into a new game with the saved prestige | #23 |
 | Milestone 15 (all the universe's matter in clips, or surveyed and used up), which opens the correspondence and endings | #16 |
 | Probe formulas beyond the verified domain: Math.pow(n, 1.2), Math.pow(n, 1.47) and Math.pow(n, 1.6) for integer n > 10,000 (trust and hazard allocations); the trust purchase checks before any change | #24 |
 | Building purchases and reboots with fractional drone, farm or battery levels (probes build fractional drones in space), whose costs are not integer bases; checked before any change | #24 |
@@ -468,7 +467,8 @@ These traces establish parity for the covered paths on the measured Windows /
 Node 24 profile. They do not establish:
 
 - the restart into a new game after a prestige choice or Quantum Temporal
-  Reversion (the host's new-game control, #23), and the auto-save (#19);
+  Reversion (a reload; tests/test_host.lua covers the host's restart, #23), and the
+  auto-save (#19);
 - Strategic Attachment's placing bonuses in a trace: they need eight strategies,
   whose tournament takes about a minute of game time, so tests/test_sim.lua covers
   them;
