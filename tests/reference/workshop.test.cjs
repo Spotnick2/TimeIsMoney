@@ -544,5 +544,11 @@ test("the dismantling ends in final clips made by hand and the credits",()=>{
 });
 test("the project traceability checklist is current",()=>{
     const Checklist=require("./project_checklist.cjs");
-    assert.equal(require("node:fs").readFileSync(Checklist.OUTPUT,"utf8"),Checklist.generate());
+    const purchases={};
+    for (const name of Workshop.names) purchases[name]=run(name).port.purchases;
+    assert.equal(require("node:fs").readFileSync(Checklist.OUTPUT,"utf8"),Checklist.generate(purchases));
+    // Every project is bought in a trace or is a restart covered by the Lua tests.
+    const bought=new Set(Object.values(purchases).flat());
+    for (const name of Object.keys(Checklist.RESTARTS)) assert.ok(!bought.has(name),name+" is a restart");
+    assert.equal(bought.size+Object.keys(Checklist.RESTARTS).length,96);
 });

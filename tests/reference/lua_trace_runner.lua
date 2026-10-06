@@ -12,6 +12,20 @@ loadSim("Sim/Reference.lua")
 for _, path in ipairs(ns.Reference.files) do loadSim(path) end
 local JSMath, Workshop = ns.JSMath, ns.Workshop
 
+-- Project purchases (effects that ran), reported for the traceability matrix
+-- (docs/reference/PROJECTS.md, #24). Not part of the comparison.
+local purchases, purchased = {}, {}
+for _, entry in ipairs(Workshop.projects) do
+    local effect = entry.effect
+    entry.effect = function(...)
+        if not purchased[entry.name] then
+            purchased[entry.name] = true
+            purchases[#purchases + 1] = entry.name
+        end
+        return effect(...)
+    end
+end
+
 local trace = assert(loadfile(arg[1]))()
 local events = {}
 local random = RecordedRandom.new("simulation", trace.random, events)
@@ -156,6 +170,9 @@ local keys = {}
 for i, k in ipairs(stateKeys) do keys[i] = quote(k) end
 write(',"projection":{"state":[' .. table.concat(keys, ",") .. '],"disabled":[' .. table.concat(buttons, ",") ..
     '],"html":[' .. table.concat(readouts, ",") .. '],"value":[' .. table.concat(selects, ",") .. ']}')
+local bought = {}
+for i, name in ipairs(purchases) do bought[i] = quote(name) end
+write(',"purchases":[' .. table.concat(bought, ",") .. "]")
 write(',"events":[')
 for i, event in ipairs(events) do
     if i > 1 then write(",") end
