@@ -25,7 +25,8 @@ Director.CROP, Director.MARGIN = 0.40, 1.30
 Director.FOV, Director.CAMERA = 0.15, 40
 Director.POLLS, Director.POLL_STEP = 30, 0.1 -- the box poll: about 3 s
 Director.MIN_STRIP = 92                   -- the strip's height when the line is short
-Director.modelEnabled = true              -- /tim model toggles (session; settings are #23)
+-- The model and the voice follow the saved settings (UI/Settings.lua).
+local function setting(key) return ns.Settings.values[key] end
 -- "Time is money, friend!": a goblin NPC greeting from the client's own files
 -- (sound/creature/goblinmalegruffnpc/goblinmalegruffnpcgreeting01.ogg, file 550785;
 -- picked by ear by the owner, 2026-10-05, from the community listfile).
@@ -193,7 +194,7 @@ function Director.Update(speaker, line, width, report, isCredit)
     strip.report:SetShown(report ~= nil)
     if report then strip.report:SetText(report) end
     if speaker == ns.Dialogue.DIRECTOR then
-        if Director.modelEnabled then ShowModel() elseif Director.state ~= "portrait" then ShowPortrait() end
+        if setting("model") then ShowModel() elseif Director.state ~= "portrait" then ShowPortrait() end
     else
         -- The Director has gone (or never spoke this session): no model, the mark.
         if Director.state ~= "none" or strip.scene:IsShown() then DropModel() end
@@ -209,7 +210,7 @@ end
 -- Opening the window while the Director is speaking: he greets the player aloud,
 -- on the dialog channel (the player's dialog volume and mute apply).
 function Director.Greet(speaker)
-    if speaker == ns.Dialogue.DIRECTOR then
+    if speaker == ns.Dialogue.DIRECTOR and setting("voice") then
         TimeIsMoney.API.PlaySoundFile(Director.GREETING_SOUND, "Dialog")
     end
 end
@@ -217,8 +218,13 @@ end
 -- /tim model: the live model or the 2D portrait. Turning it on retries a model that
 -- failed to load. Works before the window exists (it applies when the strip does).
 function Director.ToggleModel()
-    Director.modelEnabled = not Director.modelEnabled
+    return Director.SetModel(not setting("model"))
+end
+
+-- The model setting (saved): on retries a model that failed to load.
+function Director.SetModel(on)
+    ns.Settings.Set("model", on)
     Director.failed = nil
     if Director.strip and Director.state ~= "none" then DropModel() end
-    return Director.modelEnabled
+    return on
 end

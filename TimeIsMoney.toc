@@ -26,6 +26,7 @@ UI/View.lua
 UI/Locale.lua
 UI/Locale_enUS.lua
 UI/Messages.lua
+UI/Settings.lua
 UI/Dialogue.lua
 UI/Director.lua
 UI/Window.lua

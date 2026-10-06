@@ -65,7 +65,7 @@ assert(ns.L[who] == "Director" and ns.L[line] == "New premises. New customers. S
 -- /tim model works before the window exists (no strip yet), and back.
 env.SlashCmdList.TIMEISMONEY("model")
 env.SlashCmdList.TIMEISMONEY("model")
-assert(Director.modelEnabled)
+assert(ns.Settings.values.model)
 
 -- The window's redraw ticks the Director's box poll (no timers of its own).
 local function tick(n)

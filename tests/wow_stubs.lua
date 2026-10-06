@@ -11,11 +11,12 @@ local function New(saved, libGlass)
         -- Standard Lua the simulation and host use (test_sim.lua enforces Sim's set).
         math = math, string = string, table = table, pairs = pairs, ipairs = ipairs, type = type,
         tonumber = tonumber, error = error, setmetatable = setmetatable, next = next, select = select,
-        pcall = pcall,
+        pcall = pcall, assert = assert,
         GetServerTime = function() return 1790000000 end,
         debugprofilestop = function() captured.clock = (captured.clock or 0) + 0.01 return captured.clock end,
     }
-    local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true, TimeIsMoneyConfirm = true }
+    local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true, TimeIsMoneyConfirm = true, TimeIsMoneyHelp = true,
+        TimeIsMoneySettings = true }
     setmetatable(env, { __index = function(_, key)
         if allowedNil[key] then return nil end
         error("Unvalidated global: " .. tostring(key), 2)
@@ -24,8 +25,8 @@ local function New(saved, libGlass)
     -- state they set kept for assertions. Stubs cannot prove pixels.
     local Widget = {}
     local methods = {
-        "ClearAllPoints", "SetAllPoints", "SetFrameStrata", "SetToplevel", "SetClampedToScreen",
-        "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing",
+        "ClearAllPoints", "SetAllPoints", "SetToplevel", "SetClampedToScreen",
+        "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing", "SetUserPlaced",
         "SetMotionScriptsWhileDisabled", "SetJustifyH", "SetWordWrap", "SetStatusBarColor",
         -- The Director's ModelScene (#22; measured in the client by the #10 probe).
         "SetCameraFieldOfView", "SetCameraNearClip", "SetCameraFarClip", "SetCameraPosition",
@@ -55,6 +56,11 @@ local function New(saved, libGlass)
     function Widget:SetShown(v) self.shown = not not v end
     function Widget:IsShown() return self.shown end
     function Widget:SetFrameLevel(l) self.level = l end
+    function Widget:Raise() captured.raised = self end
+    function Widget:SetFrameStrata(s) self.strata = s end
+    function Widget:GetScale() return self.scale or 1 end
+    function Widget:GetLeft() return self.left or 100 end
+    function Widget:GetTop() return self.top or 700 end
     function Widget:GetFrameLevel() return self.level or 1 end
     function Widget:SetEnabled(v) self.enabled = not not v end
     function Widget:IsEnabled() return self.enabled end

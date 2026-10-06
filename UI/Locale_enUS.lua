@@ -10,6 +10,26 @@ ns.Locale.Register("enUS", {
     ["confirm.yes"] = "Yes, start over",
     ["confirm.no"] = "Keep this company",
 
+    -- Help (the persistence message is the brief's exact wording).
+    ["help.title"] = "Time Is Money: help",
+    ["help.persistenceTitle"] = "Saving",
+    ["help.persistence"] = "Progress is saved when you log out normally or reload the interface. A crash or forced close can lose progress since the last successful save. After a long session, use /reload when it is safe to do so.",
+    ["help.play"] = "Make Copper Bolts, set the price, and keep Copper Bars in stock. Whirring Bronze Gizmos and Thorium Widgets make bolts while you do other things.",
+    ["help.projects"] = "Projects appear as the company grows. Each shows its cost; buy the ones you can afford.",
+    ["help.reports"] = "The strip at the bottom: the Director's remarks and the company's latest report.",
+    ["help.commands"] = "/tim opens or closes the ledger. /tim settings: the Director, the window scale and a new game. /tim help: this page.",
+
+    -- Settings.
+    ["settings.title"] = "Settings",
+    ["settings.modelOn"] = "Director: animated model",
+    ["settings.modelOff"] = "Director: portrait",
+    ["settings.voiceOn"] = "Director's greeting: on",
+    ["settings.voiceOff"] = "Director's greeting: off",
+    ["settings.scale"] = "Window scale: {percent}%",
+    ["settings.help"] = "Help",
+    ["settings.newGame"] = "New game...",
+    ["settings.notSaved"] = "Saving is off (unrecognized saved data): changes here are not kept after logout.",
+
     -- Speakers.
     ["speaker.director"] = "Director",
     ["speaker.ledger"] = "The Ledger",

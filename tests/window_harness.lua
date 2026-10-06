@@ -4,7 +4,9 @@
 -- (LIBGLASS=none forces it). Returns env, captured, ns and libGlass (or nil).
 local Stubs = dofile("tests/wow_stubs.lua")
 
-local function Load()
+-- opts.firstUse keeps the first-use help (other tests mark it seen, so it does not
+-- cover the window they inspect).
+local function Load(opts)
     local files = {}
     for line in io.lines("TimeIsMoney.toc") do
         line = line:match("^%s*(.-)%s*$")
@@ -33,6 +35,7 @@ local function Load()
         chunk("TimeIsMoney", ns)
     end
     captured:Fire("TimeIsMoney")
+    if not (opts and opts.firstUse) then ns.Settings.Set("helpSeen", true) end
     return env, captured, ns, libGlass
 end
 

@@ -61,6 +61,22 @@ campaign order, whose condition holds, so a reload shows the same line:
 
 The reference's own messages come back here in goblin wording in #22's second PR.
 
+## Help and settings (#23)
+
+- **Help** ("?" on the title bar, or `/tim help`) gives the brief's exact
+  persistence message and a short guide. It opens once by itself, with the first
+  company.
+- **Settings** ("=" on the title bar, or `/tim settings`):
+  - the Director as an animated model or a portrait;
+  - his greeting voice on or off;
+  - the window scale, from 60% to 150%, still fitted to the screen;
+  - Help;
+  - "New game...", behind its explicit confirmation.
+- **The window's position** is kept where the player drags it.
+- Everything is saved in `TimeIsMoneyDB.settings` (docs/SAVES.md). None of it reaches
+  the simulation: a test changes every setting and checks the state and draw count
+  are unchanged.
+
 ## Selects and presentation state
 
 - **Selects** (risk, strategy) are buttons showing the selected option. A click
