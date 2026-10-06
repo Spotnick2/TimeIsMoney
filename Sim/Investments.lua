@@ -25,15 +25,12 @@ end
 
 -- Math.pow(base, Math.E) matches V8 for every base up to this bound
 -- (tests/reference/jsmath.test.cjs); the first known difference is at base 968.
+-- Beyond it the correctly rounded pow is within one binary64 step of V8's (#24).
 Workshop.VERIFIED_INVEST_POW_BASE = 967
 
 function Game:investUpgrade()
     local S = self.S
     -- The new cost uses base (investLevel + 1) after the level increment.
-    local base = S.investLevel + 2
-    if base > Workshop.VERIFIED_INVEST_POW_BASE then
-        Unported("investUpgradeCost beyond the verified Math.pow(base, Math.E) range", "#24")
-    end
     S.yomi = S.yomi - S.investUpgradeCost
     S.investLevel = S.investLevel + 1
     S.stockGainThreshold = S.stockGainThreshold + .01

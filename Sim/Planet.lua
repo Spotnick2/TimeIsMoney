@@ -81,50 +81,43 @@ for _, id in ipairs({
 -- Building costs ------------------------------------------------------------
 
 -- Math.pow(n, e) for a cost: the reference profile's value (Sim/CostPow.lua) where
--- it differs from JSMath.pow. Beyond the compared domain the reference value is
--- unknown, so the slice stops.
+-- it differs from JSMath.pow.
 -- A cost is a pure function of its integer base, so computed values are kept
--- (the pure-Lua pow is slow and the price sums revisit the same bases).
-local memo = {}
+-- (the pure-Lua pow is slow and the price sums revisit the same bases). Beyond the
+-- table the memo is bounded: it starts over after MEMO_BEYOND entries, since levels
+-- only move forward and the sums look at most 1,000 bases ahead.
+local memo, beyond, MEMO_BEYOND = {}, {}, 4096
 for e, domain in pairs(CostPow) do
-    if type(domain) == "table" then memo[e] = {} end
+    if type(domain) == "table" then memo[e], beyond[e] = {}, { count = 0 } end
 end
+-- Inside the verified domain (integer bases up to the table's limit) the value is
+-- the pinned reference profile's, exactly. Beyond it, or for a fractional base
+-- (probes build fractional drone levels in space), it is the correctly rounded
+-- pow: within one binary64 step of the reference's platform pow, which no portable
+-- implementation reproduces (#24, owner decision 2026-10-06; docs/reference/WORKSHOP.md).
+-- Only integer bases are memoized: fractional levels change every tick.
 local function costPow(n, e)
     local domain = CostPow[e]
-    if n ~= floor(n) or n < 1 or n > domain.limit then
-        Unported("building cost Math.pow(" .. JSMath.toString(n) .. ", " .. e .. ") beyond the verified domain", "#24")
-    end
-    local value = memo[e][n]
+    if n ~= floor(n) then return JSMath.pow(n, tonumber(e)) end
+    local inside = n >= 1 and n <= domain.limit
+    local cache = inside and memo[e] or beyond[e]
+    local value = cache[n]
     if value == nil then
-        local fix = domain.fixes[n]
+        local fix = inside and domain.fixes[n]
         value = fix and JSMath.fromWords(fix[1], fix[2]) or JSMath.pow(n, tonumber(e))
-        memo[e][n] = value
+        if not inside then
+            if cache.count >= MEMO_BEYOND then
+                cache = { count = 0 }
+                beyond[e] = cache
+            end
+            cache.count = cache.count + 1
+        end
+        cache[n] = value
     end
     return value
 end
 Workshop.costPow = costPow
 
--- Every cost base the price updates reach from the given levels: each drone level
--- + 1000 (purchase loops stay within that), each farm and battery level + 100.
--- Probes build fractional drone levels in space (#14), whose costs are not integer
--- bases. Purchases and reboots call it first with the levels after the operation,
--- so a stop (#24) always comes before any change.
-local function requirePriceDomains(S, levels)
-    local function level(name)
-        if levels and levels[name] ~= nil then return levels[name] end
-        return S[name]
-    end
-    for _, check in ipairs({
-        { "2.25", "harvesterLevel", 1000 }, { "2.25", "wireDroneLevel", 1000 },
-        { "2.78", "farmLevel", 100 }, { "2.54", "batteryLevel", 100 },
-    }) do
-        local n = level(check[2])
-        if n ~= floor(n) or n + check[3] > CostPow[check[1]].limit then
-            Unported("building cost Math.pow(" .. JSMath.toString(n + check[3]) .. ", " .. check[1] ..
-                ") beyond the verified domain", "#24")
-        end
-    end
-end
 
 -- updateUpgrades only writes presentation (the next upgrade thresholds).
 
@@ -168,7 +161,6 @@ end
 
 function Game:updateDronePrices()
     local S = self.S
-    requirePriceDomains(S)
     S.p10h, S.p100h, S.p1000h = priceSums(S.harvesterLevel + 1, 1000, "2.25", 1000000)
     S.p10w, S.p100w, S.p1000w = priceSums(S.wireDroneLevel + 1, 1000, "2.25", 1000000)
     S.x = 1000
@@ -178,7 +170,6 @@ end
 -- cost recomputed after the previous purchase.
 local function makeDrones(game, amount, level, cost, bill)
     local S = game.S
-    requirePriceDomains(S, { [level] = S[level] + amount })
     for _ = 1, amount do
         if S.unusedClips >= S[cost] then
             S.unusedClips = S.unusedClips - S[cost]
@@ -216,7 +207,6 @@ end
 
 function Game:harvesterReboot()
     local S = self.S
-    requirePriceDomains(S, { harvesterLevel = 0 })
     S.harvesterLevel = 0
     S.unusedClips = S.unusedClips + S.harvesterBill
     S.harvesterBill = 0
@@ -226,7 +216,6 @@ end
 
 function Game:wireDroneReboot()
     local S = self.S
-    requirePriceDomains(S, { wireDroneLevel = 0 })
     S.wireDroneLevel = 0
     S.unusedClips = S.unusedClips + S.wireDroneBill
     S.wireDroneBill = 0
@@ -246,7 +235,6 @@ end
 
 function Game:updatePowPrices()
     local S = self.S
-    requirePriceDomains(S)
     local _
     S.p10f, _, S.p100f = priceSums(S.farmLevel + 1, 100, "2.78", 100000000)
     S.p10b, _, S.p100b = priceSums(S.batteryLevel + 1, 100, "2.54", 10000000)
@@ -255,7 +243,6 @@ end
 
 local function makePower(game, amount, e, scale, level, cost, bill)
     local S = game.S
-    requirePriceDomains(S, { [level] = S[level] + amount })
     for _ = 1, amount do
         if S.unusedClips >= S[cost] then
             S.unusedClips = S.unusedClips - S[cost]
@@ -280,7 +267,6 @@ end
 -- formula (farms 1e7, batteries 1e6), as in the reference.
 function Game:farmReboot()
     local S = self.S
-    requirePriceDomains(S, { farmLevel = 0 })
     S.farmLevel = 0
     S.unusedClips = S.unusedClips + S.farmBill
     S.farmBill = 0
@@ -290,7 +276,6 @@ end
 
 function Game:batteryReboot()
     local S = self.S
-    requirePriceDomains(S, { batteryLevel = 0 })
     S.batteryLevel = 0
     S.unusedClips = S.unusedClips + S.batteryBill
     S.batteryBill = 0

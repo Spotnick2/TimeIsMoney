@@ -31,6 +31,11 @@ function candidates() {
     for (let n=1;n<=100;n++) list.push(["sin",n]);
     for (let n=1;n<=20;n++) list.push(["sin",n*Math.PI/2]);
     for (const x of [0,-0,1e-300,Math.PI/4,823549]) list.push(["sin",x]);
+    // Large arguments (#24, __kernel_rem_pio2): exponents across the range, the
+    // quantum clock beyond 19 days, and the classic hardest reduction case.
+    for (let e=21;e<=1021;e+=50) list.push(["sin",(1+rnd())*Math.pow(2,e)],["sin",-(1+rnd())*Math.pow(2,e)]);
+    for (let k=0;k<20;k++) list.push(["sin",1.6e6+rnd()*1e9]);
+    list.push(["sin",6381956970095103*Math.pow(2,797)],["sin",1e300],["sin",1.7976931348623157e308]);
     for (let n=1;n<=200;n++) list.push(["log10",n]);
     for (let i=0;i<50;i++) list.push(["log10",rnd()*Math.pow(10,Math.floor(rnd()*40-20))]);
     // Math.log: the swarm's gift rate (#13).
