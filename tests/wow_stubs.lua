@@ -56,6 +56,10 @@ local function New(saved, libGlass)
     function Widget:SetShown(v) self.shown = not not v end
     function Widget:IsShown() return self.shown end
     function Widget:SetFrameLevel(l) self.level = l end
+    function Widget:Raise() captured.raised = self end
+    function Widget:GetScale() return self.scale or 1 end
+    function Widget:GetLeft() return self.left or 100 end
+    function Widget:GetTop() return self.top or 700 end
     function Widget:GetFrameLevel() return self.level or 1 end
     function Widget:SetEnabled(v) self.enabled = not not v end
     function Widget:IsEnabled() return self.enabled end

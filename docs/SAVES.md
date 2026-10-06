@@ -30,7 +30,8 @@ never part of the company or the simulation:
 - the Director's model (on or off);
 - the greeting voice (on or off);
 - the window scale, from 0.6 to 1.5;
-- the window position (a point relative to UIParent);
+- the window position: its top-left corner in UIParent units, so a change of scale
+  leaves it where it was;
 - whether the first-use help was seen.
 
 `UI/Settings.lua` checks each value on load. A damaged or unknown one falls back to

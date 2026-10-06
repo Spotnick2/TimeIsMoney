@@ -67,6 +67,7 @@ local function Slash(message)
         end
     elseif command == "model" then
         Print("Director model " .. (TIM.Director.ToggleModel() and "on." or "off (portrait)."))
+        if TIM.Window.settings and TIM.Window.settings:IsShown() then TIM.Window.FillSettings() end
     elseif command == "start" then
         if Host.blocked then
             Print("Not starting: " .. Host.blocked .. ". The saved data is kept untouched.")

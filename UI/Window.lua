@@ -661,12 +661,7 @@ local function Build()
     ns.Assets.onLoaded = function() Window.iconsDirty = true end
     local f = CreateFrame("Frame", "TimeIsMoneyWindow", UIParent)
     -- Where the player left it (saved), else above the centre.
-    local point = ns.Settings.values.point
-    if point then
-        f:SetPoint(point[1], UIParent, point[2], point[3], point[4])
-    else
-        f:SetPoint("CENTER", UIParent, "CENTER", 0, 80)
-    end
+    if not ns.Settings.values.point then f:SetPoint("CENTER", UIParent, "CENTER", 0, 80) end
     f:SetFrameStrata("MEDIUM")
     f:SetToplevel(true)
     f:SetClampedToScreen(true)
@@ -676,10 +671,12 @@ local function Build()
     f:SetScript("OnDragStart", f.StartMoving)
     f:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        -- The settings keep the position (not the client's layout cache).
+        -- The settings keep the position (not the client's layout cache), as the top-left
+        -- corner in UIParent units, so a scale change leaves it where it was.
         self:SetUserPlaced(false)
-        local p, _, rp, x, y = self:GetPoint(1)
-        ns.Settings.Set("point", { p, rp, x, y })
+        local s = self:GetScale()
+        ns.Settings.Set("point", { "TOPLEFT", "BOTTOMLEFT", self:GetLeft() * s, self:GetTop() * s })
+        Window.PlaceWindow()
     end)
     local g = Glass.Apply(f, "large")
     local content = CreateFrame("Frame", nil, f)
@@ -1028,6 +1025,18 @@ function Window.Refresh()
     -- (settings) applies within that.
     f:SetScale(math.min(ns.Settings.values.scale, (UIParent:GetWidth() - 2 * Window.GAP) / width,
         (UIParent:GetHeight() - 2 * Window.GAP) / height))
+    -- Re-anchored only when the scale changed (never mid-drag on every redraw).
+    if f:GetScale() ~= Window.placedScale then Window.PlaceWindow() end
+end
+
+-- The saved top-left corner (UIParent units) at the window's current scale.
+function Window.PlaceWindow()
+    local point, f = ns.Settings.values.point, Window.frame
+    if not point then return end
+    local s = f:GetScale()
+    Window.placedScale = s
+    f:ClearAllPoints()
+    f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", point[3] / s, point[4] / s)
 end
 
 -- An explicit yes/no for an action that ends the company: a dialog above the window
@@ -1135,30 +1144,43 @@ local function IconEntries()
     return list
 end
 
-local function BuildIcons()
-    local f = CreateFrame("Frame", "TimeIsMoneyIcons", UIParent)
-    f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-    f:SetFrameStrata("DIALOG")
-    f:SetClampedToScreen(true)
-    f:SetMovable(true)
-    f:EnableMouse(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", f.StartMoving)
-    f:SetScript("OnDragStop", f.StopMovingOrSizing)
-    local g = Glass.Apply(f, "large")
-    local content = CreateFrame("Frame", nil, f)
-    content:SetAllPoints(f)
-    content:SetFrameLevel(Glass.ContentLevel(f))
-    local title = Glass.Font(g.top, 14, "LEFT")
-    title:SetPoint("TOPLEFT", content, "TOPLEFT", Glass.Inset("large"), -Glass.Inset("large"))
-    title:SetText("Time Is Money: icon check")
-    title:SetTextColor(COPPER[1], COPPER[2], COPPER[3])
-    local close = NewButton(content, nil, Window.SQUARE)
+-- A glass panel with a title and a close button, shown above the window (help,
+-- settings, the icon check). Opening one brings it to the front.
+function Window.Panel(name, width, height)
+    local p = CreateFrame("Frame", name, UIParent)
+    p:SetSize(width, height)
+    p:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
+    p:SetFrameStrata("DIALOG")
+    p:SetToplevel(true)
+    -- Opening a panel brings it in front of the others.
+    p:SetScript("OnShow", function(self) self:Raise() end)
+    p:SetClampedToScreen(true)
+    p:SetMovable(true)
+    p:EnableMouse(true)
+    p:RegisterForDrag("LeftButton")
+    p:SetScript("OnDragStart", p.StartMoving)
+    p:SetScript("OnDragStop", p.StopMovingOrSizing)
+    p.glass = Glass.Apply(p, "large")
+    p.content = CreateFrame("Frame", nil, p)
+    p.content:SetAllPoints(p)
+    p.content:SetFrameLevel(Glass.ContentLevel(p))
+    local inset = Glass.Inset("large")
+    p.title = Glass.Font(p.glass.top, 14, "LEFT")
+    p.title:SetPoint("TOPLEFT", p, "TOPLEFT", inset + 6, -inset - 4)
+    p.title:SetTextColor(COPPER[1], COPPER[2], COPPER[3])
+    local close = NewButton(p.content, nil, Window.SQUARE)
     close:SetWidth(Window.SQUARE)
-    close:SetPoint("TOPRIGHT", content, "TOPRIGHT", -Glass.Inset("large"), -Glass.Inset("large"))
+    close:SetPoint("TOPRIGHT", p, "TOPRIGHT", -inset, -inset)
     close.label:SetText("x")
-    close:SetScript("OnClick", function() f:Hide() end)
-    f.content, f.cells = content, {}
+    close:SetScript("OnClick", function() p:Hide() end)
+    p:Hide()
+    return p
+end
+
+local function BuildIcons()
+    local f = Window.Panel("TimeIsMoneyIcons", 750, 600)
+    f.title:SetText("Time Is Money: icon check")
+    f.cells = {}
     -- While shown, look again twice a second: an item can answer later, with or
     -- without a load event.
     f:SetScript("OnUpdate", function(_, elapsed)
@@ -1168,7 +1190,6 @@ local function BuildIcons()
             Window.FillIcons()
         end
     end)
-    f:Hide() -- a new frame is shown; the toggle opens it
     Window.icons = f
 end
 
@@ -1233,36 +1254,6 @@ end
 
 -- Help and settings (#23) -------------------------------------------------------
 
--- A small glass panel with a title and a close button, shown above the window.
-local function Panel(name, titleKey, width, height)
-    local p = CreateFrame("Frame", name, UIParent)
-    p:SetSize(width, height)
-    p:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
-    p:SetFrameStrata("DIALOG")
-    p:SetClampedToScreen(true)
-    p:SetMovable(true)
-    p:EnableMouse(true)
-    p:RegisterForDrag("LeftButton")
-    p:SetScript("OnDragStart", p.StartMoving)
-    p:SetScript("OnDragStop", p.StopMovingOrSizing)
-    p.glass = Glass.Apply(p, "large")
-    p.content = CreateFrame("Frame", nil, p)
-    p.content:SetAllPoints(p)
-    p.content:SetFrameLevel(Glass.ContentLevel(p))
-    local inset = Glass.Inset("large")
-    p.title = Glass.Font(p.glass.top, 14, "LEFT")
-    p.title:SetPoint("TOPLEFT", p, "TOPLEFT", inset + 6, -inset - 4)
-    p.title:SetTextColor(COPPER[1], COPPER[2], COPPER[3])
-    p.titleKey = titleKey
-    local close = NewButton(p.content, nil, Window.SQUARE)
-    close:SetWidth(Window.SQUARE)
-    close:SetPoint("TOPRIGHT", p, "TOPRIGHT", -inset, -inset)
-    close.label:SetText("x")
-    close:SetScript("OnClick", function() p:Hide() end)
-    p:Hide()
-    return p
-end
-
 local function Line(p, size, y, color)
     local fs = Glass.Font(p.glass.top, size, "LEFT")
     fs:SetPoint("TOPLEFT", p, "TOPLEFT", 18, y)
@@ -1279,19 +1270,30 @@ function Window.ShowHelp()
     if not Window.frame then Build() end
     local p = Window.help
     if not p then
-        p = Panel("TimeIsMoneyHelp", "help.title", 440, 330)
+        p = Window.Panel("TimeIsMoneyHelp", 440, 330)
         p.persistenceTitle = Line(p, 11, -46, COPPER)
         p.persistence = Line(p, 12, -62)
         p.lines = {}
-        for i in ipairs(Window.HELP_LINES) do p.lines[i] = Line(p, 11, -140 - (i - 1) * 44, MUTED) end
+        for i in ipairs(Window.HELP_LINES) do p.lines[i] = Line(p, 11, 0, MUTED) end
         Window.help = p
     end
     local L = ns.L
     p.title:SetText(L["help.title"])
     p.persistenceTitle:SetText(L["help.persistenceTitle"])
     p.persistence:SetText(L["help.persistence"])
-    for i, key in ipairs(Window.HELP_LINES) do p.lines[i]:SetText(L[key]) end
+    -- Each paragraph below the last, by its measured height (translations wrap
+    -- differently); the panel grows to fit.
+    local y = -62 - p.persistence:GetStringHeight() - 14
+    for i, key in ipairs(Window.HELP_LINES) do
+        local line = p.lines[i]
+        line:SetText(L[key])
+        line:ClearAllPoints()
+        line:SetPoint("TOPLEFT", p, "TOPLEFT", 18, y)
+        y = y - line:GetStringHeight() - 10
+    end
+    p:SetHeight(-y + 16)
     p:Show()
+    p:Raise()
     ns.Settings.Set("helpSeen", true)
 end
 
@@ -1301,12 +1303,11 @@ function Window.ToggleSettings()
     if not Window.frame then Build() end
     local p = Window.settings
     if not p then
-        p = Panel("TimeIsMoneySettings", "settings.title", 320, 250)
+        p = Window.Panel("TimeIsMoneySettings", 320, 280)
         local function Toggle(y, key, apply)
             local b = NewButton(p.content, nil)
             b:SetSize(284, Window.BUTTON)
             b:SetPoint("TOPLEFT", p, "TOPLEFT", 18, y)
-            b.key = key
             b:SetScript("OnClick", function()
                 apply(not ns.Settings.values[key])
                 Window.FillSettings()
@@ -1334,6 +1335,8 @@ function Window.ToggleSettings()
         p.newGame = NewButton(p.content, nil)
         p.newGame:SetSize(284, Window.BUTTON)
         p.newGame:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -186)
+        -- While saving is off, changes here are not kept: say so.
+        p.notice = Line(p, 10, -220, { 1, 0.5, 0.3 })
         p.newGame:SetScript("OnClick", function()
             if ns.Host.blocked then
                 Report("not starting over: " .. ns.Host.blocked .. "; the saved data is kept untouched")
@@ -1348,6 +1351,7 @@ function Window.ToggleSettings()
     if p:IsShown() then p:Hide() return end
     Window.FillSettings()
     p:Show()
+    p:Raise()
 end
 
 function Window.FillSettings()
@@ -1358,4 +1362,6 @@ function Window.FillSettings()
     p.scaleLabel:SetText(ns.Locale.Format("settings.scale", { percent = math.floor(v.scale * 100 + 0.5) }))
     p.helpButton.label:SetText(L["settings.help"])
     p.newGame.label:SetText(L["settings.newGame"])
+    p.notice:SetShown(ns.Host.blocked ~= nil)
+    if ns.Host.blocked then p.notice:SetText(L["settings.notSaved"]) end
 end

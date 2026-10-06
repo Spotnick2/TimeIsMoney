@@ -64,22 +64,53 @@ assert(Window.dialog:IsShown() and Window.dialog.question.text:find("Start a new
 Window.dialog.no.scripts.OnClick(Window.dialog.no)
 assert(Host.game == game)
 
--- The window's position is kept when dragged, and restored next time.
-Window.frame.GetPoint = function() return "TOPLEFT", env.UIParent, "TOPLEFT", 120, -80 end
-Window.frame.scripts.OnDragStop(Window.frame)
-assert(Settings.values.point[1] == "TOPLEFT" and Settings.values.point[3] == 120)
+-- The window's position is kept when dragged, as its top-left corner in UIParent
+-- units, and the window is placed back there at whatever scale it has.
+local f = Window.frame
+f.left, f.top, f.scale = 100, 500, 1.2 -- the frame's own (scaled) coordinates
+f.scripts.OnDragStop(f)
+local point = Settings.values.point
+assert(point[1] == "TOPLEFT" and point[2] == "BOTTOMLEFT" and math.abs(point[3] - 120) < 1e-9
+    and math.abs(point[4] - 600) < 1e-9, "screen units: offsets times the scale")
+assert(f.point[1] == "TOPLEFT" and math.abs(f.point[4] - 100) < 1e-9 and math.abs(f.point[5] - 500) < 1e-9)
+-- A scale change keeps the corner on screen where it was (offsets divided by it).
+f.scale = 1.5
+Window.PlaceWindow()
+assert(math.abs(f.point[4] * 1.5 - 120) < 1e-9 and math.abs(f.point[5] * 1.5 - 600) < 1e-9)
+-- Redraws do not re-anchor at an unchanged scale (a drag in progress is left alone).
+f.point = nil
+Window.Refresh()
+assert(f.point == nil or f.scale ~= 1.5, "no re-anchoring on every redraw")
+-- Help opened from the settings comes to the front.
+p.helpButton.scripts.OnClick(p.helpButton)
+assert(captured.raised == Window.help, "help in front of the settings")
+Window.help:Hide()
+-- /tim model refreshes an open settings panel.
+env.SlashCmdList.TIMEISMONEY("model")
+assert(p.model.label.text == "Director: animated model" and Settings.values.model)
 
 -- Logout writes the settings with the company; a reload reads them back.
 local db = Host.persist()
-assert(db.settings and db.settings.model == false and db.settings.scale == 1.4 and db.settings.point[4] == -80)
+assert(db.settings and db.settings.model == true and db.settings.scale == 1.4 and math.abs(db.settings.point[4] - 600) < 1e-9)
 assert(db.company, "the company is saved too")
 local env2, captured2, ns2 = Harness.Load({ firstUse = true })
 ns2.Host.loadSaved(db)
 ns2.Settings.Load(ns2.Host.savedSettings)
-assert(ns2.Settings.values.model == false and ns2.Settings.values.scale == 1.4 and ns2.Settings.values.helpSeen)
+assert(ns2.Settings.values.model == true and ns2.Settings.values.scale == 1.4 and ns2.Settings.values.helpSeen)
 ns2.Window.Toggle()
 local at = ns2.Window.frame.point
-assert(at[1] == "TOPLEFT" and at[3] == "TOPLEFT" and at[4] == 120 and at[5] == -80, "the window opens where it was left")
+local scale2 = ns2.Window.frame.scale
+assert(at[1] == "TOPLEFT" and at[3] == "BOTTOMLEFT" and math.abs(at[4] * scale2 - 120) < 1e-9
+    and math.abs(at[5] * scale2 - 600) < 1e-9, "the window opens where it was left")
+-- While saving is off, the settings say their changes are not kept.
+local env4, captured4, ns4 = Harness.Load()
+ns4.Host.loadSaved({ schema = 999 })
+env4.SlashCmdList.TIMEISMONEY("settings")
+assert(ns4.Window.settings.notice.shown and ns4.Window.settings.notice.text:find("not kept", 1, true))
+-- NaN is never a valid setting (JSMath.isNaN: in WoW's Lua NaN compares true).
+assert(ns.Settings.Load({ scale = 0 / 0, point = { "TOPLEFT", "BOTTOMLEFT", 0 / 0, 1 } }).point == nil)
+ns.Settings.Load(db.settings)
+
 -- Settings alone are written even before any company exists.
 local env3, captured3, ns3 = Harness.Load()
 ns3.Settings.Set("voice", false)

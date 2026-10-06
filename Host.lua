@@ -177,7 +177,7 @@ end
 function Host.persist()
     if Host.blocked then return nil end
     local game = Host.game
-    local db = { schema = ns.Save.SCHEMA, prestige = Host.prestige, settings = Host.settings }
+    local db = { schema = ns.Save.SCHEMA, prestige = Host.prestige, settings = Host.settings and Host.settings() }
     if game and game.restartRequested and game.savedPrestige then
         db.prestige = copyPrestige(game.savedPrestige)
         return db
@@ -193,10 +193,9 @@ function Host.persist()
     else
         db.company = Host.snapshot
     end
-    -- With no company at all there is nothing to write. With one, the save is written
-    -- even when it holds no company: a restarted company that halted before its first
-    -- snapshot must not let the reset's discarded company come back on reload.
-    if not game and db.company == nil and db.prestige == nil and db.settings == nil then return nil end
+    -- Always written (the settings at least), even with no company: a restarted
+    -- company that halted before its first snapshot must not let the reset's
+    -- discarded company come back on reload.
     return db
 end
 

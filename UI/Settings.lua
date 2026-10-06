@@ -10,10 +10,15 @@ TimeIsMoney.Settings = Settings
 
 Settings.SCALE_MIN, Settings.SCALE_MAX, Settings.SCALE_STEP = 0.6, 1.5, 0.1
 Settings.DEFAULTS = { model = true, voice = true, scale = 1, helpSeen = false, point = nil }
+-- point: the window's top-left corner in UIParent units (unaffected by the window's
+-- own scale), as { "TOPLEFT", "BOTTOMLEFT", x, y }.
 
 local POINTS = { TOPLEFT = true, TOP = true, TOPRIGHT = true, LEFT = true, CENTER = true, RIGHT = true,
     BOTTOMLEFT = true, BOTTOM = true, BOTTOMRIGHT = true }
-local function finite(v) return type(v) == "number" and v == v and v ~= math.huge and v ~= -math.huge end
+-- NaN through JSMath: in WoW's Lua NaN compares equal (and >= and <=) to anything.
+local function finite(v)
+    return type(v) == "number" and not ns.JSMath.isNaN(v) and v ~= math.huge and v ~= -math.huge
+end
 local VALID = {
     model = function(v) return type(v) == "boolean" end,
     voice = function(v) return type(v) == "boolean" end,
@@ -33,26 +38,26 @@ function Settings.Load(saved)
             if saved[k] ~= nil and valid(saved[k]) then values[k] = saved[k] end
         end
     end
-    if values.point then values.point = { values.point[1], values.point[2], values.point[3], values.point[4] } end
+    local function copyPoint(p) return p and { p[1], p[2], p[3], p[4] } or nil end
+    values.point = copyPoint(values.point)
     Settings.values = values
-    ns.Host.settings = Settings.Data()
+    Settings.copyPoint = copyPoint
     return values
 end
 
--- What is saved: plain values only (no frames or closures).
+-- What is saved: plain values only (no frames or closures). The host asks for it at
+-- logout (Host.settings is this function).
 function Settings.Data()
     local v = Settings.values
-    local data = { model = v.model, voice = v.voice, scale = v.scale, helpSeen = v.helpSeen }
-    if v.point then data.point = { v.point[1], v.point[2], v.point[3], v.point[4] } end
-    return data
+    return { model = v.model, voice = v.voice, scale = v.scale, helpSeen = v.helpSeen, point = Settings.copyPoint(v.point) }
 end
+ns.Host.settings = Settings.Data
 
--- Changes one value (checked) and hands the host what logout will write.
+-- Changes one value (checked).
 function Settings.Set(key, value)
     assert(VALID[key], "unknown setting " .. tostring(key))
     if value ~= nil and not VALID[key](value) then return false end
     Settings.values[key] = value
-    ns.Host.settings = Settings.Data()
     return true
 end
 

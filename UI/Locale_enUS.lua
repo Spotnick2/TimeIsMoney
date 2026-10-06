@@ -28,6 +28,7 @@ ns.Locale.Register("enUS", {
     ["settings.scale"] = "Window scale: {percent}%",
     ["settings.help"] = "Help",
     ["settings.newGame"] = "New game...",
+    ["settings.notSaved"] = "Saving is off (unrecognized saved data): changes here are not kept after logout.",
 
     -- Speakers.
     ["speaker.director"] = "Director",

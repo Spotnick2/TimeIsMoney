@@ -270,7 +270,11 @@ do
 end
 do
     local Host = Load()
-    assert(Host.loadSaved(nil) == "empty" and Host.persist() == nil, "nothing to write without a company")
+    -- Without a company the save is still written (in the client it holds the
+    -- settings), with no company or prestige in it.
+    assert(Host.loadSaved(nil) == "empty")
+    local empty = Host.persist()
+    assert(empty.schema == 1 and empty.company == nil and empty.prestige == nil, "an empty save")
     local game = Host.start({ 21, 23 })
     Host.saves = Host.SNAPSHOT_EVERY - 1 -- the next auto-save refreshes the snapshot
     game.S.saveTimer = 249
