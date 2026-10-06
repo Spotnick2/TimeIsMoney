@@ -22,6 +22,21 @@ TimeIsMoneyDB = {
 }
 ~~~
 
+## Settings (#23)
+
+`TimeIsMoneyDB.settings` holds presentation preferences, saved with the account and
+never part of the company or the simulation:
+
+- the Director's model (on or off);
+- the greeting voice (on or off);
+- the window scale, from 0.6 to 1.5;
+- the window position (a point relative to UIParent);
+- whether the first-use help was seen.
+
+`UI/Settings.lua` checks each value on load. A damaged or unknown one falls back to
+its default and never blocks the save. Settings are written even before any company
+exists.
+
 ## Encoding
 
 - **References:** the game state is a graph. Active projects are the same tables as

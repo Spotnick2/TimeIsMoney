@@ -87,7 +87,10 @@ end
 
 -- Saves (#19) ---------------------------------------------------------------------
 -- TimeIsMoneyDB = { schema = 1, company = <Sim/Save.lua data> or nil,
---                   prestige = { prestigeU, prestigeS } or nil }
+--                   prestige = { prestigeU, prestigeS } or nil,
+--                   settings = <UI/Settings.lua data> or nil }
+-- Settings are presentation preferences: read as given (the UI checks each value
+-- and ignores damaged ones) and never a reason to block the save.
 -- One company per account. Logical time continues from the save: no offline time.
 
 function Host.encodeCompany()
@@ -125,6 +128,7 @@ end
 -- never replaced; it is reported and left as it is.
 function Host.loadSaved(db)
     Host.blocked, Host.prestige = nil, nil
+    Host.savedSettings = type(db) == "table" and db.settings or nil
     if db == nil then return "empty" end
     if type(db) ~= "table" or type(db.schema) ~= "number" then
         Host.blocked = "unrecognized saved data"
@@ -173,7 +177,7 @@ end
 function Host.persist()
     if Host.blocked then return nil end
     local game = Host.game
-    local db = { schema = ns.Save.SCHEMA, prestige = Host.prestige }
+    local db = { schema = ns.Save.SCHEMA, prestige = Host.prestige, settings = Host.settings }
     if game and game.restartRequested and game.savedPrestige then
         db.prestige = copyPrestige(game.savedPrestige)
         return db
@@ -192,7 +196,7 @@ function Host.persist()
     -- With no company at all there is nothing to write. With one, the save is written
     -- even when it holds no company: a restarted company that halted before its first
     -- snapshot must not let the reset's discarded company come back on reload.
-    if not game and db.company == nil and db.prestige == nil then return nil end
+    if not game and db.company == nil and db.prestige == nil and db.settings == nil then return nil end
     return db
 end
 

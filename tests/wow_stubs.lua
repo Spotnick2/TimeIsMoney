@@ -11,11 +11,12 @@ local function New(saved, libGlass)
         -- Standard Lua the simulation and host use (test_sim.lua enforces Sim's set).
         math = math, string = string, table = table, pairs = pairs, ipairs = ipairs, type = type,
         tonumber = tonumber, error = error, setmetatable = setmetatable, next = next, select = select,
-        pcall = pcall,
+        pcall = pcall, assert = assert,
         GetServerTime = function() return 1790000000 end,
         debugprofilestop = function() captured.clock = (captured.clock or 0) + 0.01 return captured.clock end,
     }
-    local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true, TimeIsMoneyConfirm = true }
+    local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true, TimeIsMoneyConfirm = true, TimeIsMoneyHelp = true,
+        TimeIsMoneySettings = true }
     setmetatable(env, { __index = function(_, key)
         if allowedNil[key] then return nil end
         error("Unvalidated global: " .. tostring(key), 2)
@@ -25,7 +26,7 @@ local function New(saved, libGlass)
     local Widget = {}
     local methods = {
         "ClearAllPoints", "SetAllPoints", "SetFrameStrata", "SetToplevel", "SetClampedToScreen",
-        "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing",
+        "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing", "SetUserPlaced",
         "SetMotionScriptsWhileDisabled", "SetJustifyH", "SetWordWrap", "SetStatusBarColor",
         -- The Director's ModelScene (#22; measured in the client by the #10 probe).
         "SetCameraFieldOfView", "SetCameraNearClip", "SetCameraFarClip", "SetCameraPosition",

@@ -40,7 +40,8 @@ local function Slash(message)
     command = command:lower()
     local Host = TIM.Host
     if command == "help" then
-        Print("/tim - open or close the ledger. /tim status - runtime and company. /tim start - a new company when there is none.")
+        TIM.Window.ShowHelp()
+        Print("/tim - open or close the ledger. /tim settings - settings and a new game. /tim help - this help. /tim status - runtime and company. /tim start - a new company when there is none.")
         Print("Developer: /tim click <control> (e.g. btnMakePaperclip), /tim set <control> <value>, /tim icons, /tim model, /tim newgame.")
     elseif command == "" then
         if Host.game then
@@ -54,6 +55,8 @@ local function Slash(message)
         Status()
     elseif command == "icons" then
         TIM.Window.ToggleIcons()
+    elseif command == "settings" then
+        TIM.Window.ToggleSettings()
     elseif command == "newgame" then
         if Host.blocked then
             Print("Not starting over: " .. Host.blocked .. ". The saved data is kept untouched.")
@@ -73,6 +76,8 @@ local function Slash(message)
             Host.start()
             Print("A new company opens its ledger. Time is money, friend!")
             TIM.Window.Toggle()
+            -- First use: the help, once (it explains how saving works).
+            if not TIM.Settings.values.helpSeen then TIM.Window.ShowHelp() end
         end
     elseif command == "click" then
         local ok, err = Host.click(rest)
@@ -107,6 +112,7 @@ events:SetScript("OnEvent", function(self, event, name)
     self:UnregisterEvent("ADDON_LOADED")
     TIM.loaded = true
     local state = TIM.Host.loadSaved(TimeIsMoneyDB)
+    TIM.Settings.Load(TIM.Host.savedSettings)
     if state == "restored" then
         Print(string.format("Your company reopens its ledger at %.1f s.", TIM.Host.game.clock.now / 1000))
     elseif state == "blocked" then
