@@ -328,7 +328,7 @@ local W = fromWords
 --   is preserved.
 
 -- fdlibm 5.3 sin (the variant V8 uses): __kernel_sin, the original __kernel_cos
--- with qx, and __ieee754_rem_pio2 for |x| <= 2^20 * pi/2 (high word 0x413921fb).
+-- with qx, and __ieee754_rem_pio2 with __kernel_rem_pio2 for large arguments.
 local S1, S2, S3 = W(0xBFC55555, 0x55555549), W(0x3F811111, 0x1110F8A6), W(0xBF2A01A0, 0x19C161D5)
 local S4, S5, S6 = W(0x3EC71DE3, 0x57B1FE7D), W(0xBE5AE5E6, 0x8A2B9CEB), W(0x3DE5D93A, 0x5ACFD57C)
 local C1, C2, C3 = W(0x3FA55555, 0x5555554C), W(0xBF56C16C, 0x16C15177), W(0x3EFA01A0, 0x19CB1590)
@@ -367,6 +367,172 @@ local function kernelCos(x, y)
     return a - (iz - (z * r - x * y))
 end
 
+-- fdlibm __kernel_rem_pio2 (k_rem_pio2.c, the variant V8 uses) for prec = 2:
+-- x = n * pi/2 + (y0 + y1) for arguments beyond 2^20 * pi/2, reducing with the
+-- binary digits of 2/pi. Integer steps on 24-bit chunks use floor and modulo on
+-- exact doubles (every value here is a nonnegative integer below 2^24).
+-- two_over_pi: 2/pi in 24-bit chunks; computed exactly (Machin's formula, integer
+-- arithmetic) and equal to fdlibm's table.
+local two_over_pi = {
+    0xA2F983, 0x6E4E44, 0x1529FC, 0x2757D1, 0xF534DD, 0xC0DB62,
+    0x95993C, 0x439041, 0xFE5163, 0xABDEBB, 0xC561B7, 0x246E3A,
+    0x424DD2, 0xE00649, 0x2EEA09, 0xD1921C, 0xFE1DEB, 0x1CB129,
+    0xA73EE8, 0x8235F5, 0x2EBB44, 0x84E99C, 0x7026B4, 0x5F7E41,
+    0x3991D6, 0x398353, 0x39F49C, 0x845F8B, 0xBDF928, 0x3B1FF8,
+    0x97FFDE, 0x05980F, 0xEF2F11, 0x8B5A0A, 0x6D1F6D, 0x367ECF,
+    0x27CB09, 0xB74F46, 0x3F669E, 0x5FEA2D, 0x7527BA, 0xC7EBE5,
+    0xF17B3D, 0x0739F7, 0x8A5292, 0xEA6BFB, 0x5FB11F, 0x8D5D08,
+    0x560330, 0x46FC7B, 0x6BABF0, 0xCFBC20, 0x9AF436, 0x1DA9E3,
+    0x91615E, 0xE61B08, 0x659985, 0x5F14A0, 0x68408D, 0xFFD880,
+    0x4D7327, 0x310606, 0x1556CA, 0x73A8C9, 0x60E27B, 0xC08C6B,
+}
+-- PIo2: pi/2 in 24-bit pieces (fdlibm's table, computed the same way), as exact
+-- words so no decimal parsing is involved.
+local PIo2 = {
+    W(0x3FF921FB, 0x40000000), W(0x3E74442D, 0x00000000), W(0x3CF84698, 0x80000000), W(0x3B78CC51, 0x60000000),
+    W(0x39F01B83, 0x80000000), W(0x387A2520, 0x40000000), W(0x36E38222, 0x80000000), W(0x3569F31D, 0x00000000),
+}
+local two24, twon24 = 16777216, 5.9604644775390625e-08
+
+-- Scratch arrays, reused: the quantum chips call sin every tick, so the reduction
+-- allocates nothing. Every entry read in a call is written earlier in that call.
+local remF, remQ, remIQ, remFQ, remTX = {}, {}, {}, {}, {}
+
+local function kernelRemPio2(x, e0, nx)
+    local f, q, iq, fq = remF, remQ, remIQ, remFQ
+    local jk = 4 -- init_jk[prec = 2]
+    local jp = jk
+    local jx = nx - 1
+    local jv = floor((e0 - 3) / 24)
+    if jv < 0 then jv = 0 end
+    -- C's (e0-3)/24 truncates toward zero; e0 >= 0 here, so floor is the same.
+    local q0 = e0 - 24 * (jv + 1)
+    local j, m = jv - jx, jx + jk
+    for i = 0, m do
+        f[i] = (j < 0) and 0 or two_over_pi[j + 1]
+        j = j + 1
+    end
+    for i = 0, jk do
+        local fw = 0
+        for jj = 0, jx do fw = fw + x[jj] * f[jx + i - jj] end
+        q[i] = fw
+    end
+    local jz = jk
+    local n, z, ih
+    while true do
+        -- Distill q[] into iq[] reversingly.
+        z = q[jz]
+        local i = 0
+        for jj = jz, 1, -1 do
+            local fw = floor(twon24 * z)
+            iq[i] = z - two24 * fw
+            z = q[jj - 1] + fw
+            i = i + 1
+        end
+        -- n: the integer part.
+        z = z * 2 ^ q0
+        z = z - 8 * floor(z * 0.125)
+        n = floor(z)
+        z = z - n
+        ih = 0
+        if q0 > 0 then
+            local t = floor(iq[jz - 1] / 2 ^ (24 - q0))
+            n = n + t
+            iq[jz - 1] = iq[jz - 1] - t * 2 ^ (24 - q0)
+            ih = floor(iq[jz - 1] / 2 ^ (23 - q0))
+        elseif q0 == 0 then
+            ih = floor(iq[jz - 1] / 2 ^ 23)
+        elseif z >= 0.5 then
+            ih = 2
+        end
+        if ih > 0 then -- q > 0.5
+            n = n + 1
+            local carry = 0
+            for ii = 0, jz - 1 do -- 1 - q
+                local v = iq[ii]
+                if carry == 0 then
+                    if v ~= 0 then
+                        carry = 1
+                        iq[ii] = 0x1000000 - v
+                    end
+                else
+                    iq[ii] = 0xffffff - v
+                end
+            end
+            if q0 > 0 then -- rare: chance 1 in 12
+                if q0 == 1 then iq[jz - 1] = iq[jz - 1] % 2 ^ 23
+                elseif q0 == 2 then iq[jz - 1] = iq[jz - 1] % 2 ^ 22 end
+            end
+            if ih == 2 then
+                z = 1 - z
+                if carry ~= 0 then z = z - 2 ^ q0 end
+            end
+        end
+        -- Recompute with more terms when the result cancelled to zero.
+        local again = false
+        if z == 0 then
+            local any = 0
+            for ii = jz - 1, jk, -1 do any = any + iq[ii] end
+            if any == 0 then
+                local k = 1
+                while iq[jk - k] == 0 do k = k + 1 end
+                for ii = jz + 1, jz + k do
+                    f[jx + ii] = two_over_pi[jv + ii + 1]
+                    local fw = 0
+                    for jj = 0, jx do fw = fw + x[jj] * f[jx + ii - jj] end
+                    q[ii] = fw
+                end
+                jz = jz + k
+                again = true
+            end
+        end
+        if not again then break end
+    end
+    -- Chop off zero terms, or break z into 24-bit chunks.
+    if z == 0 then
+        jz = jz - 1
+        q0 = q0 - 24
+        while iq[jz] == 0 do
+            jz = jz - 1
+            q0 = q0 - 24
+        end
+    else
+        z = z * 2 ^ (-q0)
+        if z >= two24 then
+            local fw = floor(twon24 * z)
+            iq[jz] = z - two24 * fw
+            jz = jz + 1
+            q0 = q0 + 24
+            iq[jz] = fw
+        else
+            iq[jz] = floor(z)
+        end
+    end
+    -- The chunks as floating-point values, then times pi/2.
+    local fw = 2 ^ q0
+    for i = jz, 0, -1 do
+        q[i] = fw * iq[i]
+        fw = fw * twon24
+    end
+    for i = jz, 0, -1 do
+        fw = 0
+        local k = 0
+        while k <= jp and k <= jz - i do
+            fw = fw + PIo2[k + 1] * q[i + k]
+            k = k + 1
+        end
+        fq[jz - i] = fw
+    end
+    -- Compress fq[] into y0, y1 (prec 2).
+    fw = 0
+    for i = jz, 0, -1 do fw = fw + fq[i] end
+    local y0 = (ih == 0) and fw or -fw
+    fw = fq[0] - fw
+    for i = 1, jz do fw = fw + fq[i] end
+    local y1 = (ih == 0) and fw or -fw
+    return n % 8, y0, y1
+end
+
 -- Returns n, y0, y1 with x = n * pi/2 + (y0 + y1); hx is x's high word.
 local function remPio2(x, hx)
     local ix = abs31(hx)
@@ -397,8 +563,22 @@ local function remPio2(x, hx)
         return -1, y0, y1
     end
     if ix > 0x413921fb then
-        error("Unported reference path: Math.sin beyond the ported fdlibm reduction range " ..
-            "(|x| > 2^20*pi/2, about 1,647,099) (issue #24)", 0)
+        -- Beyond 2^20 * pi/2: z = |x| scaled to [2^23, 2^24), cut into three 24-bit
+        -- pieces, reduced by __kernel_rem_pio2 (e_rem_pio2.c).
+        local tx = remTX
+        local _, low = toWords(x)
+        local e0 = floor(ix / 2 ^ 20) - 1046
+        local z = fromWords(ix - e0 * 2 ^ 20, low)
+        for i = 0, 1 do
+            tx[i] = floor(z)
+            z = (z - tx[i]) * two24
+        end
+        tx[2] = z
+        local nx = 3
+        while tx[nx - 1] == 0 do nx = nx - 1 end
+        local n, y0, y1 = kernelRemPio2(tx, e0, nx)
+        if hx < 0 then return -n, -y0, -y1 end
+        return n, y0, y1
     end
     local t = x < 0 and -x or x
     local n = floor(t * invpio2 + 0.5)

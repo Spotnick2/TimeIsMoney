@@ -80,51 +80,47 @@ for _, id in ipairs({
 
 -- Building costs ------------------------------------------------------------
 
--- Math.pow(n, e) for a cost: the reference profile's value (Sim/CostPow.lua) where
--- it differs from JSMath.pow. Beyond the compared domain the reference value is
--- unknown, so the slice stops.
--- A cost is a pure function of its integer base, so computed values are kept
--- (the pure-Lua pow is slow and the price sums revisit the same bases).
-local memo = {}
+-- Math.pow(n, e) for a cost. Inside the verified domain (integer bases up to the
+-- table's limit) it is the pinned reference profile's value, exactly
+-- (Sim/CostPow.lua). Beyond it, and for fractional bases (probes build fractional
+-- drone levels in space), it is JSMath.pow; the reference's platform pow there is
+-- not reproducible (#24, owner decision 2026-10-06; docs/reference/WORKSHOP.md).
+-- Values are memoized: the pure-Lua pow is slow and a purchase revisits the same
+-- bases (the cost loop, then the +10/+100/+1k sums). Inside the table the memo is
+-- permanent; beyond it there are two bounded generations: when the current one
+-- fills, it becomes the previous one, so bases still in use survive a turnover.
+local memo, beyond, MEMO_BEYOND = {}, {}, 8192
 for e, domain in pairs(CostPow) do
-    if type(domain) == "table" then memo[e] = {} end
+    if type(domain) == "table" then memo[e], beyond[e] = {}, { current = {}, previous = {}, count = 0 } end
 end
 local function costPow(n, e)
     local domain = CostPow[e]
-    if n ~= floor(n) or n < 1 or n > domain.limit then
-        Unported("building cost Math.pow(" .. JSMath.toString(n) .. ", " .. e .. ") beyond the verified domain", "#24")
+    -- A NaN level compares true to everything in WoW and cannot index a table: stop
+    -- explicitly on both hosts.
+    if JSMath.isNaN(n) then Unported("building cost Math.pow(NaN, " .. e .. ")", "#24") end
+    if n >= 1 and n <= domain.limit and n == floor(n) then
+        local value = memo[e][n]
+        if value == nil then
+            local fix = domain.fixes[n]
+            value = fix and JSMath.fromWords(fix[1], fix[2]) or JSMath.pow(n, tonumber(e))
+            memo[e][n] = value
+        end
+        return value
     end
-    local value = memo[e][n]
+    local gen = beyond[e]
+    local value = gen.current[n]
     if value == nil then
-        local fix = domain.fixes[n]
-        value = fix and JSMath.fromWords(fix[1], fix[2]) or JSMath.pow(n, tonumber(e))
-        memo[e][n] = value
+        value = gen.previous[n] or JSMath.pow(n, tonumber(e))
+        if gen.count >= MEMO_BEYOND then
+            gen.previous, gen.current, gen.count = gen.current, {}, 0
+        end
+        gen.current[n] = value
+        gen.count = gen.count + 1
     end
     return value
 end
 Workshop.costPow = costPow
 
--- Every cost base the price updates reach from the given levels: each drone level
--- + 1000 (purchase loops stay within that), each farm and battery level + 100.
--- Probes build fractional drone levels in space (#14), whose costs are not integer
--- bases. Purchases and reboots call it first with the levels after the operation,
--- so a stop (#24) always comes before any change.
-local function requirePriceDomains(S, levels)
-    local function level(name)
-        if levels and levels[name] ~= nil then return levels[name] end
-        return S[name]
-    end
-    for _, check in ipairs({
-        { "2.25", "harvesterLevel", 1000 }, { "2.25", "wireDroneLevel", 1000 },
-        { "2.78", "farmLevel", 100 }, { "2.54", "batteryLevel", 100 },
-    }) do
-        local n = level(check[2])
-        if n ~= floor(n) or n + check[3] > CostPow[check[1]].limit then
-            Unported("building cost Math.pow(" .. JSMath.toString(n + check[3]) .. ", " .. check[1] ..
-                ") beyond the verified domain", "#24")
-        end
-    end
-end
 
 -- updateUpgrades only writes presentation (the next upgrade thresholds).
 
@@ -168,7 +164,6 @@ end
 
 function Game:updateDronePrices()
     local S = self.S
-    requirePriceDomains(S)
     S.p10h, S.p100h, S.p1000h = priceSums(S.harvesterLevel + 1, 1000, "2.25", 1000000)
     S.p10w, S.p100w, S.p1000w = priceSums(S.wireDroneLevel + 1, 1000, "2.25", 1000000)
     S.x = 1000
@@ -178,7 +173,6 @@ end
 -- cost recomputed after the previous purchase.
 local function makeDrones(game, amount, level, cost, bill)
     local S = game.S
-    requirePriceDomains(S, { [level] = S[level] + amount })
     for _ = 1, amount do
         if S.unusedClips >= S[cost] then
             S.unusedClips = S.unusedClips - S[cost]
@@ -216,7 +210,6 @@ end
 
 function Game:harvesterReboot()
     local S = self.S
-    requirePriceDomains(S, { harvesterLevel = 0 })
     S.harvesterLevel = 0
     S.unusedClips = S.unusedClips + S.harvesterBill
     S.harvesterBill = 0
@@ -226,7 +219,6 @@ end
 
 function Game:wireDroneReboot()
     local S = self.S
-    requirePriceDomains(S, { wireDroneLevel = 0 })
     S.wireDroneLevel = 0
     S.unusedClips = S.unusedClips + S.wireDroneBill
     S.wireDroneBill = 0
@@ -246,7 +238,6 @@ end
 
 function Game:updatePowPrices()
     local S = self.S
-    requirePriceDomains(S)
     local _
     S.p10f, _, S.p100f = priceSums(S.farmLevel + 1, 100, "2.78", 100000000)
     S.p10b, _, S.p100b = priceSums(S.batteryLevel + 1, 100, "2.54", 10000000)
@@ -255,7 +246,6 @@ end
 
 local function makePower(game, amount, e, scale, level, cost, bill)
     local S = game.S
-    requirePriceDomains(S, { [level] = S[level] + amount })
     for _ = 1, amount do
         if S.unusedClips >= S[cost] then
             S.unusedClips = S.unusedClips - S[cost]
@@ -280,7 +270,6 @@ end
 -- formula (farms 1e7, batteries 1e6), as in the reference.
 function Game:farmReboot()
     local S = self.S
-    requirePriceDomains(S, { farmLevel = 0 })
     S.farmLevel = 0
     S.unusedClips = S.unusedClips + S.farmBill
     S.farmBill = 0
@@ -290,7 +279,6 @@ end
 
 function Game:batteryReboot()
     local S = self.S
-    requirePriceDomains(S, { batteryLevel = 0 })
     S.batteryLevel = 0
     S.unusedClips = S.unusedClips + S.batteryBill
     S.batteryBill = 0

@@ -486,16 +486,13 @@ end
 local function looseOne(v) return v == 1 or v == true end
 
 -- Math.pow(processors, 1.1) matches V8 for every count up to this bound
--- (tests/reference/jsmath.test.cjs); the first known difference is at 3,425.
+-- (tests/reference/jsmath.test.cjs); the first known difference is at 3,425. Beyond
+-- it JSMath.pow is a declared difference (#24, docs/reference/WORKSHOP.md).
 Workshop.VERIFIED_PROCESSORS = 3424
 
 function Game:addProc()
     local S = self.S
     if S.trust > 0 or gt(S.swarmGifts, 0) then
-        -- Stop before changing state, so a caught error leaves the game intact.
-        if S.processors + 1 > Workshop.VERIFIED_PROCESSORS then
-            Unported("creativitySpeed beyond the verified processor count", "#24")
-        end
         S.processors = S.processors + 1
         S.creativitySpeed = log10(S.processors) * pow(S.processors, 1.1) + S.processors - 1
         if looseOne(S.creativityOn) then

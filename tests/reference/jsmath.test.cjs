@@ -75,7 +75,7 @@ test("pure-Lua Math.pow matches V8 for integer exponents and specials, within V8
     }
 });
 
-test("fdlibm Math.sin, Math.log and Math.log10 match V8 exactly, including the quantum clock, wire price and swarm",t=>{
+test("fdlibm Math.sin, Math.log and Math.log10 match V8 exactly, including the quantum clock, wire price, swarm and large arguments",t=>{
     let seed=777;
     const rnd=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648;};
     const list=[], seeds=[.1,.2,.3,.4,.5,.6,.7,.8,.9,1];
@@ -95,6 +95,22 @@ test("fdlibm Math.sin, Math.log and Math.log10 match V8 exactly, including the q
     }
     for (let i=0;i<20000;i++) list.push(["sin",(rnd()-0.5)*2*Math.pow(10,Math.floor(rnd()*11-5))]);
     for (const x of [0,-0,1e-300,-1e-300,5e-324,Math.PI/4,Math.PI/2,3*Math.PI/4,Infinity,-Infinity,NaN,823549,-823549])
+        list.push(["sin",x]);
+    // Large arguments (#24): beyond 2^20*pi/2 V8 reduces with __kernel_rem_pio2. Every
+    // binary exponent from 2^20 to 2^1023, random mantissas and signs; the quantum
+    // clock far beyond 19 days (qClock * waveSeed); the reduction's boundary; products
+    // n * Math.PI/2 for large n; and the classic hardest reduction case
+    // 6381956970095103 * 2^797 (closest double to a multiple of pi/2).
+    for (let e=20;e<=1023;e++) for (let k=0;k<40;k++) {
+        const m=1+rnd();
+        list.push(["sin",(rnd()<0.5?-1:1)*m*Math.pow(2,e)]);
+    }
+    for (let k=0;k<20000;k++) { const t=1.6e6+rnd()*1e9; for (const s of [.1,.5,1]) list.push(["sin",t*s]); }
+    for (const d of [-2,-1,0,1,2]) list.push(["sin",fromWords(0x413921fb+d,0)]);
+    list.push(["sin",fromWords(0x413921fb,0xffffffff)]);
+    list.push(["sin",6381956970095103*Math.pow(2,797)],["sin",-6381956970095103*Math.pow(2,797)]);
+    for (let n=1;n<=4000;n++) { const x=(1048576+n*977)*Math.PI/2; list.push(["sin",x],["sin",-x]); }
+    for (const x of [1e22,1e100,1e200,1e300,1.7976931348623157e308,-1.7976931348623157e308,2**53,2**60,2**1023])
         list.push(["sin",x]);
     for (let n=1;n<=20000;n++) list.push(["log10",n]);
     for (let i=0;i<20000;i++) list.push(["log10",rnd()*Math.pow(10,Math.floor(rnd()*600-300))]);

@@ -77,7 +77,15 @@ assert(JSMath.pow(10, 400) == math.huge and JSMath.pow(10, -400) == 0)
 assert(JSMath.sin(1) == 0.8414709848078965 and JSMath.sin(0.7360000000000005) == 0.6713286509741181)
 assert(JSMath.sin(0.8280000000000005) == 0.7365801446274045 and same(JSMath.sin(NEG_ZERO), NEG_ZERO))
 assert(same(JSMath.sin(math.huge), 0 / 0) and JSMath.sin(-3) == -0.1411200080598672)
-fails("beyond the ported fdlibm", JSMath.sin, 2e6)
+-- Beyond 2^20 * pi/2, __kernel_rem_pio2 (#24); exact V8 values.
+assert(JSMath.sin(2e6) == -0.65571431556347004 and JSMath.sin(1e22) == -0.85220084976718879)
+-- The large-argument reduction allocates nothing (the quantum chips call it every tick).
+JSMath.sin(3e6)
+collectgarbage("stop")
+local before = collectgarbage("count")
+for i = 1, 200 do JSMath.sin(2e6 + i * 0.37) end
+assert(collectgarbage("count") == before, "no allocation per call")
+collectgarbage("restart")
 assert(JSMath.sin(1e6) == -0.34999350217129294)
 assert(JSMath.log10(11) == 1.041392685158225 and JSMath.log10(40) == 1.6020599913279625)
 assert(JSMath.log10(1000) == 3 and JSMath.log10(1) == 0 and JSMath.log10(0) == -math.huge)
@@ -133,47 +141,38 @@ game:advanceTo(2000)
 assert(game.S.clips == 1 and game.S.ticks == 200)
 fails("Unported reference path: control btnFeedSwarm", game.click, game, "btnFeedSwarm")
 
--- Planetary costs (#11, #12): the reference profile's pow where JSMath differs, and an
--- explicit stop, before any change, beyond the verified domain.
+-- Planetary costs (#11, #12): the reference profile's pow where JSMath differs; beyond
+-- the verified domain, and for fractional bases, the correctly rounded pow (#24).
 local costPow = Workshop.costPow
 assert(costPow(2969, "2.25") == JSMath.fromWords(0x418F06F8, 0xB0418DE1), "pinned profile value")
 assert(costPow(2969, "2.25") ~= JSMath.pow(2969, 2.25), "JSMath alone differs there")
 assert(costPow(2, "2.25") == JSMath.pow(2, 2.25))
-fails("Math%.pow%(200001, 2%.25%) beyond the verified domain %(issue #24%)", costPow, 200001, "2.25")
-fails("beyond the verified domain", costPow, 2.5, "2.25")
+assert(costPow(200001, "2.25") == JSMath.pow(200001, 2.25) and costPow(2.5, "2.25") == JSMath.pow(2.5, 2.25))
+fails("Math%.pow%(NaN, 2%.25%) %(issue #24%)", costPow, 0 / 0, "2.25")
+-- Beyond the table the memo keeps two bounded generations (both drone types share it).
+for n = 300001, 300001 + 8192 do assert(costPow(n, "2.25") == JSMath.pow(n, 2.25)) end
+assert(costPow(300001, "2.25") == JSMath.pow(300001, 2.25), "a turned-over base")
+-- Purchases and reboots past the tables go through (no stop where verification ends).
 local planet = Workshop.new(stub, {})
-planet.S.harvesterLevel, planet.S.unusedClips = 199000, 1e30
-fails("Math%.pow%(200001, 2%.25%) beyond the verified domain", planet.makeHarvester, planet, 1)
-assert(planet.S.harvesterLevel == 199000 and planet.S.unusedClips == 1e30, "no partial purchase")
-planet.S.farmLevel = 29900
-fails("Math%.pow%(30001, 2%.78%) beyond the verified domain", planet.makeFarm, planet, 1)
-assert(planet.S.farmLevel == 29900 and planet.S.unusedClips == 1e30)
--- The other building's lookahead also counts (review of #44): no purchase or reboot
--- commits before the stop.
-planet.S.harvesterLevel, planet.S.wireDroneLevel, planet.S.farmLevel = 10, 199500, 5
-fails("Math%.pow%(200500, 2%.25%)", planet.makeHarvester, planet, 1)
-assert(planet.S.harvesterLevel == 10 and planet.S.unusedClips == 1e30)
-planet.S.harvesterLevel, planet.S.harvesterBill, planet.S.harvesterCost = 50, 123, 456
-fails("Math%.pow%(200500, 2%.25%)", planet.harvesterReboot, planet)
-assert(planet.S.harvesterLevel == 50 and planet.S.harvesterBill == 123 and planet.S.harvesterCost == 456)
-planet.S.wireDroneLevel, planet.S.batteryLevel = 0, 29950
-fails("Math%.pow%(30050, 2%.54%)", planet.makeFarm, planet, 1)
-assert(planet.S.farmLevel == 5 and planet.S.unusedClips == 1e30)
-planet.S.farmLevel, planet.S.storedPower = 29950, 7
-fails("Math%.pow%(30050, 2%.78%)", planet.batteryReboot, planet)
-assert(planet.S.batteryLevel == 29950 and planet.S.storedPower == 7)
+planet.S.harvesterLevel, planet.S.unusedClips = 199000, 1e25
+planet:makeHarvester(1)
+assert(planet.S.harvesterLevel == 199001 and planet.S.harvesterCost == costPow(199002, "2.25") * 1000000, "purchase past the table")
+planet.S.farmLevel = 29950
+planet:makeFarm(1)
+assert(planet.S.farmLevel == 29951)
+planet.S.batteryLevel = 29950
+planet:batteryReboot()
+assert(planet.S.batteryLevel == 0)
 
--- The cosmic phase (#14): fractional drone levels (probe-built) and the probe trust
--- domain stop before any change (review of #48).
+-- The cosmic phase (#14): fractional drone levels (probe-built) and probe trust past
+-- the table go through too (#24).
 local cosmos = Workshop.new(stub, {})
 cosmos.S.harvesterLevel, cosmos.S.wireDroneLevel, cosmos.S.unusedClips = 5, 12.34, 1e30
-fails("building cost Math%.pow%(1012%.34, 2%.25%)", cosmos.harvesterReboot, cosmos)
-assert(cosmos.S.harvesterLevel == 5 and cosmos.S.unusedClips == 1e30)
-fails("beyond the verified domain", cosmos.makeHarvester, cosmos, 1)
-assert(cosmos.S.harvesterLevel == 5 and cosmos.S.unusedClips == 1e30)
+cosmos:makeHarvester(1)
+assert(cosmos.S.harvesterLevel == 6)
 cosmos.S.probeTrust, cosmos.S.maxTrust, cosmos.S.yomi, cosmos.S.probeTrustCost = 9999, 20000, 1e12, 1
-fails("probe formula Math%.pow%(10001, 1%.47%) for the probe trust cost", cosmos.increaseProbeTrust, cosmos)
-assert(cosmos.S.probeTrust == 9999 and cosmos.S.yomi == 1e12)
+cosmos:increaseProbeTrust()
+assert(cosmos.S.probeTrust == 10000 and cosmos.S.probeTrustCost == math.floor(JSMath.pow(10001, 1.47) * 500))
 
 -- Battles (#15): a named victory adds the drifter fleet plus Glory's bonus once;
 -- a defeat costs the probe fleet and names the threnody; the result delay ends it.
@@ -214,11 +213,11 @@ assert(swarm.ranges.slider.value == "125" and swarm.ranges.slider.number == 125)
 swarm:setValue("slider", "0x10")
 assert(swarm.ranges.slider.value == "100")
 
--- addProc refuses to cross the verified processor count before changing state.
+-- addProc continues past the verified processor count (#24), correctly rounded.
 game.S.processors, game.S.trust = Workshop.VERIFIED_PROCESSORS, 10000
-local speed = game.S.creativitySpeed
-fails("verified processor count %(issue #24%)", game.addProc, game)
-assert(game.S.processors == Workshop.VERIFIED_PROCESSORS and game.S.creativitySpeed == speed)
+game:addProc()
+local n = Workshop.VERIFIED_PROCESSORS + 1
+assert(game.S.processors == n and game.S.creativitySpeed == JSMath.log10(n) * JSMath.pow(n, 1.1) + n - 1)
 -- A battle with no ship alive keeps running, as in the reference (NaN centroid unused).
 local empty = Workshop.new(stub, {})
 for _, ship in ipairs(empty.S.ships) do ship.alive = false end

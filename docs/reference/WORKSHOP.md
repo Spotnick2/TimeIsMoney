@@ -222,12 +222,43 @@ Reference paths outside the slice raise
 | Strategy-picker values that name no strategy (the reference throws a TypeError reading strats[pick].name) | #20 |
 | toLocaleString of negative, fractional or unsafe-integer values | #21 |
 | Milestone 15 (all the universe's matter in clips, or surveyed and used up), which opens the correspondence and endings | #16 |
-| Probe formulas beyond the verified domain: Math.pow(n, 1.2), Math.pow(n, 1.47) and Math.pow(n, 1.6) for integer n > 10,000 (trust and hazard allocations); the trust purchase checks before any change | #24 |
-| Building purchases and reboots with fractional drone, farm or battery levels (probes build fractional drones in space), whose costs are not integer bases; checked before any change | #24 |
-| Building costs beyond the verified domain: Math.pow(n, 2.25) for n > 200,000 (drones, including the +1k lookahead), Math.pow(n, 2.54) and Math.pow(n, 2.78) for n > 30,000 (batteries, farms); checked before any change | #24 |
-| addProc beyond 3,424 processors, where Math.pow(n, 1.1) first differs from V8 | #24 |
-| investUpgrade when the new cost's base (investLevel + 1) would pass 967; Math.pow(base, Math.E) first differs from V8 at base 968 | #24 |
-| Math.sin of arguments beyond 2²⁰·π/2 (about 1,647,099; the quantum clock reaches it after about 19 days) | #24 |
+
+## Declared numeric differences
+
+Until #24 the simulation stopped (Unported) wherever a Math.pow verification
+table ended. The owner chose (2026-10-06) to keep exact parity where it is
+demonstrated, declare narrowly scoped differences elsewhere, and remove halts
+caused only by running out of tables. No other stop changed.
+
+| Value | Exact (demonstrated) | Beyond: JSMath.pow |
+| --- | --- | --- |
+| Building costs and price sums, Math.pow(n, 2.25) (drones) | integer n ≤ 200,000 (pinned table) | n > 200,000, and fractional drone levels (probes build them in space) |
+| Math.pow(n, 2.54) and Math.pow(n, 2.78) (batteries, farms) | integer n ≤ 30,000 | n > 30,000 |
+| Probe formulas Math.pow(n, 1.2), 1.47 and 1.6 (drift, trust cost, hazards) | integer n ≤ 10,000 | n > 10,000 |
+| creativitySpeed, Math.pow(processors, 1.1) | processors ≤ 3,424 | processors > 3,424 |
+| investUpgradeCost, Math.pow(base, Math.E) | base ≤ 967 | base ≥ 968 |
+
+- **Size of the difference:** every measured difference between JSMath.pow and
+  the reference profile's platform pow, across all the verified domains, is one
+  binary64 step (tests/reference/cost_pow.cjs, jsmath.test.cjs). Beyond the
+  tables this is an expectation, not a measured bound: JSMath.pow is correctly
+  rounded except within about 2⁻⁹⁰ of a rounding boundary, and the platform pow
+  is close to but not always correctly rounded. No portable implementation
+  reproduces the platform's pow, so there is no reference to measure against.
+  A NaN level stops explicitly (#24), as before.
+- **Cost:** with probe-built fractional drone levels, each purchase or reboot
+  recomputes the +10/+100/+1k price sums with up to 2,000 uncached pow calls,
+  about 60 ms in offline Lua 5.1 (2026-10-06). It happens on the click, never per
+  tick; the memo beyond the tables is bounded (two generations of 8,192 bases).
+- **Effect:** a one-step cost difference changes a decision only when the
+  balance lies within that step of the cost (purchase affordability, a disabled
+  button), and then the following balances differ by about one step of the cost.
+  Floored costs (trust, investment upgrade) differ only when the product lands
+  within one step of an integer. These are late-game situations only reachable
+  far past the reference's normal pacing (200,000 drones, 3,425 processors).
+- **Not covered:** differential traces stay inside the verified domains; beyond
+  them the tests check that the operations go through and use JSMath.pow
+  (tests/test_sim.lua).
 
 ## JavaScript semantics in Lua
 
@@ -304,10 +335,11 @@ Reference paths outside the slice raise
     integer base of each domain and records the exact Math.pow value wherever
     JSMath differs. cost_pow.test.cjs regenerates the table in CI and compares
     every value; the profile is recorded, so a Node patch release that keeps every
-    value still passes. Beyond the domains the slice stops (#24) before any change:
-    every purchase and reboot first checks all four price lookaheads on its
-    resulting levels. Codex recommended this design over a tolerance (design consult,
-    2026-10-03).
+    value still passes.
+  - **Beyond the verified domains (#24, owner decision 2026-10-06):** the
+    simulation no longer stops where a verification table ends. Exact parity is
+    kept wherever it was demonstrated; elsewhere the value is JSMath.pow. See
+    *Declared numeric differences* below.
 - **Math.log (#13):** V8's base::ieee754::log is fdlibm's __ieee754_log, which
   JSMath already used inside log10; JSMath.log exposes it. It matched V8 in
   250,000 cases (every swarm size to 200,000 and random magnitudes);
@@ -320,8 +352,11 @@ Reference paths outside the slice raise
   `__kernel_cos` with `qx`, and the `__ieee754_log`-based log10. The FreeBSD
   revisions and the C library differ. JSMath ports exactly those routines,
   building IEEE words with frexp/ldexp because Lua 5.1 has no bit library. They
-  match V8 in all 119,505 cases in jsmath.test.cjs:
-  - quantum-clock arguments;
+  match V8 in all 227,682 cases in jsmath.test.cjs:
+  - quantum-clock arguments, including far beyond 19 days;
+  - large arguments (#24): every binary exponent from 2²⁰ to 2¹⁰²³ with random
+    mantissas and signs, the reduction boundary, n·π/2 for large n, and the
+    hardest known reduction case 6381956970095103·2⁷⁹⁷;
   - ± wire-price counters 1–5,000;
   - points near multiples of π/2;
   - random magnitudes and special values;
@@ -334,6 +369,17 @@ Reference paths outside the slice raise
   not covered by this claim. The reduction includes fdlibm's npio2_hw quick
   path, and jsmath.test.cjs covers arguments one or more high words away from
   n·π/2.
+  - **Large arguments (#24):** beyond 2²⁰·π/2 (about 1,647,099, which the
+    quantum clock reaches after about 19 days) V8 reduces with fdlibm's
+    `__kernel_rem_pio2`. JSMath ports it (prec 2, 24-bit chunks as exact doubles).
+    Its 2/π and π/2 tables were computed independently with exact integer
+    arithmetic (Machin's formula) rather than copied, and agree with fdlibm's.
+    Evidence for "exact" (bit-identical to V8, Node v24.15.0, on this profile):
+    the committed jsmath.test.cjs cases above, the probe vectors, and a one-off
+    sweep of 1,000,000 random bit patterns covering every exponent above the
+    boundary, both signs, with no difference (2026-10-06). This is evidence on
+    tested inputs, not a proof for every double, and the build-option caveat
+    above still applies.
 - **Number::toString and formatWithCommas:** messages print numbers, for
   example 0.5 + 0.01 + 0.01 + 0.01 as `0.5400000000000001`. C printf rounds exact
   halves differently, and the older C runtime's strtod accepts wrong round-trips.

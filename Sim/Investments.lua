@@ -5,7 +5,7 @@ local _, ns = ...
 ns = ns or {}
 
 local JSMath, Workshop = ns.JSMath, ns.Workshop
-local Game, Unported = Workshop.Game, ns.Unported
+local Game = Workshop.Game
 local floor, ceil = math.floor, math.ceil
 local pow = JSMath.pow
 local MATH_E = JSMath.fromWords(0x4005BF0A, 0x8B145769) -- Math.E
@@ -23,17 +23,13 @@ Workshop.setups[#Workshop.setups + 1] = function(_, S)
     for i = 1, 26 do S.alphabet[i] = string.char(64 + i) end
 end
 
--- Math.pow(base, Math.E) matches V8 for every base up to this bound
--- (tests/reference/jsmath.test.cjs); the first known difference is at base 968.
-Workshop.VERIFIED_INVEST_POW_BASE = 967
+-- Math.pow(base, Math.E) matches V8 for every base up to 967
+-- (tests/reference/jsmath.test.cjs); beyond it JSMath.pow is a declared difference
+-- (#24, docs/reference/WORKSHOP.md).
 
 function Game:investUpgrade()
     local S = self.S
     -- The new cost uses base (investLevel + 1) after the level increment.
-    local base = S.investLevel + 2
-    if base > Workshop.VERIFIED_INVEST_POW_BASE then
-        Unported("investUpgradeCost beyond the verified Math.pow(base, Math.E) range", "#24")
-    end
     S.yomi = S.yomi - S.investUpgradeCost
     S.investLevel = S.investLevel + 1
     S.stockGainThreshold = S.stockGainThreshold + .01
