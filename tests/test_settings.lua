@@ -58,9 +58,12 @@ p.smaller.scripts.OnClick(p.smaller)
 assert(Settings.values.scale == 1.4)
 -- None of it touched the company.
 assert(h.digest(game.S) == snapshot and Host.random.count == draws, "settings never touch the simulation")
--- New game from the settings: behind the confirmation.
+-- New game from the settings: behind the confirmation, which comes in front of the
+-- settings panel (a stratum above it, and raised) (Codex review of #69).
 p.newGame.scripts.OnClick(p.newGame)
 assert(Window.dialog:IsShown() and Window.dialog.question.text:find("Start a new company?", 1, true))
+assert(captured.raised == Window.dialog and Window.dialog.strata == "FULLSCREEN_DIALOG" and p.strata == "DIALOG",
+    "the confirmation is in front of the settings")
 Window.dialog.no.scripts.OnClick(Window.dialog.no)
 assert(Host.game == game)
 

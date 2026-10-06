@@ -1048,7 +1048,10 @@ function Window.Confirm(questionKey, onYes)
         d = CreateFrame("Frame", "TimeIsMoneyConfirm", UIParent)
         d:SetSize(340, 120)
         d:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
-        d:SetFrameStrata("DIALOG")
+        -- Above the panels (help, settings: DIALOG), so a confirmation opened from them
+        -- is always readable and clickable.
+        d:SetFrameStrata("FULLSCREEN_DIALOG")
+        d:SetToplevel(true)
         d:EnableMouse(true) -- clicks stop here, not on the window behind
         local g = Glass.Apply(d, "large")
         local content = CreateFrame("Frame", nil, d)
@@ -1079,6 +1082,7 @@ function Window.Confirm(questionKey, onYes)
         onYes()
     end)
     d:Show()
+    d:Raise()
 end
 
 -- A dialog left open closes when the window does, or when its company is replaced.

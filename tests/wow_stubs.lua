@@ -25,7 +25,7 @@ local function New(saved, libGlass)
     -- state they set kept for assertions. Stubs cannot prove pixels.
     local Widget = {}
     local methods = {
-        "ClearAllPoints", "SetAllPoints", "SetFrameStrata", "SetToplevel", "SetClampedToScreen",
+        "ClearAllPoints", "SetAllPoints", "SetToplevel", "SetClampedToScreen",
         "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing", "SetUserPlaced",
         "SetMotionScriptsWhileDisabled", "SetJustifyH", "SetWordWrap", "SetStatusBarColor",
         -- The Director's ModelScene (#22; measured in the client by the #10 probe).
@@ -57,6 +57,7 @@ local function New(saved, libGlass)
     function Widget:IsShown() return self.shown end
     function Widget:SetFrameLevel(l) self.level = l end
     function Widget:Raise() captured.raised = self end
+    function Widget:SetFrameStrata(s) self.strata = s end
     function Widget:GetScale() return self.scale or 1 end
     function Widget:GetLeft() return self.left or 100 end
     function Widget:GetTop() return self.top or 700 end
