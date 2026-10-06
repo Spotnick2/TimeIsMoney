@@ -234,6 +234,24 @@ do
     assert(not refused and why:find("saving is off", 1, true))
 end
 
+-- A reset is kept even when the new company halts before its first snapshot: a
+-- restored company with no prestige, a new game, then a halt; logout must not let
+-- the discarded company come back (Codex review of #68).
+do
+    local Host = Load()
+    local original = Host.start({ 61, 63 })
+    original.S.clips = 777
+    local saved = Host.encodeCompany()
+    local Host2 = Load()
+    assert(Host2.loadSaved({ schema = 1, company = saved }) == "restored" and Host2.game.S.clips == 777)
+    assert(Host2.newGame())
+    Host2.halt("a tick error before the first snapshot")
+    local db = Host2.persist()
+    assert(db and db.schema == 1 and db.company == nil and db.prestige == nil, "the reset is written")
+    local Host3 = Load()
+    assert(Host3.loadSaved(db) == "empty" and Host3.game == nil, "reload does not restore the old company")
+end
+
 -- Saves (#19): what logout writes in each case.
 -- The snapshot comes on every SNAPSHOT_EVERY-th reference auto-save only.
 do

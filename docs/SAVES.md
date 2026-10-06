@@ -74,6 +74,9 @@ TimeIsMoneyDB = {
   once ("SAVING FAILED"), with the point logout will keep.
 - **A company halted by an error inside a tick** is never saved from its partly run
   tick: logout keeps the last auto-save snapshot.
+- **A restart (#23)** clears the company's save, keeping only the prestige. If the
+  new company halts before its first snapshot, logout still writes the save without
+  a company, so a reload never brings back the discarded company.
 - **After a prestige choice** the company is over (the reference reloads the page):
   only the prestige is kept. A new company starts with it, as the reference's
   `loadPrestige` does at page load.

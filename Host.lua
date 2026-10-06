@@ -189,7 +189,10 @@ function Host.persist()
     else
         db.company = Host.snapshot
     end
-    if db.company == nil and db.prestige == nil then return nil end
+    -- With no company at all there is nothing to write. With one, the save is written
+    -- even when it holds no company: a restarted company that halted before its first
+    -- snapshot must not let the reset's discarded company come back on reload.
+    if not game and db.company == nil and db.prestige == nil then return nil end
     return db
 end
 
