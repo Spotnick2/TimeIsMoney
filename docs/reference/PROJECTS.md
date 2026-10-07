@@ -108,6 +108,6 @@ Temporal Reversion) end the company; the host starts the next one (#23).
 | 91 | project214 | projectButton214 | 2297 | trigger, eligibility and purchase effect | endingDismantle |
 | 92 | project215 | projectButton215 | 2322 | trigger, eligibility and purchase effect | endingDismantle |
 | 93 | project216 | projectButton216 | 2351 | trigger, eligibility and purchase effect | endingDismantle |
-| 94 | project217 | projectButton217 | 2378 | trigger, eligibility and purchase effect | restart: test_host.lua, test_restart.lua |
+| 94 | project217 | projectButton217 | 2378 | trigger, eligibility and purchase effect | restart: test_sim.lua, test_host.lua, test_restart.lua |
 | 95 | project218 | projectButton218 | 2403 | trigger, eligibility and purchase effect | projectsLate |
 | 96 | project219 | projectButton219 | 2425 | trigger, eligibility and purchase effect | projectsRecovery |

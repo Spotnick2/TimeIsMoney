@@ -18,11 +18,11 @@ local purchases, purchased = {}, {}
 for _, entry in ipairs(Workshop.projects) do
     local effect = entry.effect
     entry.effect = function(...)
+        effect(...) -- only a purchase whose effect completes counts
         if not purchased[entry.name] then
             purchased[entry.name] = true
             purchases[#purchases + 1] = entry.name
         end
-        return effect(...)
     end
 end
 

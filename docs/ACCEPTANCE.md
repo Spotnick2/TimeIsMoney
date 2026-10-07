@@ -18,9 +18,11 @@ client and are not claimed here.
 
 | Area | Evidence | Result |
 | --- | --- | --- |
-| All 96 projects | docs/reference/PROJECTS.md: 93 bought in traces matching the reference at every checkpoint; the three restarts (200, 201, 217) in Lua tests | pass |
+| All 96 projects | docs/reference/PROJECTS.md (generated; workshop.test.cjs keeps it current): every project is bought in a trace matching the reference at every checkpoint, except the restarts (200, 201, 217), covered by the Lua tests it names | pass |
 | One-use projects never return; repeatables repeat | workshop.test.cjs ("one-use projects never return", REPEATABLE set) | pass |
-| Phase one: production, sales, marketing, wire, automation, milestones | traces manual, exactCost, depletion, automation, priceFloor, milestones, mega, highPrice, pricedMarketing | pass (two declared display-field tolerances) |
+| Phase one: production, sales, marketing, wire, automation, milestones | traces manual, exactCost, depletion, automation, priceFloor, milestones, mega, highPrice, pricedMarketing, wireBuyerToggle | pass (two declared display-field tolerances) |
+| Project purchases by group | traces projectsProduction, projectsCreativity, projectsStrategy, projectsBusiness, projectsVolition, projectsMachines, projectsRecovery, projectsLate | pass |
+| The reference auto-save timer | trace autoSave (no game-state change; the host persists, docs/SAVES.md) | pass |
 | Computation: trust, processors, memory, creativity, Operations fade | traces computationUnlock, allocation, creativity, creativityFast, opFade | pass |
 | Quantum computing, negative Operations and recovery | traces quantumOverflow, quantumNegative, projectsRecovery | pass |
 | Investments | traces investments, investmentSale, investmentRisk, investUpgrade, investReport | pass |
@@ -53,7 +55,7 @@ All are listed, scoped and bounded in docs/reference/WORKSHOP.md:
 | Area | Evidence | Result |
 | --- | --- | --- |
 | One parentless wakeup frame; 10 ms logical steps; debt cap; frame budget; halt on error | tests/test_host.lua, tests/test_bootstrap.lua | pass |
-| Hidden window keeps the company running; toggling and restarts add no host step or timer | tests/test_lifecycle.lua | pass |
+| Hidden window keeps the company running; toggling and restarts add no host step, per-frame script, queued timer or simulation timer | tests/test_lifecycle.lua (runs every OnUpdate the client would; injected regressions fail it) | pass offline; the client performance row below is open |
 | Save and continue (six scenarios, exact) | tests/test_save.lua | pass |
 | Logout writes schema 1; next load continues at the same logical time | tests/test_bootstrap.lua | pass |
 | Unknown, future or broken saves blocked and never replaced | tests/test_bootstrap.lua, tests/test_save.lua | pass |

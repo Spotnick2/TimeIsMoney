@@ -551,4 +551,9 @@ test("the project traceability checklist is current",()=>{
     const bought=new Set(Object.values(purchases).flat());
     for (const name of Object.keys(Checklist.RESTARTS)) assert.ok(!bought.has(name),name+" is a restart");
     assert.equal(bought.size+Object.keys(Checklist.RESTARTS).length,96);
+    // The restart evidence names real tests that use the project's button.
+    for (const [name,files] of Object.entries(Checklist.RESTARTS)) for (const file of files) {
+        const text=require("node:fs").readFileSync(require("node:path").join(__dirname,"..",file),"utf8");
+        assert.ok(text.includes("projectButton"+name.slice("project".length)),file+" covers "+name);
+    }
 });

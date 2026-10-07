@@ -19,17 +19,23 @@ function portedProjects() {
 }
 
 // The traces that buy each project: { [trace] = [project names] } from the Lua
-// runner's purchase report. workshop.test.cjs passes the runs it already made;
-// the command line runs every trace (several minutes).
+// runner's purchase report. Only traces that match the reference with no error
+// count. workshop.test.cjs passes the comparisons it already made (and asserts
+// them); the command line compares every trace itself (about ten minutes).
 function tracePurchases() {
     const Workshop=require("./workshop.cjs"), bought={};
-    for (const name of Workshop.names) bought[name]=Workshop.lua(Workshop.make(name)).purchases;
+    for (const name of Workshop.names) {
+        const {port,divergence}=Workshop.compare(name);
+        if (divergence || port.error) throw new Error("trace "+name+" does not match the reference; fix it first");
+        bought[name]=port.purchases;
+    }
     return bought;
 }
 // project200/201/217 end the company: the reference resets and reloads, which its
 // host cannot trace. These Lua tests cover their effects and the restart (#23).
-const RESTARTS={project200:"test_sim.lua, test_host.lua", project201:"test_host.lua",
-    project217:"test_host.lua, test_restart.lua"};
+// workshop.test.cjs checks that each named file clicks or runs the project's button.
+const RESTARTS={project200:["test_sim.lua","test_host.lua"], project201:["test_host.lua"],
+    project217:["test_sim.lua","test_host.lua","test_restart.lua"]};
 
 function generate(purchases=tracePurchases()) {
     const byProject=new Map();
@@ -50,7 +56,7 @@ function generate(purchases=tracePurchases()) {
         }
         const traces=byProject.get(name)||[];
         const where=traces.length ? traces.slice(0,3).join(", ")+(traces.length>3 ? ` (+${traces.length-3})` : "")
-            : (RESTARTS[name] ? "restart: "+RESTARTS[name] : "**none**");
+            : (RESTARTS[name] ? "restart: "+RESTARTS[name].join(", ") : "**none**");
         return `| ${index+1} | ${name} | ${project.fields.id.initial} | ${project.line} | ${status} | ${where} |`;
     });
     const counted=[...ported.values()];
