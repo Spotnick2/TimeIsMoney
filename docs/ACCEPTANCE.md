@@ -42,7 +42,7 @@ client and are not claimed here.
 
 All are listed, scoped and bounded in docs/reference/WORKSHOP.md:
 
-- `avgRev` and `avgSales` display fields: at most 4 and 6 binary64 steps, never a
+- Display fields `avgRev` (at most 6 binary64 steps) and `avgSales` (at most 4), never a
   decision (*Numeric exception*, under *JavaScript semantics in Lua*).
 - Math.pow beyond the verified tables (drones > 200,000, farms and batteries >
   30,000, probe formulas > 10,000, processors > 3,424, investment base ≥ 968,

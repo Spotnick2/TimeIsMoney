@@ -310,7 +310,7 @@ caused only by running out of tables. No other stop changed.
   this slice, meaning cent prices up to $100 and marketing levels 1–60, with the
   slice's constant effectiveness, boost and prestige. Moving Math.pow(demand,
   1.15) one step either way (1,200,000 cases) never changes the sale quantity
-  `floor(.7 * pow)`. It moves the two fields by at most 4 and 6 steps, which
+  `floor(.7 * pow)`. It moves `avgRev` by at most 6 steps and `avgSales` by at most 4, which
   become the declared bounds. Sale probability uses demand, and demand uses only
   integer exponents, which match exactly. Later slices that change effectiveness,
   boost or prestige must extend this evidence.
