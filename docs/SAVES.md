@@ -97,8 +97,9 @@ exists.
   only the prestige is kept. A new company starts with it, as the reference's
   `loadPrestige` does at page load.
 - **No offline production:** a restored company continues from its saved logical
-  time. A crash or forced close loses what happened since the last successful write;
-  there is no automatic reload.
+  time. A crash or forced close (including Alt-F4, measured on 1.60.1.70245)
+  loses what happened since the last successful write; there is no automatic
+  reload.
 
 ## Refused data
 

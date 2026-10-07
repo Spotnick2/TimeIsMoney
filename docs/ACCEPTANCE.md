@@ -11,7 +11,7 @@ client and are not claimed here.
 | Reference | Universal Paperclips index2.html edition, retrieved 2026-10-02 (docs/reference/paperclips.lock.json): index2.html `526b148a2eab`, combat.js `c7226d012193`, globals.js `968abd83c709`, projects.js `05034c51809b`, main.js `ee599076de86` (SHA-256 prefixes) |
 | Reference runtime | Node v24.15.0, V8 13.6.233.17-node.48, win32 x64 |
 | Offline Lua | Lua 5.1 (C:\Program Files (x86)\Lua\5.1) |
-| Client | WoW Forever 1.60.1.70205, Interface 16001, embedded Lua 5.1; API evidence 1.60.1.70205 |
+| Client | WoW Forever 1.60.1.70245, Interface 16001, embedded Lua 5.1; API evidence 1.60.1.70205 (documented surface identical to the 70245 dump) |
 | LibGlass | r1 (.pkgmeta) |
 
 ## Simulation parity
@@ -55,24 +55,29 @@ All are listed, scoped and bounded in docs/reference/WORKSHOP.md:
 | Area | Evidence | Result |
 | --- | --- | --- |
 | One parentless wakeup frame; 10 ms logical steps; debt cap; frame budget; halt on error | tests/test_host.lua, tests/test_bootstrap.lua | pass |
-| Hidden window keeps the company running; toggling and restarts add no host step, per-frame script, queued timer or simulation timer | tests/test_lifecycle.lua (runs every OnUpdate the client would; injected regressions fail it) | pass offline; the client performance row below is open |
+| Hidden window keeps the company running; toggling and restarts add no host step, per-frame script, queued timer or simulation timer | tests/test_lifecycle.lua (runs every OnUpdate the client would; injected regressions fail it) | pass offline; the client performance row below confirms it in the client |
 | Save and continue (six scenarios, exact) | tests/test_save.lua | pass |
 | Logout writes schema 1; next load continues at the same logical time | tests/test_bootstrap.lua | pass |
 | Unknown, future or broken saves blocked and never replaced | tests/test_bootstrap.lua, tests/test_save.lua | pass |
 | Restarts persist; settings saved and validated | tests/test_restart.lua, tests/test_settings.lua | pass |
 | No offline production | docs/SAVES.md; the clock continues from saved logical time | pass by design |
 
-## Client (owner, current build)
+## Client (owner, 1.60.1.70245, 2026-10-07)
 
-| Check | Last evidence | Result |
+Run by the owner on 1.60.1.70245 with current main (after #71) and the probe
+addon; details in docs/forever-api-notes.md, *#24 acceptance in the client*.
+
+| Check | Evidence | Result |
 | --- | --- | --- |
-| `/timprobe math` and `/timprobe sim` match offline Lua (now including large-argument sin) | 2026-10-03, 1.60.1.70205, before #70 | **open**: re-run |
-| `/reload` continuation | 2026-10-03 (probe SavedVariables); the addon's own save not yet | **open** |
-| Full exit and relaunch continuation | as above | **open** |
-| Restarts and new game, with the confirmation above Settings (#69) | none in client | **open** |
-| Settings (model, voice, scale, position) across reload and relaunch | none in client | **open** |
-| Director: Gazlowe framing without clipping; the greeting voice | screenshots before #66; voice not heard through the addon | **open** |
-| Performance: CPU per frame and memory with the window open and hidden | 2026-10-03 (#18, host only) | **open**: re-measure with the window |
-| Interrupted session: progress since the last write is lost, nothing else | not run | **open**: disposable check |
+| `/timprobe env`, `math`, `sim` match offline Lua, including large-argument sin | env all passed; math exact, 1,538 cases (sin 400); sim digest `c59a807f` and zero-price `032cb45b` match | pass |
+| `/reload` continuation | the company reopened where it was, no error | pass |
+| Full exit and relaunch continuation | as above; no offline production | pass |
+| Restarts and new game, with the confirmation above Settings (#69) | confirmation in front and clickable; "keep" changed nothing; a confirmed new game stayed after reload | pass |
+| Settings (model, voice, scale, position) across reload and relaunch | restored; three scales shown in screenshots | pass |
+| Director: Gazlowe framing; the greeting voice | head and topknot in frame; "Time is money, friend!" heard | pass |
+| Performance with the window open and hidden | open: 0.56 ms per frame on average, 66 ms CPU per logical second, worst 8.8 ms; hidden: 0.66 ms, 64 ms, worst 8.8 ms (the hidden sample includes the probe's 0.8 s one-frame run, which accounts for the time dropped between them) | pass |
+| Interrupted session | the owner quit with Alt-F4. The relaunched company showed an earlier state than before the quit (2 Gizmos and a 30c price against 3 Gizmos and 13c): the logout write did not happen, the company came back from the last successful write, without error or a block | pass |
 
-The client checklist the owner runs is in the PR that closes #24.
+The documented API surface of 1.60.1.70245 is identical to the 1.60.1.70205
+evidence (Compare-Dumps.ps1, 2026-10-07); moving the evidence constant is the
+`/client-update` step.
