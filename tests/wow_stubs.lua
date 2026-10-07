@@ -121,7 +121,9 @@ local function New(saved, libGlass)
     env.UIParent = setmetatable({ scripts = {}, shown = true, width = 1024, height = 768 }, { __index = Widget })
     env.GameTooltip = setmetatable({ scripts = {}, shown = false }, { __index = Widget })
     function env.GameTooltip:SetOwner() end
-    function env.GameTooltip:AddLine() end
+    -- The tooltip's lines, for assertions: SetText starts them, AddLine adds one.
+    function env.GameTooltip:SetText(text) self.lines = { text } end
+    function env.GameTooltip:AddLine(text) self.lines = self.lines or {} self.lines[#self.lines + 1] = text end
     captured.glass = { applied = 0 }
     -- Icons (#21): the client resolves item icons once their data is loaded; tests
     -- choose which items are known (captured.itemIcons) and fire the load result.

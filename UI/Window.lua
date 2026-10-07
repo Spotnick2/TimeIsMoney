@@ -93,7 +93,14 @@ local function NewButton(parent, id, height)
     b:SetScript("OnEnter", function(self)
         Window.liveTip = { owner = self, lines = function()
             if self.tipFn then self.tip = self.tipFn() end
-            return self.tip
+            -- Unavailable: say what is missing (#73), under the tooltip or alone.
+            local game = ns.Host.game
+            local why = not self:IsEnabled() and game and View.unavailable(self.id, game.S)
+            if not why then return self.tip end
+            local lines = {}
+            for i, line in ipairs(self.tip or { self.text or "" }) do lines[i] = line end
+            lines[#lines + 1] = why
+            return lines
         end }
         Window.UpdateLiveTip()
     end)
@@ -107,6 +114,7 @@ end
 
 local function SetButton(b, text, enabled, short)
     b:SetEnabled(enabled)
+    b.text = text
     -- Square buttons have no room for words: "(+)" marks them unavailable.
     if short then
         b.label:SetText(enabled and text or ("(" .. text .. ")"))
@@ -223,10 +231,13 @@ function Card:Adjust(label, value, lower, raise, show, tip)
     return row
 end
 
--- A progress bar under a label (value, max).
-function Card:Meter(label, value, show)
-    local row = self:Stat(label, function(S) local v, m = value(S) return View.count(v) .. " / " .. View.count(m) end,
-        show)
+-- A progress bar under a label (value, max), the numbers rounded as View.count's
+-- rounding says (Operations: toward zero; stored power: Math.round).
+function Card:Meter(label, value, show, rounding)
+    local row = self:Stat(label, function(S)
+        local v, m = value(S)
+        return View.count(v, rounding) .. " / " .. View.count(m, rounding)
+    end, show)
     row.kind, row.height, row.meter = "meter", Window.ROW + 12, value
     row.bar = Glass.Bar(self.content, 8)
     row.bar:SetStatusBarColor(0.3, 0.8, 0.4)
@@ -712,10 +723,10 @@ local function Build()
     production:Stat("Universe / Sim Level", function(S)
         return JSMath.toString(S.prestigeU + 1) .. " / " .. JSMath.toString(S.prestigeS + 1)
     end, function(_, p) return p.prestige end)
-    production:WithIcon(production:Stat(T.clips, function(S) return View.count(S.clips) end), "clips")
+    production:WithIcon(production:Stat(T.clips, function(S) return View.count(S.clips, "ceil") end), "clips")
     production:Action("btnMakePaperclip", function() return T.make end)
     local manufacturing = function(_, p) return p.manufacturing end
-    production:Stat("Bolts per second", function(S) return View.count(S.clipRate) end, manufacturing)
+    production:Stat("Bolts per second", function(S) return View.count(S.clipRate, "round") end, manufacturing)
     production:WithIcon(production:Stat(T.wire, function(S) return View.count(S.wire) end, manufacturing), "wire")
     production:Action("btnBuyWire", function(S) return "Buy " .. T.wire .. " (" .. View.money(S.wireCost) .. ")" end,
         manufacturing)
@@ -865,12 +876,12 @@ local function Build()
         return Window.power
     end
     local power = NewCard(content, "Power")
-    power:Stat("Performance", function(S) return View.count(watts(S).performance) .. "%" end, powered)
-    power:Stat("Consumption", function(S) return View.count(watts(S).consumption) .. " MW" end, powered)
-    power:Stat("  Foundries", function(S) return View.count(watts(S).factories) .. " MW" end, powered)
-    power:Stat("  Drones", function(S) return View.count(watts(S).drones) .. " MW" end, powered)
-    power:Stat("Production", function(S) return View.count(watts(S).production) .. " MW" end, powered)
-    power:Meter("Stored", function(S) local w = watts(S) return w.stored, w.capacity end, powered)
+    power:Stat("Performance", function(S) return View.count(watts(S).performance, "round") .. "%" end, powered)
+    power:Stat("Consumption", function(S) return View.count(watts(S).consumption, "round") .. " MW" end, powered)
+    power:Stat("  Foundries", function(S) return View.count(watts(S).factories, "round") .. " MW" end, powered)
+    power:Stat("  Drones", function(S) return View.count(watts(S).drones, "round") .. " MW" end, powered)
+    power:Stat("Production", function(S) return View.count(watts(S).production, "round") .. " MW" end, powered)
+    power:Meter("Stored", function(S) local w = watts(S) return w.stored, w.capacity end, powered, "round")
     power:WithIcon(power:Stat(T.farms, function(S) return View.count(S.farmLevel) end, powered), "farms")
     power:Action("btnMakeFarm", function(S) return "Build a Core (" .. bolts(S.farmCost) .. ")" end, powered)
     power:Buttons({ { id = "btnFarmx10", text = "+10" }, { id = "btnFarmx100", text = "+100" },

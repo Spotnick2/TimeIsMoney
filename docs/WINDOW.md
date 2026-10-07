@@ -38,7 +38,14 @@ the embedded LibGlass-1.0 material.
     - The area covers the label and value, never the row's buttons, and still lets
       the window be dragged.
 - **Disabled controls say so** in their label, not only in colour: "(not yet)" on
-  wide buttons, "(+)" / "(-)" on the 32x32 square ones.
+  wide buttons, "(+)" / "(-)" on the 32x32 square ones. Their tooltip says why
+  (#73): View.unavailable gives a localized reason from the same condition the
+  simulation disables the control on, for example "Out of Copper Bars", "Not
+  enough Company Funds" or "A tournament is already running".
+- **Counts round as the reference shows them** (#73): toward zero by default, as
+  formatWithCommas does (a partial Copper Bar is never shown as a whole one);
+  bolts with Math.ceil, which is also what the milestone reports use; bolts per
+  second, power and stored power with Math.round.
 - **The window fits the screen.** Offers stay while the player defers them, so the
   projects card shows a page sized to UIParent's height, with Prev/Next and a page
   count to reach the rest.

@@ -28,6 +28,19 @@ ns.Locale.Register("enUS", {
     ["settings.scale"] = "Window scale: {percent}%",
     ["settings.help"] = "Help",
     ["settings.newGame"] = "New game...",
+    -- Why a control is unavailable (tooltips, #73). {term} is a goblin term
+    -- (View.TERMS).
+    ["why.short"] = "Not enough {term}.",
+    ["why.wire"] = "Out of Copper Bars: a handful needs one whole bar. Buy more to keep making bolts.",
+    ["why.lowestPrice"] = "The price is already at its lowest.",
+    ["why.trust"] = "Every point of Board Trust is already allocated.",
+    ["why.tournamentRunning"] = "A tournament is already running.",
+    ["why.setUpTournament"] = "Set up a new tournament first.",
+    ["why.maxTrust"] = "Dragonling Trust is at its maximum.",
+    ["why.nothingToDisassemble"] = "Nothing to take apart yet.",
+    ["why.probeTrust"] = "No Dragonling Trust left to assign.",
+    ["why.noneAllocated"] = "Nothing assigned here to take back.",
+    ["why.project"] = "The price is not met yet.",
     ["settings.notSaved"] = "Saving is off (unrecognized saved data): changes here are not kept after logout.",
 
     -- Speakers.
