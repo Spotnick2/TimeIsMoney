@@ -310,7 +310,7 @@ caused only by running out of tables. No other stop changed.
   this slice, meaning cent prices up to $100 and marketing levels 1–60, with the
   slice's constant effectiveness, boost and prestige. Moving Math.pow(demand,
   1.15) one step either way (1,200,000 cases) never changes the sale quantity
-  `floor(.7 * pow)`. It moves the two fields by at most 4 and 6 steps, which
+  `floor(.7 * pow)`. It moves `avgRev` by at most 6 steps and `avgSales` by at most 4, which
   become the declared bounds. Sale probability uses demand, and demand uses only
   integer exponents, which match exactly. Later slices that change effectiveness,
   boost or prestige must extend this evidence.
@@ -417,7 +417,8 @@ The reference runner and tests/reference/lua_trace_runner.lua run each trace.
 The reference document is projected to the fields the Lua document declares:
 every ported global, the slice's button states, the readouts, the timers and the
 draw count. compareTraces then requires **exact** agreement of every event, every
-labeled draw and every checkpoint, apart from the declared numeric exception above.
+labeled draw and every checkpoint, apart from the declared numeric exception above (the *Numeric exception* of
+`avgRev` and `avgSales`).
 
 | Trace | Covers | Result |
 | --- | --- | --- |
@@ -519,11 +520,12 @@ Node 24 profile. They do not establish:
   whose tournament takes about a minute of game time, so tests/test_sim.lua covers
   them;
 - building costs on other platforms: they follow the pinned profile's pow;
-- in-game behavior: Sim/ is not loaded by the addon yet;
-- WoW's embedded Lua numeric configuration;
+- in-game behavior: the client runs the same Sim/ files; `/timprobe math` and
+  `/timprobe sim` compare it with offline Lua (docs/forever-api-notes.md);
+- WoW's embedded Lua numeric configuration on the current build: last probed
+  before the large-argument Math.sin (#70); docs/ACCEPTANCE.md tracks the re-run;
 - presentation.
 
-Message strings stay as the reference's text for parity. The goblin presentation
-replaces them in the UI layer later. Reuse terms for translating the reference
-remain unestablished (see README). The simulation stays unpackaged until that
-and the host adapter are settled.
+Message strings stay as the reference's text for parity; the UI layer translates
+them into goblin wording (UI/Messages.lua, #22). The owner handles the reuse terms
+and directed (2026-10-04) to proceed as if approved, so Sim/ ships in the addon.

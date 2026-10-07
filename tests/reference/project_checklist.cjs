@@ -18,7 +18,29 @@ function portedProjects() {
     return new Map(out.stdout.trim().split(/\r?\n/).map(line=>line.split("\t")));
 }
 
-function generate() {
+// The traces that buy each project: { [trace] = [project names] } from the Lua
+// runner's purchase report. Only traces that match the reference with no error
+// count. workshop.test.cjs passes the comparisons it already made (and asserts
+// them); the command line compares every trace itself (about ten minutes).
+function tracePurchases() {
+    const Workshop=require("./workshop.cjs"), bought={};
+    for (const name of Workshop.names) {
+        const {port,divergence}=Workshop.compare(name);
+        if (divergence || port.error) throw new Error("trace "+name+" does not match the reference; fix it first");
+        bought[name]=port.purchases;
+    }
+    return bought;
+}
+// project200/201/217 end the company: the reference resets and reloads, which its
+// host cannot trace. These Lua tests cover their effects and the restart (#23).
+// workshop.test.cjs checks that each named file clicks or runs the project's button.
+const RESTARTS={project200:["test_sim.lua","test_host.lua"], project201:["test_host.lua"],
+    project217:["test_sim.lua","test_host.lua","test_restart.lua"]};
+
+function generate(purchases=tracePurchases()) {
+    const byProject=new Map();
+    for (const [trace,names] of Object.entries(purchases))
+        for (const name of names) byProject.set(name,[...(byProject.get(name)||[]),trace]);
     const inventory=JSON.parse(fs.readFileSync(path.join(ROOT,"docs/reference/inventory.json"),"utf8"));
     const source=inventory.sources["projects.js"];
     const byName=new Map(source.projects.map(p=>[p.name,p]));
@@ -32,7 +54,10 @@ function generate() {
         } else {
             status="later slice: its trigger needs the endings";
         }
-        return `| ${index+1} | ${name} | ${project.fields.id.initial} | ${project.line} | ${status} |`;
+        const traces=byProject.get(name)||[];
+        const where=traces.length ? traces.slice(0,3).join(", ")+(traces.length>3 ? ` (+${traces.length-3})` : "")
+            : (RESTARTS[name] ? "restart: "+RESTARTS[name].join(", ") : "**none**");
+        return `| ${index+1} | ${name} | ${project.fields.id.initial} | ${project.line} | ${status} | ${where} |`;
     });
     const counted=[...ported.values()];
     return [
@@ -42,17 +67,22 @@ function generate() {
         "[inventory.json](inventory.json) and Sim/Projects.lua; do not edit by hand.",
         "workshop.test.cjs checks that this file is current.",
         "",
+        "*Bought in* names the differential traces (tests/reference/workshop.cjs) in",
+        "which the project's purchase effect runs; each of them matches the reference",
+        "at every checkpoint. The restarts end the company and are covered by the Lua",
+        "tests named instead.",
+        "",
         `All three phases and the endings port ${counted.filter(s=>!s).length} purchase effects and`,
         `${counted.filter(s=>s).length} explicit purchase stops. The restarts (the prestige routes and Quantum`,
         `Temporal Reversion) end the company; the host starts the next one (#23).`,
         "",
-        "| # | Project | Button | projects.js line | Port |",
-        "| ---: | --- | --- | ---: | --- |",
+        "| # | Project | Button | projects.js line | Port | Bought in |",
+        "| ---: | --- | --- | ---: | --- | --- |",
         ...rows,
         "",
     ].join("\n");
 }
-module.exports={generate,OUTPUT};
+module.exports={generate,OUTPUT,RESTARTS};
 
 if (require.main===module) {
     const text=generate();
