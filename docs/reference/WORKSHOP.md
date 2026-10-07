@@ -522,8 +522,9 @@ Node 24 profile. They do not establish:
 - building costs on other platforms: they follow the pinned profile's pow;
 - in-game behavior: the client runs the same Sim/ files; `/timprobe math` and
   `/timprobe sim` compare it with offline Lua (docs/forever-api-notes.md);
-- WoW's embedded Lua numeric configuration on the current build: last probed
-  before the large-argument Math.sin (#70); docs/ACCEPTANCE.md tracks the re-run;
+- WoW's embedded Lua numeric configuration on later builds: probed on
+  1.60.1.70245 (2026-10-07, including the large-argument Math.sin); re-run
+  `/timprobe all` after a client update;
 - presentation.
 
 Message strings stay as the reference's text for parity; the UI layer translates

@@ -297,3 +297,26 @@ display, schema migration/continuation and endings.
   shoulders are framed, inside the glass.
 - **The 2D portrait:** `SetPortraitTextureFromCreatureDisplayID` with the same
   display renders as a round portrait in the same place.
+
+## #24 acceptance in the client — 2026-10-07, 1.60.1.70245 (owner)
+
+Current main after #71, TimeIsMoneyProbe deployed with it, full client restart.
+
+- `/timprobe all`: env all passed (Lua 5.1, doubles, NaN, signed zero, JS
+  division, frexp/ldexp, 2^60 floor, subnormal round trip, tonumber halfway
+  cases). Math exact: 1,538 cases in 76 ms (log 250, pow 528, log10 250, sin 400
+  including the large-argument reduction from #70, toString 110). Sim digest
+  `c59a807f` (9,198 draws, 250 ticks, 802 ms) and the zero-price digest
+  `032cb45b` match offline Lua.
+- `/tim status`, window open: 146.7 s logical, 0.56 ms per frame on average,
+  66 ms CPU per logical second, worst 8.8 ms, 595 ms dropped (the login).
+  Window hidden: 193.7 s logical, 0.66 ms, 64 ms, worst 8.8 ms, 1,158 ms dropped;
+  the 563 ms added is the probe's 0.8 s simulation run in a single frame.
+- `/reload`, full exit and relaunch, settings, restarts with the confirmation,
+  the Director's framing and greeting voice: all as expected (docs/ACCEPTANCE.md).
+- Alt-F4 instead of logging out: the relaunched company was at an earlier state
+  (2 Gizmos, price 30c, against 3 Gizmos and 13c before the quit). On this build
+  Alt-F4 skips the logout write; the company came back from the last successful
+  write, without error or a block, as docs/SAVES.md describes.
+- API dump 1.60.1.70245 against the 70205 evidence: documented functions, events,
+  tables, widget methods and namespace functions unchanged (Compare-Dumps.ps1).
