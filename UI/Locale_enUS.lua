@@ -151,6 +151,7 @@ ns.Locale.Register("enUS", {
     ["chips.title"] = "Arcane Crystals: {n} of 10",
     ["chips.how"] = "Each crystal's charge rises and falls: gold while positive, red while negative. Compute turns the total into Operations, so compute while they glow gold; red drains Operations.",
     ["chips.buy"] = "More crystals come from the Arcane Crystal project.",
+    ["why.opsBelow"] = "Operations must fall to {n} or lower (negative Operations).",
     ["why.capacity"] = "Costs {n} Operations, more than your White Punch Cards hold ({cap}): add Punch Cards to raise the capacity.",
     ["help.creditsTitle"] = "Credits",
     ["help.credits"] = "Time Is Money is a port of Universal Paperclips, a game by Frank Lantz; combat programming by Bennett Foddy. (c) 2017 Everybody House Games.",

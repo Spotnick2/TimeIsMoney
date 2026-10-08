@@ -508,6 +508,12 @@ function View.unavailable(id, S)
         local entry = ns.Workshop.projectById[id]
         local text = entry and ns.ProjectText[entry.name]
         local raw = text and (text.priceTag or computedTag(entry.name, S)) or ""
+        local below = raw:match("%-([%d,]+) ops")
+        if below then
+            -- A negative price (Reverse the Hourglass): Operations must fall, not rise.
+            key, term = "why.opsBelow", nil
+            return ns.Locale.Format(key, { n = View.count(-tonumber((below:gsub(",", "")))) })
+        end
         term = View.shortOf(raw, S)
     else
         return nil
@@ -522,7 +528,8 @@ end
 local PRICED = {
     { pattern = "([%d,]+) [Yy]omi", term = "yomi", have = function(S) return S.yomi end },
     { pattern = "([%d,]+) creat", term = "creativity", have = function(S) return S.creativity end },
-    { pattern = "([%d,]+) ops", term = "operations", have = function(S) return S.operations end },
+    -- (a negative Operations price never counts as short: see View.unavailable)
+    { pattern = "[^%-%d,]([%d,]+) ops", term = "operations", have = function(S) return S.operations end },
     { pattern = "%$([%d,]+)", term = "funds", have = function(S) return S.funds end },
 }
 function View.shortOf(raw, S)

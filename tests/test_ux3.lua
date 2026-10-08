@@ -219,4 +219,25 @@ ns.Settings.Set("model", false)
 assert(ns.Director.MinStrip(ns.Dialogue.DIRECTOR) == ns.Director.PORTRAIT + 8)
 ns.Settings.Set("model", true)
 
+-- The fallback picture fits the short strip, and the click area follows the
+-- picture shown (Codex review of #93).
+local strip = ns.Director.strip
+local pp = strip.portrait.point
+assert(pp[1] == "TOP" and pp[2] == strip and pp[5] == -4, "the portrait sits at the strip's top")
+assert(-pp[5] + ns.Director.PORTRAIT <= ns.Director.PORTRAIT + 8, "inside the short strip")
+ns.Settings.Set("model", false)
+Window.Refresh()
+assert(strip.pictureArea.allPoints == strip.portrait, "the click area covers the portrait")
+ns.Settings.Set("model", true)
+Window.Refresh()
+assert(strip.pictureArea.allPoints == strip.scene, "and the scene when the model shows")
+
+-- A negative Operations price (Reverse the Hourglass) says Operations must fall.
+local reversion
+for _, e in ipairs(ns.Workshop.projects) do if e.name == "project217" then reversion = e end end
+S.operations = -9990
+local why = View.unavailable(reversion.id, S)
+assert(why:find("must fall to %-10,000") and not why:find("Copper Modulators generate", 1, true), why)
+assert(View.shortOf("(-10,000 ops)", { yomi = 0, operations = -9990, creativity = 0, funds = 0 }) == nil)
+
 print("ux3: action tooltips, shipment size, available trust, capacity hint, fixed coins, own tooltip, credits and ESC order passed")

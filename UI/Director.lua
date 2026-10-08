@@ -121,7 +121,9 @@ function Director.Build(parent, font)
     strip.scene = scene
     strip.portrait = strip:CreateTexture(nil, "ARTWORK")
     strip.portrait:SetSize(Director.PORTRAIT, Director.PORTRAIT)
-    strip.portrait:SetPoint("CENTER", scene, "CENTER", 0, 0)
+    -- The 84 px picture at the top of the picture column, inside the short strip
+    -- (PORTRAIT + 8): never centred on the taller 3D scene (Codex review of #93).
+    strip.portrait:SetPoint("TOP", strip, "TOPLEFT", Director.WIDTH / 2, -4)
     -- The speaker's name (copper), then the Director's role (muted) beside it.
     strip.speaker = font(strip, 13, "LEFT")
     strip.speaker:SetPoint("TOPLEFT", strip, "TOPLEFT", Director.WIDTH + 12, -8)
@@ -159,7 +161,7 @@ function Director.Build(parent, font)
     -- itself stays mouse-disabled; this button over the picture takes the click and
     -- still drags the window.
     strip.pictureArea = CreateFrame("Button", nil, strip)
-    strip.pictureArea:SetAllPoints(scene)
+    strip.pictureArea:SetAllPoints(scene) -- re-fitted to the picture shown (Update)
     ns.Window.Draggable(strip.pictureArea)
     strip.pictureArea:SetScript("OnClick", function() ns.Window.ToggleReports() end)
     strip.pictureArea:SetScript("OnEnter", reportsTip)
@@ -310,6 +312,9 @@ function Director.Update(speaker, line, width, reports)
         strip.portrait:SetTexture((ns.Assets.IdentityIcon(MARKS[speaker])))
         strip.portrait:Show()
     end
+    -- The click area covers the picture actually shown: the scene, or the portrait.
+    strip.pictureArea:ClearAllPoints()
+    strip.pictureArea:SetAllPoints(strip.scene:IsShown() and strip.scene or strip.portrait)
     local height = math.max(Director.MinStrip(speaker), 8 + 16 + 3 + strip.line:GetStringHeight() + reportHeight + 8)
     strip:SetHeight(height)
     return height
