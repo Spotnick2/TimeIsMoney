@@ -99,6 +99,11 @@ Window.ESC_PANELS = { "TimeIsMoneyHelp", "TimeIsMoneySettings", "TimeIsMoneyRepo
 local function Listed(name)
     for i, n in ipairs(UISpecialFrames) do if n == name then return i end end
 end
+-- From a panel's OnHide: never edit the list inside the client's ESC loop (adding
+-- the ledger there would close it with the same press); do it on the next frame.
+function Window.EscapeLater()
+    C_Timer.After(0, function() Window.UpdateEscape() end)
+end
 function Window.UpdateEscape()
     local open = false
     for _, name in ipairs(Window.ESC_PANELS) do
@@ -118,10 +123,11 @@ end
 
 -- Tooltips: one renderer. lines[1] is the white title, the rest wrap muted.
 local function ShowTip(owner, lines)
-    Window.Tip():SetOwner(owner, "ANCHOR_RIGHT")
-    Window.Tip():SetText(lines[1], 1, 1, 1)
-    for i = 2, #lines do Window.Tip():AddLine(lines[i], MUTED[1], MUTED[2], MUTED[3], true) end
-    Window.Tip():Show()
+    local tip = Window.Tip()
+    tip:SetOwner(owner, "ANCHOR_RIGHT")
+    tip:SetText(lines[1], 1, 1, 1)
+    for i = 2, #lines do tip:AddLine(lines[i], MUTED[1], MUTED[2], MUTED[3], true) end
+    tip:Show()
 end
 
 -- A tooltip line read from the running company, or nil.
@@ -156,34 +162,36 @@ local function NewButton(parent, id, height)
     -- that changes under the pointer (a purchase) shows its new value and title.
     -- Hover and pressed looks, only while it can be used.
     b:SetScript("OnMouseDown", function(self)
-        if self:IsEnabled() then Glass.SetSurfaceTint(self.glass, unpack(Window.PRESSED_TINT)) end
+        if self:IsEnabled() and not self.lit then Glass.SetSurfaceTint(self.glass, unpack(Window.PRESSED_TINT)) end
     end)
     b:SetScript("OnMouseUp", function(self)
-        if self:IsEnabled() and self.hovered then Glass.SetSurfaceTint(self.glass, unpack(Window.HOVER_TINT)) end
+        if self:IsEnabled() and self.hovered and not self.lit then Glass.SetSurfaceTint(self.glass, unpack(Window.HOVER_TINT)) end
     end)
     b:SetScript("OnEnter", function(self)
         self.hovered = true
         if self:IsEnabled() and not self.lit then Glass.SetSurfaceTint(self.glass, unpack(Window.HOVER_TINT)) end
         Window.liveTip = { owner = self, lines = function()
-            if self.tipFn then self.tip = self.tipFn() end
-            -- What it does (#89), for every action with a description.
+            -- Built afresh on every redraw from the button's own tip (fixed, or its
+            -- tipFn), what it does (#89) and why not (#73); nothing is written back.
+            local base = self.tipFn and self.tipFn() or self.tip
             local game = ns.Host.game
+            local lines
             local does = game and View.actionTip(self.id, game.S)
             if does then
-                local lines = { self.text or "" }
+                lines = { self.text or "" }
                 for _, line in ipairs(does) do lines[#lines + 1] = line end
-                for i = 2, #(self.tip or {}) do lines[#lines + 1] = self.tip[i] end
-                self.tip = lines
+                for i = 2, #(base or {}) do lines[#lines + 1] = base[i] end
+            elseif base then
+                lines = {}
+                for i, line in ipairs(base) do lines[i] = line end
             end
-            -- Unavailable: say what is missing (#73), under the tooltip or alone.
-            local game = ns.Host.game
             local why = not self:IsEnabled() and game and
                 ((ns.Host.paused and (self.id or self.company) and ns.L["why.paused"]) or View.unavailable(self.id, game.S)
                     or (self.why and ns.L[self.why]))
-            if not why then return self.tip end
-            local lines = {}
-            for i, line in ipairs(self.tip or { self.text or "" }) do lines[i] = line end
-            lines[#lines + 1] = why
+            if why then
+                lines = lines or { self.text or "" }
+                lines[#lines + 1] = why
+            end
             return lines
         end }
         Window.UpdateLiveTip()
@@ -326,23 +334,24 @@ end
 -- category, what it does (live), a green "Use:" line and yellow flavour text.
 function Window.ShowItemTip(owner, key)
     local game = ns.Host.game
-    local tip = game and View.itemTip(key, game)
-    if not tip then return false end
+    local item = game and View.itemTip(key, game)
+    if not item then return false end
+    local tip = Window.Tip()
     local identity = ns.Assets.identity[key]
     local r, g, b = 1, 1, 1
     if identity then
         local qr, qg, qb = TimeIsMoney.API.ItemQualityColor(identity.item)
         if qr then r, g, b = qr, qg, qb end
     end
-    Window.Tip():SetOwner(owner, "ANCHOR_RIGHT")
-    Window.Tip():SetText(tip.title, r, g, b)
-    Window.Tip():AddLine(tip.category, 1, 1, 1)
-    for _, line in ipairs(tip.lines) do Window.Tip():AddLine(line, 1, 1, 1, true) end
+    tip:SetOwner(owner, "ANCHOR_RIGHT")
+    tip:SetText(item.title, r, g, b)
+    tip:AddLine(item.category, 1, 1, 1)
+    for _, line in ipairs(item.lines) do tip:AddLine(line, 1, 1, 1, true) end
     -- The client's own colours when present (GREEN_FONT_COLOR, NORMAL_FONT_COLOR).
     local green, yellow = GREEN_FONT_COLOR, NORMAL_FONT_COLOR
-    Window.Tip():AddLine(tip.use, green and green.r or 0.12, green and green.g or 1, green and green.b or 0, true)
-    Window.Tip():AddLine(tip.flavor, yellow and yellow.r or 1, yellow and yellow.g or 0.82, yellow and yellow.b or 0, true)
-    Window.Tip():Show()
+    tip:AddLine(item.use, green and green.r or 0.12, green and green.g or 1, green and green.b or 0, true)
+    tip:AddLine(item.flavor, yellow and yellow.r or 1, yellow and yellow.g or 0.82, yellow and yellow.b or 0, true)
+    tip:Show()
     return true
 end
 
@@ -1283,8 +1292,9 @@ function Window.Confirm(questionKey, onYes)
     local d = Window.dialog
     if not d then
         d = CreateFrame("Frame", "TimeIsMoneyConfirm", UIParent)
+        d:Hide() -- created shown; hidden first so its first Show fires OnShow (ESC list)
         d:SetScript("OnShow", function() Window.UpdateEscape() end)
-        d:SetScript("OnHide", function() Window.UpdateEscape() end)
+        d:SetScript("OnHide", function() Window.EscapeLater() end)
         d:SetSize(340, 120)
         d:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
         -- Above the panels (help, settings: DIALOG), so a confirmation opened from them
@@ -1398,7 +1408,7 @@ function Window.Panel(name, width, height)
     p:SetToplevel(true)
     -- Opening a panel brings it in front of the others.
     p:SetScript("OnShow", function(self) self:Raise() Window.UpdateEscape() end)
-    p:SetScript("OnHide", function() Window.UpdateEscape() end)
+    p:SetScript("OnHide", function() Window.EscapeLater() end)
     p:SetClampedToScreen(true)
     p:SetMovable(true)
     p:EnableMouse(true)

@@ -17,6 +17,7 @@ Host.update = function(elapsed)
 end
 local function frame(elapsed)
     steps = 0
+    captured:RunTimers() -- C_Timer.After(0) callbacks run on the next frame, as in the client
     for _, f in ipairs(captured.frames) do
         if f.scripts.OnUpdate then f.scripts.OnUpdate(f, elapsed) end
     end

@@ -161,7 +161,9 @@ View.COIN_ICONS = {
     s = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t",
     c = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t",
 }
-local function coinParts(x, marks)
+-- fixed (#89): once a larger coin shows, every smaller one does too, padded to two
+-- digits, so a right-aligned amount keeps its width.
+local function coinParts(x, marks, fixed)
     if isNaN(x) or x == math.huge or x == -math.huge then return View.count(x) end
     local copper = math.floor(math.abs(x) * 100 + 0.5)
     local negative = x < 0 and copper > 0
@@ -172,8 +174,12 @@ local function coinParts(x, marks)
         local gold, silver = math.floor(copper / 10000), math.floor(copper / 100) % 100
         copper = copper % 100
         if gold > 0 then parts[#parts + 1] = View.count(gold) .. marks.g end
-        if silver > 0 then parts[#parts + 1] = silver .. marks.s end
-        if copper > 0 or #parts == 0 then parts[#parts + 1] = copper .. marks.c end
+        if silver > 0 or (fixed and gold > 0) then
+            parts[#parts + 1] = (fixed and gold > 0 and string.format("%02d", silver) or silver) .. marks.s
+        end
+        if copper > 0 or #parts == 0 or fixed then
+            parts[#parts + 1] = (fixed and #parts > 0 and string.format("%02d", copper) or copper) .. marks.c
+        end
     end
     return (negative and "-" or "") .. table.concat(parts, " ")
 end
@@ -183,24 +189,7 @@ function View.money(x) return coinParts(x, View.COIN_ICONS) end
 -- For right-aligned values (funds, revenue, price): once a larger coin shows, every
 -- smaller one does too, padded to two digits ("2g 05s 04c"), so the amount keeps its
 -- width as it changes (#89). Digits are equal width in WoW fonts.
-function View.moneyFixed(x)
-    if isNaN(x) or x == math.huge or x == -math.huge then return View.count(x) end
-    local marks = View.COIN_ICONS
-    local copper = math.floor(math.abs(x) * 100 + 0.5)
-    if copper >= EXACT_COPPER then return coinParts(x, marks) end
-    local negative = x < 0 and copper > 0
-    local gold, silver = math.floor(copper / 10000), math.floor(copper / 100) % 100
-    copper = copper % 100
-    local text
-    if gold > 0 then
-        text = View.count(gold) .. marks.g .. " " .. string.format("%02d", silver) .. marks.s .. " " .. string.format("%02d", copper) .. marks.c
-    elseif silver > 0 then
-        text = silver .. marks.s .. " " .. string.format("%02d", copper) .. marks.c
-    else
-        text = copper .. marks.c
-    end
-    return (negative and "-" or "") .. text
-end
+function View.moneyFixed(x) return coinParts(x, View.COIN_ICONS, true) end
 
 -- The exact amount, when the coins round it (a fraction of a copper): the tooltip
 -- that keeps thresholds visible. nil when the coins already show it exactly. The
@@ -254,8 +243,10 @@ function View.projects(game, money)
         local text = ns.ProjectText[entry.name]
         -- A project costing more Operations than the Punch Cards hold can never be
         -- bought by waiting (#89): say how to get there.
-        local ops = text.priceTag and text.priceTag:match("([%d,]+) ops")
+        local raw = text.priceTag or computedTag(entry.name, game.S) or ""
+        local ops = raw:match("(%-?[%d,]+) ops")
         ops = ops and tonumber((ops:gsub(",", "")))
+        if ops and ops < 0 then ops = nil end -- a negative price (the reversion) never needs capacity
         list[#list + 1] = {
             id = project.id, name = entry.name, title = text.title, priceTag = View.priceTag(entry.name, game.S, money),
             purpose = text.purpose, enabled = not game.disabled[project.id],
@@ -635,12 +626,10 @@ local ACTIONS = {
     end,
     btnToggleWireBuyer = function() return { A("act.wireBuyer") } end,
     btnMakeClipper = function(S)
-        return { A("act.adds", { n = View.rate(S.clipperBoost) }), A("act.cost", { cost = View.money(S.clipperCost) }),
-            View.exactMoney(S.clipperCost) }
+        return { A("act.adds", { n = View.rate(S.clipperBoost) }), A("act.cost", { cost = View.money(S.clipperCost) }) }
     end,
     btnMakeMegaClipper = function(S)
-        return { A("act.adds", { n = View.rate(S.megaClipperBoost * 500) }), A("act.cost", { cost = View.money(S.megaClipperCost) }),
-            View.exactMoney(S.megaClipperCost) }
+        return { A("act.adds", { n = View.rate(S.megaClipperBoost * 500) }), A("act.cost", { cost = View.money(S.megaClipperCost) }) }
     end,
     btnExpandMarketing = function(S)
         return { A("act.campaign", { level = View.count(S.marketingLvl + 1) }), A("act.cost", { cost = View.money(S.adCost) }) }
