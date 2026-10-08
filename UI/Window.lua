@@ -294,6 +294,12 @@ Card.__index = Card
 -- titled(panels), when given, says whether the title's block shows: the reference
 -- keeps each heading inside the block it hides, so the card's other rows can show
 -- without it.
+-- What each card is for, on hovering its title (owner, 2026-10-08).
+Window.CARD_KEYS = { Production = "production", Sales = "sales", ["The Ledger"] = "ledger",
+    ["Cartel Investments"] = "investments", ["Negotiation Simulator"] = "negotiation",
+    ["Resonance Calculator"] = "resonance", Manufacturing = "manufacturing", ["Copper Production"] = "copper",
+    Power = "power", ["Space Exploration"] = "space", ["Dragonling Design"] = "design", Combat = "combat",
+    Projects = "projects" }
 local function NewCard(parent, title, titled)
     local card = setmetatable({ rows = {}, titled = titled }, Card)
     local f = CreateFrame("Frame", nil, parent)
@@ -306,6 +312,26 @@ local function NewCard(parent, title, titled)
     card.title = Glass.Font(card.glass.top, 12, "LEFT")
     card.title:SetText(title)
     card.title:SetTextColor(COPPER[1], COPPER[2], COPPER[3])
+    -- The title says what the card is for, and hovering it clears the card's "New".
+    local key = Window.CARD_KEYS[title] or (title == View.TERMS.swarm and "network") or nil
+    card.titleArea = CreateFrame("Frame", nil, card.content)
+    card.titleArea:SetPoint("TOPLEFT", card.title, "TOPLEFT", -2, 2)
+    card.titleArea:SetPoint("BOTTOMRIGHT", card.title, "BOTTOMRIGHT", 2, -2)
+    card.titleArea:EnableMouse(true)
+    card.titleArea.cardTitle = true -- tests tell it from the rows' hover areas
+    Draggable(card.titleArea)
+    card.titleArea:SetScript("OnEnter", function(area)
+        card.newUntil = nil
+        if card.newTag then card.newTag:Hide() end
+        if key then
+            Window.liveTip = { owner = area, lines = function() return { title, ns.L["card." .. key] } end }
+            Window.UpdateLiveTip()
+        end
+    end)
+    card.titleArea:SetScript("OnLeave", function(area)
+        if Window.liveTip and Window.liveTip.owner == area then Window.liveTip = nil end
+        Window.Tip():Hide()
+    end)
     return card
 end
 
@@ -600,14 +626,35 @@ end
 
 -- The photonic chips: ten cells whose brightness follows each chip's value, as the
 -- reference sets each chip's opacity (a negative value shows nothing).
+-- The Arcane Crystals (the reference's photonic chips), shown with the Arcane
+-- Crystal icon (item 12363, the "chips" identity). Each slot has a faint outline,
+-- so ten empty slots read as "0 of 10"; an owned crystal shows with its charge as
+-- opacity: as is while positive, tinted red while negative (the reference shows only the
+-- positive half as opacity, so a crystal at negative charge looked like it vanished;
+-- Compute then drains Operations). Presentation only: the values are the
+-- simulation's own (owner, 2026-10-08).
+Window.CHIP_POSITIVE, Window.CHIP_NEGATIVE = { 1, 1, 1 }, { 1, 0.3, 0.25 }
 function Card:Chips(show)
-    local row = { kind = "chips", height = 20, show = show, cells = {} }
+    local row = { kind = "chips", height = 20, show = show, cells = {}, slots = {} }
     for i = 1, 10 do
+        local slot = self.content:CreateTexture(nil, "BORDER")
+        slot:SetColorTexture(1, 1, 1, 0.12)
+        slot:SetSize(16, 16)
+        row.slots[i] = slot
         local cell = self.content:CreateTexture(nil, "ARTWORK")
-        cell:SetColorTexture(0.45, 0.85, 1, 1)
         cell:SetSize(16, 16)
         row.cells[i] = cell
     end
+    HoverArea(row, self.content, function(area)
+        return { owner = area, lines = function()
+            local game = ns.Host.game
+            if not game then return nil end
+            local owned = 0
+            for _, chip in ipairs(game.S.qChips) do if chip.active ~= 0 then owned = owned + 1 end end
+            return { ns.Locale.Format("chips.title", { n = owned }), ns.L["chips.how"], ns.L["chips.buy"] }
+        end }
+    end)
+    row.tipArea.chips = true
     self.rows[#self.rows + 1] = row
     return row
 end
@@ -624,6 +671,7 @@ function Card:Update(game, panels)
     local y = -inset
     local titled = not self.titled or self.titled(panels)
     self.title:SetShown(titled)
+    self.titleArea:SetShown(titled)
     -- A card shown on the previous redraw may tag its new rows; a new card tags
     -- its title only.
     local cardWasShown = self.shownLast
@@ -643,6 +691,7 @@ function Card:Update(game, panels)
                 row.regions[#row.regions + 1] = r
             end
             for _, r in ipairs(row.strings or row.cells or row.buttons or {}) do row.regions[#row.regions + 1] = r end
+            for _, r in ipairs(row.slots or {}) do row.regions[#row.regions + 1] = r end
         end
         for _, r in ipairs(row.regions) do r:SetShown(visible) end
         -- The row's "New" tag: after its label, or on its button's corner.
@@ -757,11 +806,21 @@ function Card:Update(game, panels)
                 Window.battleRow = row
             elseif row.kind == "chips" then
                 for i, cell in ipairs(row.cells) do
+                    local slot = row.slots[i]
+                    place(slot, self, y - 2, inset + (i - 1) * 20)
                     place(cell, self, y - 2, inset + (i - 1) * 20)
-                    local v = S.qChips[i].value
-                    cell:SetAlpha(v > 0 and math.min(v, 1) or 0)
-                    cell:SetShown(View.chipShown(S, i))
+                    local chip, shown = S.qChips[i], View.chipShown(S, i)
+                    local v = chip.value
+                    local color = v < 0 and Window.CHIP_NEGATIVE or Window.CHIP_POSITIVE
+                    local icon = ns.Assets.IdentityIcon("chips")
+                    if cell.icon ~= icon then cell:SetTexture(icon) cell.icon = icon end
+                    cell:SetVertexColor(color[1], color[2], color[3])
+                    cell:SetAlpha(chip.active ~= 0 and math.min(math.abs(v), 1) or 0)
+                    cell:SetShown(shown)
+                    slot:SetShown(shown)
                 end
+                place(row.tipArea, self, y, inset)
+                row.tipArea:SetSize(10 * 20, row.height)
             else
                 if row.icon then
                     place(row.icon, self, y - 2, inset)
@@ -822,7 +881,7 @@ function Card:Update(game, panels)
     local cardTagged = NewState(self, any, true) and titled
     ShowNewTag(self, cardTagged, self.glass.top, function(tag)
         tag:SetPoint("LEFT", self.title, "LEFT", self.title:GetStringWidth() + 8, 0)
-    end, self.title, self.content)
+    end)
     self.shownLast = any
     return any
 end
@@ -873,7 +932,7 @@ local function NewProjects(parent)
         local cardTagged = NewState(self, #list > 0, true)
         ShowNewTag(self, cardTagged, self.glass.top, function(tag)
             tag:SetPoint("LEFT", self.title, "LEFT", self.title:GetStringWidth() + 8, 0)
-        end, self.title, self.content)
+        end)
         self.shownLast = #list > 0
         for i = 1, math.min(perPage, #list - first) do
             local project = list[first + i]

@@ -166,4 +166,37 @@ assert(capacityFor("project51") and capacityFor("project51"):find("10,000", 1, t
 S.memory = 0
 assert(capacityFor("project217") == nil, "a negative price never needs capacity")
 
+-- Every card's title says what the card is for (owner, 2026-10-08).
+local cards = 0
+for _, column in ipairs(Window.columns) do
+    for _, card in ipairs(column) do
+        local title = card.title.text
+        local key = Window.CARD_KEYS[title] or (title == View.TERMS.swarm and "network")
+        assert(key and not ns.L["card." .. key]:find("^card%."), "a description for " .. tostring(title))
+        cards = cards + 1
+    end
+end
+assert(cards >= 14, "every card: " .. cards)
+
+-- The crystals: the Arcane Crystal icon, charge as opacity, red while negative,
+-- faint slots for the ones not owned, and a tooltip.
+local chipRow
+for _, column in ipairs(Window.columns) do
+    for _, card in ipairs(column) do
+        for _, row in ipairs(card.rows or {}) do if row.kind == "chips" then chipRow = row end end
+    end
+end
+S.qChips[1].active, S.qChips[2].active = 1, 1
+S.qChips[1].value, S.qChips[2].value, S.qChips[3].value = 0.6, -0.5, 0
+S.qFlag = 1
+Window.Refresh()
+local c1, c2, c3 = chipRow.cells[1], chipRow.cells[2], chipRow.cells[3]
+assert(c1.icon == ns.Assets.IdentityIcon("chips"), "the Arcane Crystal icon")
+assert(math.abs(c1.alpha - 0.6) < 1e-9 and c1.vertexColor[2] == 1, "positive: as is, by its charge")
+assert(math.abs(c2.alpha - 0.5) < 1e-9 and c2.vertexColor[2] < 0.5, "negative: red, never invisible")
+assert(c3.alpha == 0 and chipRow.slots[3].shown, "not owned: an empty slot")
+chipRow.tipArea.scripts.OnEnter(chipRow.tipArea)
+assert(env.GameTooltip.lines[1] == "Arcane Crystals: 2 of 10", "the tooltip counts them")
+chipRow.tipArea.scripts.OnLeave(chipRow.tipArea)
+
 print("ux3: action tooltips, shipment size, available trust, capacity hint, fixed coins, own tooltip, credits and ESC order passed")

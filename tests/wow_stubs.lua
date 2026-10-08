@@ -83,6 +83,7 @@ local function New(saved, libGlass)
     end
     function Widget:SetPoint(...) self.point = { ... } end
     function Widget:SetAlpha(a) self.alpha = a end
+    function Widget:SetVertexColor(r, g, b) self.vertexColor = { r, g, b } end
     function Widget:GetAlpha() return self.alpha or 1 end
     function Widget:SetTexture(t) self.texture = t end
     function Widget:SetColorTexture(r, g, b, a) self.colorTexture = { r, g, b, a } end

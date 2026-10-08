@@ -90,6 +90,18 @@ campaign order, whose condition holds, so a reload shows the same line:
 
 The reference's own messages come back here in goblin wording in #22's second PR.
 
+## Card titles and the crystals (owner, 2026-10-08)
+
+- **Every card's title** has a tooltip saying what the card is for
+  (`Window.CARD_KEYS`, `card.*` strings); hovering it also clears the card's
+  "New" tag.
+- **The Arcane Crystals** (the reference's photonic chips) show the Arcane Crystal
+  icon (item 12363) in ten faint slots, so an empty row reads "0 of 10". An owned
+  crystal shows its charge as opacity, as is while positive and **red while
+  negative**: the reference shows only the positive half, so a crystal looked as if
+  it vanished while Compute would drain Operations. The row's tooltip counts the
+  crystals and says to compute while they glow, not red. Presentation only.
+
 ## Cues and "New" tags (#90)
 
 - **Gazlowe talks as he greets** (the talk animation with the line; if his model

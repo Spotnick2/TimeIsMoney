@@ -184,8 +184,10 @@ end
 game.S.investmentEngineFlag = 1
 wait(0.1)
 local invest = assert(cardTitled("Cartel Investments"))
-assert(tagOf(invest) and invest.newArea and h.visible(invest.newArea), "a new card: its title tagged, with a hover area")
-invest.newArea.scripts.OnEnter(invest.newArea)
+assert(tagOf(invest) and h.visible(invest.titleArea), "a new card: its title tagged")
+invest.titleArea.scripts.OnEnter(invest.titleArea)
+assert(env.GameTooltip.lines[2]:find("stock market", 1, true), "and its title says what it is")
+invest.titleArea.scripts.OnLeave(invest.titleArea)
 wait(0.1)
 assert(not tagOf(invest) and invest.newUntil == nil, "hovering the title clears it")
 -- A plain stat row (Revenue per second, after its project) appears in a shown card.

@@ -93,12 +93,18 @@ assert(not h.shownText("Company Network") and h.labelled(">>"))
 at(5, { endTimer4 = 100 })
 Window.Refresh()
 assert(not h.button("btnQcompute") and h.shownText("Resonance Calculator"))
-local chips = 0
-for _, t in ipairs(captured.textures) do
-    local c = t.colorTexture
-    if c and c[1] == 0.45 and c[2] == 0.85 and h.visible(t) then chips = chips + 1 end
+local chipRow
+for _, column in ipairs(Window.columns) do
+    for _, card in ipairs(column) do
+        for _, row in ipairs(card.rows or {}) do if row.kind == "chips" then chipRow = row end end
+    end
 end
-assert(chips == 7, chips .. " chips show")
+local chips, slots = 0, 0
+for i, cell in ipairs(chipRow.cells) do
+    if h.visible(cell) then chips = chips + 1 end
+    if h.visible(chipRow.slots[i]) then slots = slots + 1 end
+end
+assert(chips == 7 and slots == 7, chips .. " chips show")
 -- compDiv holds the network, the slider and the calculator: hidden with it.
 S.dismantle = 0
 S.compFlag = 0
