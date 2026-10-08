@@ -27,6 +27,18 @@ for _, key in ipairs(View.ITEM_KEYS) do
     assert(#t.lines >= 1, key .. " lines")
 end
 assert(View.rate(1.25) == "1.25" and View.rate(500) == "500" and View.rate(2.5) == "2.5" and View.rate(1234.5) == "1,234.5")
+-- Edges: the sign under 1, rounding up into the next whole, huge values.
+assert(View.rate(-0.5) == "-0.5" and View.rate(0.999) == "1" and View.rate(1e15 + 0.5) == View.count(1e15 + 0.5, "round"))
+-- Singular forms: a new company's first Gizmo makes "1 handful", not "1 handfuls".
+S.clipmakerLevel, S.clipperBoost = 1, 1
+local first = tipOf("autoClippers")
+assert(first.lines[1] == "Each makes 1 handful per second." and first.lines[2] == "1 working: 1 handful per second.")
+-- A price coins round also gives its exact amount, as the button does.
+S.clipperCost = 5.1537
+first = tipOf("autoClippers")
+local exact = false
+for _, line in ipairs(first.lines) do if line:find("Exactly 5.1537 silver", 1, true) then exact = true end end
+assert(exact, "the exact price")
 
 -- Gizmos: per unit and combined, measured. No other source of bolts runs here.
 S.wire, S.clipmakerLevel, S.clipperBoost, S.megaClipperLevel = 1e9, 5, 1.25, 0

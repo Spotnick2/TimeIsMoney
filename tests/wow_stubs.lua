@@ -16,7 +16,8 @@ local function New(saved, libGlass)
         debugprofilestop = function() captured.clock = (captured.clock or 0) + 0.01 return captured.clock end,
     }
     local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true, TimeIsMoneyConfirm = true, TimeIsMoneyHelp = true,
-        TimeIsMoneySettings = true, TimeIsMoneyMinimapButton = true, TimeIsMoneyReports = true }
+        TimeIsMoneySettings = true, TimeIsMoneyMinimapButton = true, TimeIsMoneyReports = true,
+        GREEN_FONT_COLOR = true, NORMAL_FONT_COLOR = true }
     setmetatable(env, { __index = function(_, key)
         if allowedNil[key] then return nil end
         error("Unvalidated global: " .. tostring(key), 2)

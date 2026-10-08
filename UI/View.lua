@@ -496,40 +496,60 @@ end
 -- opCycle = processors / 10; harvesters and converters report the last tick's
 -- actual amounts (matterRate, wireRate). Pure: the window renders it.
 local L = function(key, values) return ns.Locale.Format(key, values or {}) end
--- A rate with up to two decimals ("1.25", "500", "1,234.5").
+-- A line in the plural form for count (key.one / key.other), placeholders filled.
+local function P(key, count, values)
+    return (ns.Locale.Plural(key, count):gsub("{(%w+)}", function(name)
+        local v = values[name]
+        return v ~= nil and tostring(v) or ("{" .. name .. "}")
+    end))
+end
+-- A rate with up to two decimals ("1.25", "500", "1,234.5"), in the locale's number
+-- form; huge values fall back to whole counts.
 function View.rate(x)
-    if isNaN(x) or x == math.huge or x == -math.huge then return View.count(x) end
-    local whole = View.count(x)
-    local cents = math.floor((math.abs(x) - math.floor(math.abs(x))) * 100 + 0.5)
-    if cents == 0 or cents >= 100 then return View.count(x, "round") end
-    return whole .. (string.format(".%02d", cents):gsub("0$", ""))
+    if isNaN(x) or x == math.huge or x == -math.huge or math.abs(x) >= 1e15 then return View.count(x, "round") end
+    local cents = math.floor(math.abs(x) * 100 + 0.5)
+    local whole, frac = math.floor(cents / 100), cents % 100
+    local text = View.count(whole)
+    if frac > 0 then text = text .. (string.format(".%02d", frac):gsub("0$", "")) end
+    if x < 0 and cents > 0 then text = "-" .. text end
+    return ns.Locale.Number(text)
+end
+-- A price as the buttons show it, with the exact amount when coins round it.
+local function price(lines, x)
+    lines[#lines + 1] = L("item.next", { cost = View.money(x) })
+    local exact = View.exactMoney(x)
+    if exact then lines[#lines + 1] = exact end
+end
+local function makes(S, level, each)
+    local lines = { P("item.makes.each", each, { n = View.rate(each) }),
+        P("item.makes.total", each * level, { count = View.count(level), n = View.rate(each * level) }),
+        L("item.whileBars") }
+    return lines
 end
 local ITEM_TIPS = {
     clips = function(S)
-        local lines = { L("item.clips.made", { n = View.count(S.clips, "ceil") }) }
+        local made = math.ceil(S.clips)
+        local lines = { P("item.clips.made", made, { n = View.count(S.clips, "ceil") }) }
         if S.humanFlag == 1 then lines[2] = L("item.clips.unsold", { n = View.count(S.unsoldClips) }) end
         return lines
     end,
-    wire = function(S, game)
-        local lines = { L("item.wire.each"), L("item.wire.stock", { n = View.count(S.wire) }) }
-        if S.humanFlag == 1 then
-            lines[3] = L("item.wire.shipment", { n = View.count(S.wireSupply), cost = View.money(S.wireCost) })
-        else
-            lines[3] = L("item.wire.refined", { n = View.spell((game.wireRate or 0) * 100) })
-        end
+    wire = function(S)
+        -- The item row shows in the first phase only (manufacturing = humanFlag).
+        local lines = { L("item.wire.each"), P("item.wire.stock", math.floor(S.wire), { n = View.count(S.wire) }) }
+        lines[3] = P("item.wire.shipment", S.wireSupply, { n = View.count(S.wireSupply), cost = View.money(S.wireCost) })
+        local exact = View.exactMoney(S.wireCost)
+        if exact then lines[4] = exact end
         return lines
     end,
     autoClippers = function(S)
-        return { L("item.makes.each", { n = View.rate(S.clipperBoost) }),
-            L("item.makes.total", { count = View.count(S.clipmakerLevel), n = View.rate(S.clipperBoost * S.clipmakerLevel) }),
-            L("item.whileBars"),
-            L("item.next", { cost = View.money(S.clipperCost) }) }
+        local lines = makes(S, S.clipmakerLevel, S.clipperBoost)
+        price(lines, S.clipperCost)
+        return lines
     end,
     megaClippers = function(S)
-        return { L("item.makes.each", { n = View.rate(S.megaClipperBoost * 500) }),
-            L("item.makes.total", { count = View.count(S.megaClipperLevel), n = View.rate(S.megaClipperBoost * S.megaClipperLevel * 500) }),
-            L("item.whileBars"),
-            L("item.next", { cost = View.money(S.megaClipperCost) }) }
+        local lines = makes(S, S.megaClipperLevel, S.megaClipperBoost * 500)
+        price(lines, S.megaClipperCost)
+        return lines
     end,
     processors = function(S)
         return { L("item.processors.each"),
@@ -568,7 +588,7 @@ function View.itemTip(key, game)
     local fn = ITEM_TIPS[key]
     if not fn then return nil end
     return { title = View.TERMS[key], category = L("item." .. key .. ".category"), lines = fn(game.S, game),
-        use = L("item." .. key .. ".use"), flavor = L("item." .. key .. ".flavor") }
+        use = L("item." .. key .. ".use"), flavor = L("item.quoted", { text = L("item." .. key .. ".flavor") }) }
 end
 
 -- The Company Network's status text (swarmStatus); 7 hides the status line.

@@ -184,21 +184,29 @@ end
 -- row's label and value become a mouse area for it; while hovered, the tooltip
 -- follows the company on every redraw (it appears, changes or goes as the amount
 -- does).
-local function TipArea(row, parent, tip)
-    local line = FromGame(tip)
+-- A row's hover area (it also drags the window). live(area) returns the live tip
+-- ({ owner, lines } or { owner, render }) shown while hovered; one path for plain
+-- line tips and item tips.
+local function HoverArea(row, parent, live)
     row.tipArea = CreateFrame("Frame", nil, parent)
     row.tipArea:EnableMouse(true)
     Draggable(row.tipArea)
     row.tipArea:SetScript("OnEnter", function(area)
-        Window.liveTip = { owner = area, lines = function()
-            local text = line()
-            return text and { row.label:GetText() or "", text } or nil
-        end }
+        Window.liveTip = live(area)
         Window.UpdateLiveTip()
     end)
     row.tipArea:SetScript("OnLeave", function(area)
         if Window.liveTip and Window.liveTip.owner == area then Window.liveTip = nil end
         GameTooltip:Hide()
+    end)
+end
+local function TipArea(row, parent, tip)
+    local line = FromGame(tip)
+    HoverArea(row, parent, function(area)
+        return { owner = area, lines = function()
+            local text = line()
+            return text and { row.label:GetText() or "", text } or nil
+        end }
     end)
 end
 
@@ -229,24 +237,16 @@ function Card:WithIcon(row, key)
     row.iconKey = key
     -- Items (#84): a short role line under the name, and a WoW-style tooltip.
     if View.itemRole(key) then
+        assert(not row.tipArea, "an item row takes the item tooltip, not a line tip")
         row.role = Glass.Font(self.glass.top, 9, "LEFT")
         row.role:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
         row.role:SetWordWrap(false)
+        row.role:SetText(View.itemRole(key))
         if row.kind == "stat" then row.height = row.height + 11 end
-        if not row.tipArea then
-            row.tipArea = CreateFrame("Frame", nil, self.content)
-            row.tipArea:EnableMouse(true)
-            Draggable(row.tipArea)
-        end
-        row.tipArea.itemKey = key
-        row.tipArea:SetScript("OnEnter", function(area)
-            Window.liveTip = { owner = area, render = function(owner) return Window.ShowItemTip(owner, key) end }
-            Window.UpdateLiveTip()
+        HoverArea(row, self.content, function(area)
+            return { owner = area, render = function(owner) return Window.ShowItemTip(owner, key) end }
         end)
-        row.tipArea:SetScript("OnLeave", function(area)
-            if Window.liveTip and Window.liveTip.owner == area then Window.liveTip = nil end
-            GameTooltip:Hide()
-        end)
+        row.tipArea.itemKey = key -- tests tell item areas from line-tip areas
     end
     return row
 end
@@ -267,8 +267,10 @@ function Window.ShowItemTip(owner, key)
     GameTooltip:SetText(tip.title, r, g, b)
     GameTooltip:AddLine(tip.category, 1, 1, 1)
     for _, line in ipairs(tip.lines) do GameTooltip:AddLine(line, 1, 1, 1, true) end
-    GameTooltip:AddLine(tip.use, 0.12, 1, 0, true)
-    GameTooltip:AddLine("\"" .. tip.flavor .. "\"", 1, 0.82, 0, true)
+    -- The client's own colours when present (GREEN_FONT_COLOR, NORMAL_FONT_COLOR).
+    local green, yellow = GREEN_FONT_COLOR, NORMAL_FONT_COLOR
+    GameTooltip:AddLine(tip.use, green and green.r or 0.12, green and green.g or 1, green and green.b or 0, true)
+    GameTooltip:AddLine(tip.flavor, yellow and yellow.r or 1, yellow and yellow.g or 0.82, yellow and yellow.b or 0, true)
     GameTooltip:Show()
     return true
 end
@@ -619,10 +621,7 @@ function Card:Update(game, panels)
                         row.icon.value = icon
                     end
                     place(row.label, self, y - 4, inset + 20)
-                    if row.role then
-                        place(row.role, self, y - 18, inset + 20)
-                        row.role:SetText(View.itemRole(row.iconKey))
-                    end
+                    if row.role then place(row.role, self, y - 18, inset + 20) end
                 else
                     place(row.label, self, y - 4, inset)
                 end
@@ -636,7 +635,11 @@ function Card:Update(game, panels)
                 if row.icon then
                     -- The label takes what the value leaves, truncating only when needed.
                     row.label:SetWidth(math.max(40, width - 20 - row.text:GetStringWidth() - 8))
-                    if row.role then row.role:SetWidth(math.max(40, width - 20 - (row.raise and 76 or 0))) end
+                    -- The role line runs under the label and value, short of the row's buttons.
+                    if row.role then
+                        local buttons = row.raise and (Window.SQUARE + (row.lower and Window.SQUARE + 4 or 0) + 6) or 0
+                        row.role:SetWidth(math.max(40, width - 20 - buttons))
+                    end
                 end
                 if row.kind == "adjust" then
                     row.raise:ClearAllPoints()
