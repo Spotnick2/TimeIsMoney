@@ -117,16 +117,25 @@ View.TERMS = {
     probeHarv = "Salvage Deployment", probeWire = "Refinery Deployment", probeCombat = "Enforcement",
 }
 
--- A count for display: whole, with thousands separators. Display only: the
--- simulation keeps every fraction (rounding here never decides anything).
+-- A count for display: whole, with thousands separators, rounded as the reference
+-- shows that value (#73): by default toward zero, like formatWithCommas, which
+-- keeps the digits before the point (Copper Bars show 0 until a whole bar exists,
+-- the amount Make needs); "ceil" for bolts (Math.ceil(clips), the same rounding
+-- the milestone reports use); "round" for Math.round displays (rates, power).
+-- Display only: the simulation keeps every fraction.
 -- NaN first, through JSMath: in WoW's Lua NaN compares equal to everything, so
 -- x ~= x never catches it and x == math.huge would.
 local isNaN = ns.JSMath.isNaN
-function View.count(x)
+function View.count(x, rounding)
     if isNaN(x) then return "NaN" end
     if x == math.huge then return "Infinity" end
     if x == -math.huge then return "-Infinity" end
-    local whole = math.floor(math.abs(x) + 0.5)
+    if rounding == "ceil" then
+        x = math.ceil(x)
+    elseif rounding == "round" then
+        x = math.floor(x + 0.5) -- JavaScript Math.round: halves go up
+    end
+    local whole = math.floor(math.abs(x))
     local negative = x < 0 and whole > 0 -- no "-0" once rounded
     local text
     if whole < 1e15 then
@@ -421,6 +430,63 @@ function View.power(S)
         drones = dDemand * 100, stored = S.storedPower, capacity = S.batteryLevel * S.batterySize,
         performance = performance,
     }
+end
+
+-- Why a control is unavailable (#73): a localized line for its tooltip, from the
+-- same condition the simulation disables it on (Sim buttonUpdate), or nil when
+-- the control is available or has no known reason. Each entry returns a Locale
+-- key and the term it names.
+local function short(term) return function() return "why.short", term end end
+local REASONS = {
+    btnMakePaperclip = function() return "why.wire" end,
+    btnBuyWire = short("funds"), btnMakeClipper = short("funds"), btnMakeMegaClipper = short("funds"),
+    btnExpandMarketing = short("funds"),
+    btnLowerPrice = function() return "why.lowestPrice" end,
+    btnAddProc = function() return "why.trust" end, btnAddMem = function() return "why.trust" end,
+    btnNewTournament = function(S)
+        if S.tourneyInProg ~= 0 then return "why.tournamentRunning" end
+        return "why.short", "operations"
+    end,
+    -- Disabled while its rounds run (tourneyInProg stays 1), and before any setup.
+    btnRunTournament = function(S)
+        if S.tourneyInProg ~= 0 then return "why.tournamentRunning" end
+        return "why.setUpTournament"
+    end,
+    btnImproveInvestments = short("yomi"), btnSynchSwarm = short("yomi"),
+    btnEntertainSwarm = short("creativity"),
+    btnIncreaseMaxTrust = short("honor"),
+    btnIncreaseProbeTrust = function(S)
+        if S.probeTrust >= S.maxTrust then return "why.maxTrust" end
+        return "why.short", "yomi"
+    end,
+    btnFarmReboot = function() return "why.nothingToDisassemble" end,
+    btnBatteryReboot = function() return "why.nothingToDisassemble" end,
+    btnHarvesterReboot = function() return "why.nothingToDisassemble" end,
+    btnWireDroneReboot = function() return "why.nothingToDisassemble" end,
+    btnFactoryReboot = function() return "why.nothingToDisassemble" end,
+}
+for _, id in ipairs({ "btnMakeHarvester", "btnHarvesterx10", "btnHarvesterx100", "btnHarvesterx1000",
+    "btnMakeWireDrone", "btnWireDronex10", "btnWireDronex100", "btnWireDronex1000", "btnMakeFarm",
+    "btnMakeBattery", "btnFarmx10", "btnFarmx100", "btnBatteryx10", "btnBatteryx100", "btnMakeFactory",
+    "btnMakeProbe" }) do
+    REASONS[id] = short("unused")
+end
+View.REASONS = REASONS
+function View.unavailable(id, S)
+    if not id then return nil end
+    local key, term
+    if REASONS[id] then
+        key, term = REASONS[id](S)
+    elseif id:match("^btnRaiseProbe") then
+        key = "why.probeTrust"
+    elseif id:match("^btnLowerProbe") then
+        key = "why.noneAllocated"
+    elseif id:match("^projectButton") then
+        key = "why.project"
+    else
+        return nil
+    end
+    return ns.Locale.Format(key, { term = term and View.TERMS[term] or "" })
 end
 
 -- The Company Network's status text (swarmStatus); 7 hides the status line.
