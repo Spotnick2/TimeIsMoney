@@ -30,6 +30,7 @@ ns.Locale.Register("enUS", {
     ["settings.pause"] = "Pause the company",
     ["settings.resume"] = "Resume the company",
     ["window.paused"] = "Paused",
+    ["window.pausedTag"] = "(paused)",
     ["settings.newGame"] = "New game...",
     -- Why a control is unavailable (tooltips, #73). {term} is a goblin term
     -- (View.TERMS).

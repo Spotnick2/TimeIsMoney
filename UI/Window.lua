@@ -105,7 +105,7 @@ local function NewButton(parent, id, height)
             -- Unavailable: say what is missing (#73), under the tooltip or alone.
             local game = ns.Host.game
             local why = not self:IsEnabled() and game and
-                ((ns.Host.paused and self.id and ns.L["why.paused"]) or View.unavailable(self.id, game.S))
+                ((ns.Host.paused and (self.id or self.company) and ns.L["why.paused"]) or View.unavailable(self.id, game.S))
             if not why then return self.tip end
             local lines = {}
             for i, line in ipairs(self.tip or { self.text or "" }) do lines[i] = line end
@@ -123,13 +123,18 @@ local function NewButton(parent, id, height)
 end
 
 local function SetButton(b, text, enabled, short)
-    -- A paused company's controls do nothing (#77): unavailable, the tooltip says why.
-    if b.id and ns.Host.paused then enabled = false end
+    -- A paused company's controls do nothing (#77): unavailable, and the label and
+    -- tooltip say it is the pause. Company controls have an id or the company flag
+    -- (selects and range steps, which act through Host.setValue).
+    local paused = (b.id or b.company) and ns.Host.paused
+    if paused then enabled = false end
     b:SetEnabled(enabled)
     b.text = text
     -- Square buttons have no room for words: "(+)" marks them unavailable.
     if short then
         b.label:SetText(enabled and text or ("(" .. text .. ")"))
+    elseif paused then
+        b.label:SetText(text .. " " .. ns.L["window.pausedTag"])
     else
         b.label:SetText(enabled and text or (text .. " (not yet)"))
     end
@@ -274,6 +279,7 @@ function Card:Select(id, caption, show)
     local row = { kind = "select", height = Window.BUTTON + 4, id = id, caption = caption, show = show,
         choices = {} }
     row.button = NewButton(self.content, nil)
+    row.button.company = true
     row.button:SetScript("OnClick", function()
         row.open = not row.open
         Window.Refresh()
@@ -342,6 +348,7 @@ function Card:Range(id, label, max, show)
     local function square(delta, text)
         local b = NewButton(self.content, nil, Window.SQUARE)
         b:SetWidth(Window.SQUARE)
+        b.company = true
         b:SetScript("OnClick", function() nudge(delta) end)
         b.text = text
         return b
@@ -467,6 +474,7 @@ function Card:Update(game, panels)
                     local choice = row.choices[i]
                     if not choice then
                         choice = NewButton(self.content, nil)
+                        choice.company = true
                         choice:SetScript("OnClick", function(b) row.choose(b.value) end)
                         row.choices[i] = choice
                     end
@@ -1023,8 +1031,14 @@ function Window.Refresh()
     if not (f and f:IsShown() and game) then return end
     local panels = View.panels(game.S)
     Window.redraw = (Window.redraw or 0) + 1
-    -- A paused company says so in the title (#77).
-    Window.title:SetText(ns.Host.paused and ("Time Is Money (" .. ns.L["window.paused"] .. ")") or "Time Is Money")
+    -- The title says when the company is paused, and an open settings panel follows
+    -- any change of company state (a pause, a new game, a halt), only on a change.
+    local state = tostring(game) .. tostring(ns.Host.paused) .. tostring(ns.Host.running)
+    if state ~= Window.companyState then
+        Window.companyState = state
+        Window.title:SetText(ns.Host.paused and ("Time Is Money (" .. ns.L["window.paused"] .. ")") or "Time Is Money")
+        if Window.settings and Window.settings:IsShown() then Window.FillSettings() end
+    end
     Window.CloseStaleDialog()
     local inset = Glass.Inset("large")
     -- A column that would outgrow the screen continues in the next one, so the

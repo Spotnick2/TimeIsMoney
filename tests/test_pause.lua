@@ -36,12 +36,29 @@ Window.Refresh()
 assert(Window.title.text == "Time Is Money (Paused)", "the title says so")
 local make = h.button("btnMakePaperclip")
 assert(not make:IsEnabled(), "controls do nothing while paused")
+assert(make.label.text == "Make Copper Bolts (paused)", "the label names the pause, not a requirement")
 make.scripts.OnEnter(make)
 assert(env.GameTooltip.lines[#env.GameTooltip.lines]:find("paused", 1, true), "and the tooltip says why")
 make.scripts.OnLeave(make)
 local ok, why = Host.click("btnMakePaperclip")
 assert(not ok and why:find("paused", 1, true), "commands are refused")
 assert(not Host.setValue("slider", "100"))
+-- Pointer moves over the tournament lines pass (not decisions; no stuck reveal).
+assert(Host.click("tournamentStuff:mouseover") and Host.click("tournamentStuff:mouseout"))
+-- Selects and range steps (no control id) are company controls too.
+local function nilIdCompany()
+    local n = 0
+    for _, w in ipairs(captured.widgets) do
+        if w.kind == "Button" and w.company then
+            n = n + 1
+            assert(not w:IsEnabled(), "a select or range step is unavailable while paused")
+        end
+    end
+    return n
+end
+Host.game.S.investmentEngineFlag = 1
+Window.Refresh()
+assert(nilIdCompany() > 0, "a select shows (the investment risk)")
 -- Status reports it.
 env.SlashCmdList.TIMEISMONEY("status")
 local said = false
@@ -66,21 +83,30 @@ assert(ns2.Host.loadSaved(db) == "restored" and ns2.Host.paused, "restored pause
 local now = ns2.Host.game.clock.now
 for _ = 1, 20 do ns2.Host.update(0.02) end
 assert(ns2.Host.game.clock.now == now, "a restored pause holds")
--- Older saves (no flag) and a damaged flag run.
+-- Older saves (no flag) run; a damaged flag blocks, as any broken saved data does.
 db.paused = nil
 local env3, captured3, ns3 = Harness.Load()
 assert(ns3.Host.loadSaved(db) == "restored" and not ns3.Host.paused)
+assert(ns3.Host.persist().paused == nil, "running: nothing written")
 db.paused = "yes"
 local env4, captured4, ns4 = Harness.Load()
-assert(ns4.Host.loadSaved(db) == "restored" and not ns4.Host.paused, "only true pauses")
--- Running: nothing written.
-assert(ns4.Host.persist().paused == nil)
+assert(ns4.Host.loadSaved(db) == "blocked" and ns4.Host.persist() == nil, "a damaged pause is kept untouched")
 
--- A new game while paused starts a running company.
+-- A new game while paused starts a running company; an open settings panel follows.
 assert(Host.paused)
+env.SlashCmdList.TIMEISMONEY("settings")
+env.SlashCmdList.TIMEISMONEY("settings")
+assert(p:IsShown() and p.pause.label.text == "Resume the company")
 Window.NewGame()
 Window.dialog.yes.scripts.OnClick(Window.dialog.yes)
 assert(not Host.paused, "a new company runs")
+assert(p.pause.label.text == "Pause the company", "the settings button follows the new company")
+-- Owed time dropped by a pause is counted.
+Host.debt = 500
+local dropped = Host.stats.dropped
+assert(Host.setPaused(true))
+assert(Host.stats.dropped == dropped + 500 and Host.debt == 0, "counted as dropped")
+assert(Host.setPaused(false))
 -- No company: nothing to pause.
 local env5, captured5, ns5 = Harness.Load()
 assert(not ns5.Host.setPaused(true))
