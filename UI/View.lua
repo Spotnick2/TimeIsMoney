@@ -643,6 +643,39 @@ local ACTIONS = {
         return { A("act.addMem"), A(S.humanFlag == 0 and "act.fromNetwork" or "act.fromTrust", { term = View.TERMS.swarmGifts }) }
     end,
 }
+-- The later actions (#89 review): what each does, from the simulation's effect.
+ACTIONS.btnInvest = function() return { A("act.invest") } end
+ACTIONS.btnWithdraw = function() return { A("act.withdraw") } end
+ACTIONS.btnImproveInvestments = function(S) return { A("act.improveInvest") } end
+ACTIONS.btnNewTournament = function(S) return { A("act.newTourney", { n = View.count(S.tourneyCost) }) } end
+ACTIONS.btnRunTournament = function() return { A("act.runTourney") } end
+ACTIONS.btnToggleAutoTourney = function() return { A("act.autoTourney") } end
+ACTIONS.btnQcompute = function() return { A("act.qcompute") } end
+ACTIONS.btnSynchSwarm = function() return { A("act.synch") } end
+ACTIONS.btnEntertainSwarm = function() return { A("act.entertain") } end
+ACTIONS.btnMakeFactory = function() return { A("act.build", { what = View.TERMS.factories }) } end
+ACTIONS.btnMakeProbe = function() return { A("act.launch") } end
+ACTIONS.btnIncreaseProbeTrust = function() return { A("act.probeTrust") } end
+ACTIONS.btnIncreaseMaxTrust = function() return { A("act.maxTrust") } end
+for prefix, key in pairs({ Harvester = "harvesters", WireDrone = "wireDrones", Farm = "farms", Battery = "batteries" }) do
+    local make = prefix == "Harvester" and "btnMakeHarvester" or prefix == "WireDrone" and "btnMakeWireDrone"
+        or prefix == "Farm" and "btnMakeFarm" or "btnMakeBattery"
+    ACTIONS[make] = function() return { A("act.build", { what = View.TERMS[key] }) } end
+    for _, n in ipairs({ 10, 100, 1000 }) do
+        ACTIONS["btn" .. prefix .. "x" .. n] = function()
+            return { A("act.buildBulk", { n = View.count(n), what = View.TERMS[key] }) }
+        end
+    end
+    ACTIONS["btn" .. prefix .. "Reboot"] = function()
+        return { A(key == "batteries" and "act.rebootBatteries" or "act.reboot", { what = View.TERMS[key] }) }
+    end
+end
+ACTIONS.btnFactoryReboot = function() return { A("act.reboot", { what = View.TERMS.factories }) } end
+for _, name in ipairs({ "Speed", "Nav", "Rep", "Haz", "Fac", "Harv", "Wire", "Combat" }) do
+    local term = View.TERMS["probe" .. name]
+    ACTIONS["btnRaiseProbe" .. name] = function() return { A("act.raiseProbe", { what = term }) } end
+    ACTIONS["btnLowerProbe" .. name] = function() return { A("act.lowerProbe", { what = term }) } end
+end
 function View.actionTip(id, S)
     local fn = id and ACTIONS[id]
     if not fn then return nil end

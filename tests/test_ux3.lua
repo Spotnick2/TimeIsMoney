@@ -40,6 +40,36 @@ for _, id in ipairs({ "btnMakePaperclip", "btnBuyWire", "btnToggleWireBuyer", "b
     assert(View.actionTip(id, S) and #View.actionTip(id, S) >= 1, "a description for " .. id)
 end
 
+-- Every action control the window builds says what it does (Codex review of #91):
+-- scanned from the window's source, plus the generated probe allocations.
+local source = assert(io.open("UI/Window.lua", "rb")):read("*a")
+local ids, scanned = {}, 0
+for id in source:gmatch('Action%("(btn%w+)"') do ids[id] = true end
+for id in source:gmatch('id = "(btn%w+)"') do ids[id] = true end
+for id in source:gmatch('"(btn%w+)", function') do ids[id] = true end
+for _, id in ipairs({ "btnLowerPrice", "btnRaisePrice", "btnAddProc", "btnAddMem" }) do ids[id] = true end
+for _, name in ipairs({ "Speed", "Nav", "Rep", "Haz", "Fac", "Harv", "Wire", "Combat" }) do
+    ids["btnRaiseProbe" .. name], ids["btnLowerProbe" .. name] = true, true
+end
+for id in pairs(ids) do
+    local tip = View.actionTip(id, S)
+    assert(tip and #tip >= 1 and not tip[1]:find("^act%."), "a description for " .. id)
+    scanned = scanned + 1
+end
+assert(scanned >= 50, "the scan found the actions: " .. scanned)
+-- Unlocked later: the investment engine's buttons, enabled and disabled.
+S.investmentEngineFlag = 1
+Window.Refresh()
+local deposit = h.button("btnInvest")
+assert(deposit, "the Deposit button shows once the engine is unlocked")
+do
+    assert(tipOf("btnInvest"):find("Moves your Company Funds", 1, true))
+end
+assert(View.actionTip("btnInvest", S)[1]:find("copper fraction is lost", 1, true))
+
+-- Investment cash, stocks and total keep a fixed width too.
+assert(source:find('invest:Stat%("Cash", function%(S%) return View.moneyFixed'), "cash is fixed-width")
+
 -- Available Board Trust beside the total.
 S.compFlag, S.trust, S.processors, S.memory = 1, 7, 3, 2
 Window.Refresh()

@@ -988,9 +988,9 @@ local function Build()
     local invest = NewCard(content, "Cartel Investments")
     local RISK = { low = "Low Risk", med = "Med Risk", hi = "High Risk" }
     invest:Select("investStrat", function(value) return RISK[value] or value end, investing)
-    invest:Stat("Cash", function(S) return View.money(S.bankroll) end, investing)
-    invest:Stat("Stocks", function(S) return View.money(S.secTotal) end, investing)
-    invest:Stat("Total", function(S) return View.money(S.portTotal) end, investing)
+    invest:Stat("Cash", function(S) return View.moneyFixed(S.bankroll) end, investing)
+    invest:Stat("Stocks", function(S) return View.moneyFixed(S.secTotal) end, investing)
+    invest:Stat("Total", function(S) return View.moneyFixed(S.portTotal) end, investing)
     invest:Action("btnInvest", function() return "Deposit" end, investing)
     invest:Action("btnWithdraw", function() return "Withdraw" end, investing)
     local slots = {}
