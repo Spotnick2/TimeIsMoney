@@ -109,18 +109,23 @@ ns.Locale.Use("enUS")
 -- In the window: the newest message shows as the company's report under the beat.
 env.SlashCmdList.TIMEISMONEY("start")
 local game = ns.Host.game
-game.readouts[1] = "AutoClippers available for purchase"
+game:displayMessage("AutoClippers available for purchase")
 ns.Window.Refresh()
 assert(h.shownText("Whirring Bronze Gizmos available for purchase."))
-game.readouts[1] = "a game by Frank Lantz"
+game:displayMessage("a game by Frank Lantz")
 ns.Window.Refresh()
 assert(h.shownText("Credits: a game by Frank Lantz"))
-game.readouts[1] = "Welcome to Universal Paperclips"
+game:displayMessage("Welcome to Universal Paperclips")
 ns.Window.Refresh()
 assert(h.shownText("Welcome to Durotar Supply and Logistics.") and not h.shownText("Universal Paperclips"))
-game.readouts[1] = "Some unmapped reference text"
+-- An unmapped message is never shown; the earlier reports stay (newest first).
+game:displayMessage("Some unmapped reference text")
 ns.Window.Refresh()
-assert(not h.shownText("unmapped") and not ns.Director.strip.report.shown)
+assert(not h.shownText("unmapped") and ns.Director.strip.report.text == "Welcome to Durotar Supply and Logistics.")
+-- Three reports, newest first, older ones fading.
+local r = ns.Director.strip.reports
+assert(r[2].text == "Credits: a game by Frank Lantz" and r[3].text == "Whirring Bronze Gizmos available for purchase.")
+assert(r[1].alpha > r[2].alpha and r[2].alpha > r[3].alpha)
 
 print((libGlass and "messages (real LibGlass)" or "messages (LibGlass stand-in)")
     .. ": every simulation message mapped, patterns, credits, keys, locale fallback and the strip report passed")

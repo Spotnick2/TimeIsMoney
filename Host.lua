@@ -59,6 +59,8 @@ local function Begin(game)
     Host.stats = { frames = 0, cpu = 0, steps = 0, dropped = 0, worst = 0 }
     Host.running = true
     Host.paused = false -- a new or restored company runs (loadSaved re-applies a saved pause)
+    -- The report history (#83): every message, with its logical time.
+    game.onMessage = function(msg) Host.addReport(msg, game.clock.now) end
     -- The 25 s reference auto-save refreshes the in-memory save (#19). It fires
     -- inside the slow tick, before the scheduler requeues that timer, so the snapshot
     -- is taken after the step returns, when the queue is consistent.
@@ -71,6 +73,30 @@ local function Begin(game)
     return game
 end
 
+-- The company's reports (#83), oldest first, at most REPORTS_MAX: { at = logical
+-- ms or nil (unknown), text = the reference's message }. Presentation only: saved
+-- beside the company, checked entry by entry, never a reason to block the save.
+Host.REPORTS_MAX = 200
+Host.reports = {}
+function Host.addReport(text, at)
+    local list = Host.reports
+    list[#list + 1] = { at = at, text = text }
+    if #list > Host.REPORTS_MAX then table.remove(list, 1) end
+end
+-- A saved history's valid entries (a copy), or nil when there is none.
+local function validReports(saved)
+    if type(saved) ~= "table" then return nil end
+    local list = {}
+    for _, e in ipairs(saved) do
+        if type(e) == "table" and type(e.text) == "string"
+            and (e.at == nil or (type(e.at) == "number" and not ns.JSMath.isNaN(e.at) and e.at >= 0 and e.at < math.huge)) then
+            list[#list + 1] = { at = e.at, text = e.text }
+        end
+    end
+    while #list > Host.REPORTS_MAX do table.remove(list, 1) end
+    return list
+end
+
 -- Starts a new company. seeds is optional ({s1, s2}); by default the server time
 -- and the profiler clock seed the stream.
 function Host.start(seeds)
@@ -78,17 +104,25 @@ function Host.start(seeds)
     local s2 = seeds and seeds[2] or (floor(debugprofilestop() * 1000) % (M2 - 1)) + 1
     Host.random = Host.newRandom(s1, s2)
     Host.snapshot = nil
+    Host.reports = {} -- a new company starts a new history
     local game = ns.Workshop.new(Host.random, false) -- no trace log in the client
     -- Saved prestige applies to a new company, as loadPrestige does in the reference.
     if Host.prestige then
         game.S.prestigeU, game.S.prestigeS = Host.prestige.prestigeU, Host.prestige.prestigeS
     end
-    return Begin(game)
+    Begin(game)
+    -- Messages posted while the company was being created (the welcome) come first.
+    for i = 5, 1, -1 do
+        local text = game.readouts[i]
+        if type(text) == "string" and text ~= "" then Host.addReport(text, game.clock.now) end
+    end
+    return game
 end
 
 -- Saves (#19) ---------------------------------------------------------------------
 -- TimeIsMoneyDB = { schema = 1, company = <Sim/Save.lua data> or nil,
 --                   paused = true or nil (#77; only with a company),
+--                   reports = { { at, text }, ... } or nil (#83; presentation),
 --                   prestige = { prestigeU, prestigeS } or nil,
 --                   settings = <UI/Settings.lua data> or nil }
 -- Settings are presentation preferences: read as given (the UI checks each value
@@ -168,6 +202,16 @@ function Host.loadSaved(db)
         Host.snapshot = saved
         -- A saved pause (#77): true, or absent (older saves) for running.
         Host.paused = db.paused == true
+        -- The saved history, or the company's own five readouts (no times) for a
+        -- save from before #83.
+        Host.reports = validReports(db.reports)
+        if not Host.reports or #Host.reports == 0 then
+            Host.reports = {}
+            for i = 5, 1, -1 do
+                local text = game.readouts[i]
+                if type(text) == "string" and text ~= "" then Host.addReport(text, nil) end
+            end
+        end
     end)
     if not ok then
         Host.game, Host.running = nil, false
@@ -190,6 +234,7 @@ function Host.persist()
         db.prestige = copyPrestige(game.savedPrestige)
         return db
     end
+    if game then db.reports = validReports(Host.reports) end
     if game and Host.running then
         db.paused = Host.paused or nil
         local ok, data = pcall(Host.encodeCompany)

@@ -56,6 +56,8 @@ local function Slash(message)
         end
     elseif command == "status" then
         Status()
+    elseif command == "reports" then
+        TIM.Window.ToggleReports()
     elseif command == "minimap" then
         Print("Minimap button " .. (TIM.MinimapButton.Toggle() and "shown." or "hidden (/tim minimap shows it again)."))
         if TIM.Window.settings and TIM.Window.settings:IsShown() then TIM.Window.FillSettings() end

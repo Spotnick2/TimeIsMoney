@@ -1050,6 +1050,16 @@ local function Build()
 end
 
 -- Redraws from the game: card contents, visibility and the window's size.
+-- The newest reports, localized, newest first (#83).
+function Window.LatestReports(n)
+    local list, out = ns.Host.reports, {}
+    for i = #list, math.max(1, #list - n + 1), -1 do
+        local text = ns.Messages.Translate(list[i].text)
+        if text then out[#out + 1] = text end
+    end
+    return out
+end
+
 -- The title bar's own minimum width: the title, then Resume (while paused) and the
 -- three square buttons, so a narrow (single-column) window never overlaps them.
 function Window.HeaderWidth()
@@ -1107,8 +1117,7 @@ function Window.Refresh()
     local width = math.max(x - Window.GAP + inset, Window.COLUMN + 2 * inset, Window.HeaderWidth())
     Window.strip:ClearAllPoints()
     Window.strip:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
-    local report, isCredit = ns.Messages.Translate(game.readouts[1])
-    local drawn = ns.Director.Update(speaker, line, width - 2 * inset, report, isCredit)
+    local drawn = ns.Director.Update(speaker, line, width - 2 * inset, Window.LatestReports(ns.Director.REPORT_LINES))
     if speaker then stripHeight = drawn + Window.GAP end
     Window.UpdateLiveTip()
     local height = tallest + stripHeight + Window.MESSAGE + inset
@@ -1373,7 +1382,7 @@ Window.HELP_SECTIONS = {
     { title = "help.startTitle", lines = { "help.play", "help.projects", "help.reports" } },
     { title = "help.controlsTitle", compact = true,
         lines = { "help.cmdLedger", "help.cmdPause", "help.cmdSettings", "help.cmdMinimap", "help.cmdHelp", "help.cmdStatus",
-            "help.cmdStart" } },
+            "help.cmdReports", "help.cmdStart" } },
     { title = "help.persistenceTitle", lines = { "help.persistence" } },
 }
 function Window.ShowHelp()
@@ -1414,6 +1423,68 @@ function Window.ShowHelp()
     p:Show()
     p:Raise()
     ns.Settings.Set("helpSeen", true)
+end
+
+-- The full report history (#83): newest first, each with its game time; the mouse
+-- wheel scrolls it.
+Window.REPORT_ROWS = 14
+local function Clock(ms)
+    if not ms then return "" end
+    local t = math.floor(ms / 1000)
+    return string.format("%d:%02d:%02d", math.floor(t / 3600), math.floor(t / 60) % 60, t % 60)
+end
+function Window.FillReports()
+    local p = Window.reports
+    local list = ns.Host.reports
+    local total = #list
+    p.offset = math.max(0, math.min(p.offset, total - Window.REPORT_ROWS))
+    p.title:SetText(ns.L["reports.title"])
+    for i, row in ipairs(p.rows) do
+        local e = list[total - p.offset - i + 1]
+        row.time:SetShown(e ~= nil)
+        row.text:SetShown(e ~= nil)
+        if e then
+            row.time:SetText(Clock(e.at))
+            row.text:SetText(ns.Messages.Translate(e.text) or "")
+        end
+    end
+    p.empty:SetShown(total == 0)
+    p.empty:SetText(ns.L["reports.empty"])
+    p.hint:SetShown(total > Window.REPORT_ROWS)
+    p.hint:SetText(ns.Locale.Format("reports.range", { first = total == 0 and 0 or p.offset + 1,
+        last = math.min(total, p.offset + Window.REPORT_ROWS), total = total }))
+end
+function Window.ToggleReports()
+    if not Window.frame then Build() end
+    local p = Window.reports
+    if not p then
+        p = Window.Panel("TimeIsMoneyReports", 460, 76 + Window.REPORT_ROWS * 18)
+        p.offset, p.rows = 0, {}
+        for i = 1, Window.REPORT_ROWS do
+            local y = -46 - (i - 1) * 18
+            local time = Line(p, 10, y, MUTED)
+            time:SetWidth(56)
+            local text = Line(p, 11, y)
+            text:ClearAllPoints()
+            text:SetPoint("TOPLEFT", p, "TOPLEFT", 18 + 60, y)
+            text:SetWidth(p:GetWidth() - 18 - 60 - 18)
+            text:SetWordWrap(false)
+            p.rows[i] = { time = time, text = text }
+        end
+        p.empty = Line(p, 11, -46, MUTED)
+        p.hint = Line(p, 10, -50 - Window.REPORT_ROWS * 18, MUTED)
+        p:EnableMouseWheel(true)
+        p:SetScript("OnMouseWheel", function(_, delta)
+            p.offset = p.offset - delta * 3
+            Window.FillReports()
+        end)
+        Window.reports = p
+    end
+    if p:IsShown() then p:Hide() return end
+    p.offset = 0
+    Window.FillReports()
+    p:Show()
+    p:Raise()
 end
 
 -- Settings: the Director's model and voice, the window scale, help, and the new-game

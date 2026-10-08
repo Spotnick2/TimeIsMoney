@@ -24,6 +24,7 @@ Director.WIDTH, Director.HEIGHT = 136, 84
 Director.CROP, Director.MARGIN = 0.40, 1.30
 Director.FOV, Director.CAMERA = 0.15, 40
 Director.POLLS, Director.POLL_STEP = 30, 0.1 -- the box poll: about 3 s
+Director.REPORT_LINES, Director.REPORT_ALPHA = 3, { 1, 0.7, 0.45 }
 Director.MIN_STRIP = 92                   -- the strip's height when the line is short
 -- The model and the voice follow the saved settings (UI/Settings.lua).
 local function setting(key) return ns.Settings.values[key] end
@@ -99,11 +100,26 @@ function Director.Build(parent, font)
     strip.line = font(strip, 12, "LEFT")
     strip.line:SetPoint("TOPLEFT", strip.speaker, "BOTTOMLEFT", 0, -3)
     strip.line:SetWordWrap(true)
-    -- The company's latest report (the simulation's newest message, localized).
-    strip.report = font(strip, 10, "LEFT")
-    strip.report:SetPoint("TOPLEFT", strip.line, "BOTTOMLEFT", 0, -6)
-    strip.report:SetWordWrap(true)
-    strip.report:SetTextColor(muted[1], muted[2], muted[3]) -- muted and smaller: the line leads
+    -- The company's latest reports (#83), newest first, older ones fading; muted
+    -- and smaller: the Director's line leads. A click opens the full history.
+    strip.reports = {}
+    for i = 1, Director.REPORT_LINES do
+        local r = font(strip, 10, "LEFT")
+        r:SetWordWrap(true)
+        r:SetTextColor(muted[1], muted[2], muted[3])
+        r:SetAlpha(Director.REPORT_ALPHA[i])
+        strip.reports[i] = r
+    end
+    strip.report = strip.reports[1]
+    strip.reportArea = CreateFrame("Button", nil, strip)
+    strip.reportArea:SetScript("OnClick", function() ns.Window.ToggleReports() end)
+    strip.reportArea:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(ns.L["reports.title"], 1, 1, 1)
+        GameTooltip:AddLine(ns.L["reports.open"], muted[1], muted[2], muted[3])
+        GameTooltip:Show()
+    end)
+    strip.reportArea:SetScript("OnLeave", function() GameTooltip:Hide() end)
     strip:SetScript("OnHide", function() Director.Cancel() end)
     Director.strip = strip
     return strip
@@ -185,24 +201,43 @@ end
 local MARKS = { ["speaker.ledger"] = "clips", ["speaker.unlisted"] = "probes" }
 
 -- Redraws the strip for this speaker and line (localization keys) and the latest
--- report (localized text, or nil). width: the strip's width. Returns the strip's
--- height: at least MIN_STRIP, more when the text wraps further.
-function Director.Update(speaker, line, width, report, isCredit)
+-- reports (localized texts, newest first; may be empty). width: the strip's width.
+-- Returns the strip's height: at least MIN_STRIP, more when the text wraps further.
+function Director.Update(speaker, line, width, reports)
     local strip = Director.strip
     strip:SetShown(speaker ~= nil)
     if not speaker then return 0 end
     local L = ns.L
     strip:SetWidth(width)
     strip.line:SetWidth(width - Director.WIDTH - 16)
-    strip.report:SetWidth(width - Director.WIDTH - 16)
+
     -- The Director by name with his role; the others by their name alone.
     local isDirector = speaker == ns.Dialogue.DIRECTOR
     strip.speaker:SetText(isDirector and L["speaker.directorName"] or L[speaker])
     strip.role:SetShown(isDirector)
     if isDirector then strip.role:SetText(L[speaker]) end
     strip.line:SetText(L[line])
-    strip.report:SetShown(report ~= nil)
-    if report then strip.report:SetText(report) end
+    reports = reports or {}
+    local textWidth = width - Director.WIDTH - 16
+    local anchor, reportHeight = strip.line, 0
+    for i, r in ipairs(strip.reports) do
+        local text = reports[i]
+        r:SetShown(text ~= nil)
+        if text then
+            r:SetWidth(textWidth)
+            r:SetText(text)
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, i == 1 and -6 or -2)
+            reportHeight = reportHeight + (i == 1 and 6 or 2) + r:GetStringHeight()
+            anchor = r
+        end
+    end
+    strip.reportArea:SetShown(reports[1] ~= nil)
+    if reports[1] then
+        strip.reportArea:ClearAllPoints()
+        strip.reportArea:SetPoint("TOPLEFT", strip.reports[1], "TOPLEFT", 0, 0)
+        strip.reportArea:SetSize(textWidth, reportHeight)
+    end
     if speaker == ns.Dialogue.DIRECTOR then
         if setting("model") then ShowModel() elseif Director.state ~= "portrait" then ShowPortrait() end
     else
@@ -211,7 +246,6 @@ function Director.Update(speaker, line, width, report, isCredit)
         strip.portrait:SetTexture((ns.Assets.IdentityIcon(MARKS[speaker])))
         strip.portrait:Show()
     end
-    local reportHeight = report and (6 + strip.report:GetStringHeight()) or 0
     local height = math.max(Director.MIN_STRIP, 8 + 16 + 3 + strip.line:GetStringHeight() + reportHeight + 8)
     strip:SetHeight(height)
     return height

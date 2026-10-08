@@ -19,6 +19,8 @@ TimeIsMoneyDB = {
         controls = { disabled, projectElements, readouts, selects, ranges, resultsTableDisplay },
     },
     paused = true or nil,     -- #77: the player paused the company; any other value blocks
+    reports = { { at = ms or nil, text = "<reference message>" }, ... } or nil,
+                              -- #83: the report history (presentation; damaged entries dropped)
     prestige = { prestigeU = n, prestigeS = n } or nil,   -- carried into the next company
 }
 ~~~
