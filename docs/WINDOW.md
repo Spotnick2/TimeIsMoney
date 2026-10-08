@@ -90,6 +90,28 @@ campaign order, whose condition holds, so a reload shows the same line:
 
 The reference's own messages come back here in goblin wording in #22's second PR.
 
+## Cues and "New" tags (#90)
+
+- **Greetings rotate** when the window opens: 550785 "Time is money, friend!",
+  550786 "Ah! Potential customers.", 550773 "Yo!", never the same twice in a row
+  (Dialog channel; the player's dialog volume and mute apply).
+- **A new report** (seen by the window's redraw while it shows):
+  - the newest line fades in;
+  - at most once per `CUE_COOLDOWN` (4 s), Gazlowe plays his talk animation
+    (`TALK_ANIM`, back to idle after 2.5 s);
+  - at most once per `DEAL_COOLDOWN` (60 s) he says a deal line (550772, 550784
+    or 550782); otherwise the soft report sound plays (`CUE_SOUNDKIT`, SFX).
+
+  Settings: "Gazlowe's voice" covers every line; "Sound for new reports".
+- **Unverified until picked in the client:** the voice files other than 550785,
+  the talk animation (AnimationData 60, Talk) and the sound kit (120). Use
+  `/tim anim <id>`, `/tim voice <fileID>` and `/tim cue <soundKit>` to try them in
+  game; docs/MODELS.md lists the emotes as unverified.
+- **"New" tags, not a glow** (a glow reads as "click me"): a row, action or
+  project that appears after the window's first draw shows a small green "New"
+  until it is hovered or has shown for 30 s. A card that appears tags only its
+  title. Per session, presentation only.
+
 ## Buttons, tooltips and ESC (#89)
 
 - **One button system:**

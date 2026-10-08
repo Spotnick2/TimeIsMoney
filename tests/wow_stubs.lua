@@ -102,6 +102,7 @@ local function New(saved, libGlass)
         function actor:ClearModel() self.display = nil end
         function actor:SetScale(v) self.scaleValue = v end
         function actor:SetPosition(x, y, z) self.position = { x, y, z } end
+        function actor:SetAnimation(anim) self.animation = anim end
         function actor:GetActiveBoundingBox()
             if self.display and captured.modelBox then return unpack(captured.modelBox) end
         end
@@ -154,6 +155,9 @@ local function New(saved, libGlass)
         GetItemQualityByID = function(id) return captured.qualities and captured.qualities[id] end,
         GetItemQualityColor = function(q) if q == 2 then return 0.12, 1, 0 end return 1, 1, 1 end,
     }
+    -- UI sound kits (#90): recorded.
+    captured.soundKits = {}
+    env.C_Sound = { PlaySound = function(kit) captured.soundKits[#captured.soundKits + 1] = kit return true end }
     env.C_Spell = { GetSpellTexture = function(id) return 100000 + id end }
     -- C_Timer.After: callbacks queue until the test runs them (captured:RunTimers()).
     captured.timers = {}

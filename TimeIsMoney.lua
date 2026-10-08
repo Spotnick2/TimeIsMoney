@@ -45,7 +45,7 @@ local function Slash(message)
         for _, section in ipairs(TIM.Window.HELP_SECTIONS) do
             if section.compact then for _, key in ipairs(section.lines) do Print(ns.L[key]) end end
         end
-        Print("Developer: /tim click <control> (e.g. btnMakePaperclip), /tim set <control> <value>, /tim icons, /tim model, /tim newgame.")
+        Print("Developer: /tim click <control> (e.g. btnMakePaperclip), /tim set <control> <value>, /tim icons, /tim model, /tim newgame, /tim anim|voice|cue <id>.")
     elseif command == "" then
         if Host.game then
             TIM.Window.Toggle()
@@ -56,6 +56,19 @@ local function Slash(message)
         end
     elseif command == "status" then
         Status()
+    elseif command == "anim" or command == "voice" or command == "cue" then
+        -- Developer (#90): try an animation, a voice file or a sound kit in game.
+        local id = tonumber(rest)
+        if not id then Print("usage: /tim " .. command .. " <id>") return end
+        if command == "anim" then
+            Print(TIM.Director.Talk(id) and ("Gazlowe plays animation " .. id .. ".") or "Open the ledger with Gazlowe's model live first.")
+        elseif command == "voice" then
+            TIM.API.PlaySoundFile(id, "Dialog")
+            Print("Voice file " .. id .. " (Dialog channel).")
+        else
+            TIM.API.PlaySound(id)
+            Print("Sound kit " .. id .. ".")
+        end
     elseif command == "reports" then
         TIM.Window.ToggleReports()
     elseif command == "minimap" then

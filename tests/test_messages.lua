@@ -125,6 +125,7 @@ assert(not h.shownText("unmapped") and ns.Director.strip.report.text == "Welcome
 -- Three reports, newest first, older ones fading.
 local r = ns.Director.strip.reports
 assert(r[2].text == "Credits: a game by Frank Lantz" and r[3].text == "Whirring Bronze Gizmos available for purchase.")
+ns.Director.Tick(1) -- the newest line has faded in (#90)
 assert(r[1].alpha > r[2].alpha and r[2].alpha > r[3].alpha)
 
 print((libGlass and "messages (real LibGlass)" or "messages (LibGlass stand-in)")

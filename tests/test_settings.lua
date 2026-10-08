@@ -66,7 +66,8 @@ env.SlashCmdList.TIMEISMONEY("settings")
 local p = Window.settings
 -- The portrait selector lights the current choice; the greeting is a checkbox.
 assert(p:IsShown() and p.modelOn.label.text == "Animated" and p.modelOff.label.text == "Portrait")
-assert(p.voice.check.shown and p.voiceLabel.text == "Play Gazlowe's greeting")
+assert(p.voice.check.shown and p.voiceLabel.text == "Gazlowe's voice")
+assert(p.reportSound.check.shown and p.reportSoundLabel.text == "Sound for new reports")
 p.modelOff.scripts.OnClick(p.modelOff)
 assert(not Settings.values.model and ns.Director.state == "portrait")
 p.modelOff.scripts.OnClick(p.modelOff)
