@@ -27,6 +27,7 @@ Window.MESSAGE = 10
 
 local COPPER = { 0.85, 0.6, 0.4 }
 local MUTED = { 0.7, 0.7, 0.7 }
+Window.COPPER, Window.MUTED = COPPER, MUTED -- the Director's strip shares them
 
 local Glass
 
@@ -52,6 +53,13 @@ local function Click(id)
     end
     Send(id)
 end
+
+-- Surface tints (LibGlass r3 SetSurfaceTint): panels nearly opaque, the primary
+-- action a restrained green. The settings cog is a client icon.
+Window.PANEL_TINT = { 0.05, 0.06, 0.08, 0.92 }
+Window.PRIMARY_TINT = { 0.16, 0.42, 0.20, 0.55 }
+Window.SETTINGS_ICON = "Interface\\Icons\\INV_Misc_Gear_01"
+Window.CHECK_ICON = "Interface\\Buttons\\UI-CheckBox-Check"
 
 -- Tooltips: one renderer. lines[1] is the white title, the rest wrap muted.
 local function ShowTip(owner, lines)
@@ -82,7 +90,8 @@ local function NewButton(parent, id, height)
     local b = CreateFrame("Button", nil, parent)
     b:SetHeight(height or Window.BUTTON)
     -- Text goes on the glass's top layer, above the rim (host level + 10).
-    b.glass = Glass.Apply(b, "small")
+    -- The thin rim (LibGlass r3): many small buttons read as glass, not moulding.
+    b.glass = Glass.Apply(b, "thin_small")
     b.label = Glass.Font(b.glass.top, 11, "CENTER")
     b.label:SetPoint("LEFT", b, "LEFT", 4, 0)
     b.label:SetPoint("RIGHT", b, "RIGHT", -4, 0)
@@ -122,6 +131,17 @@ local function SetButton(b, text, enabled, short)
         b.label:SetText(enabled and text or (text .. " (not yet)"))
     end
     if enabled then b.label:SetTextColor(1, 1, 1) else b.label:SetTextColor(MUTED[1], MUTED[2], MUTED[3]) end
+    -- The glass dims too (LibGlass r3), with any icon on it (content on g.top is
+    -- ours to dim), and the primary action carries the accent only while it can be
+    -- used. Only on a change: the window redraws ten times a second.
+    if b.surfaceEnabled ~= enabled then
+        b.surfaceEnabled = enabled
+        Glass.SetSurfaceEnabled(b.glass, enabled)
+        if b.icon then b.icon:SetAlpha(enabled and 1 or 0.4) end
+        if b.primary then
+            if enabled then Glass.SetSurfaceTint(b.glass, unpack(Window.PRIMARY_TINT)) else Glass.SetSurfaceTint(b.glass) end
+        end
+    end
 end
 
 -- Cards: a glass panel of rows. Each row has a show(S, panels) predicate; hidden
@@ -136,7 +156,7 @@ local function NewCard(parent, title, titled)
     local card = setmetatable({ rows = {}, titled = titled }, Card)
     local f = CreateFrame("Frame", nil, parent)
     f:SetWidth(Window.COLUMN)
-    card.glass = Glass.Apply(f, "large")
+    card.glass = Glass.Apply(f, "thin")
     card.frame = f
     card.content = CreateFrame("Frame", nil, f)
     card.content:SetAllPoints(f)
@@ -402,7 +422,7 @@ end
 -- Lays out the visible rows and fills them in; returns whether the card shows.
 function Card:Update(game, panels)
     local S = game.S
-    local inset = Glass.Inset("large")
+    local inset = Glass.Inset("thin") -- cards take the thin rim (NewCard)
     local y = -inset
     local titled = not self.titled or self.titled(panels)
     self.title:SetShown(titled)
@@ -604,7 +624,7 @@ local function NewProjects(parent)
     card.next:SetScript("OnClick", function() turn(1) end)
     card.pageText = Glass.Font(card.glass.top, 11, "CENTER")
     function card:Update(game, panels)
-        local inset = Glass.Inset("large")
+        local inset = Glass.Inset("thin")
         local list = panels.projects and View.projects(game) or {}
         local perPage = Window.ProjectsPerPage()
         local pages = math.max(1, math.ceil(#list / perPage))
@@ -708,7 +728,12 @@ local function Build()
     local settingsButton = NewButton(content, nil, Window.SQUARE)
     settingsButton:SetWidth(Window.SQUARE)
     settingsButton:SetPoint("RIGHT", close, "LEFT", -4, 0)
-    settingsButton.label:SetText("=")
+    -- A cog, not "=" (the label stays empty; the tooltip names it).
+    settingsButton.icon = settingsButton.glass.top:CreateTexture(nil, "OVERLAY")
+    settingsButton.icon:SetTexture(Window.SETTINGS_ICON)
+    settingsButton.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    settingsButton.icon:SetSize(Window.SQUARE - 12, Window.SQUARE - 12)
+    settingsButton.icon:SetPoint("CENTER", settingsButton, "CENTER", 0, 0)
     settingsButton.tipFn = function() return { ns.L["settings.title"] } end
     settingsButton:SetScript("OnClick", function() Window.ToggleSettings() end)
     local helpButton = NewButton(content, nil, Window.SQUARE)
@@ -724,7 +749,8 @@ local function Build()
         return JSMath.toString(S.prestigeU + 1) .. " / " .. JSMath.toString(S.prestigeS + 1)
     end, function(_, p) return p.prestige end)
     production:WithIcon(production:Stat(T.clips, function(S) return View.count(S.clips, "ceil") end), "clips")
-    production:Action("btnMakePaperclip", function() return T.make end)
+    -- The primary action: a restrained green while it can be used.
+    production:Action("btnMakePaperclip", function() return T.make end).button.primary = true
     local manufacturing = function(_, p) return p.manufacturing end
     production:Stat("Bolts per second", function(S) return View.count(S.clipRate, "round") end, manufacturing)
     production:WithIcon(production:Stat(T.wire, function(S) return View.count(S.wire) end, manufacturing), "wire")
@@ -1065,6 +1091,7 @@ function Window.Confirm(questionKey, onYes)
         d:SetToplevel(true)
         d:EnableMouse(true) -- clicks stop here, not on the window behind
         local g = Glass.Apply(d, "large")
+        Glass.SetSurfaceTint(g, unpack(Window.PANEL_TINT))
         local content = CreateFrame("Frame", nil, d)
         content:SetAllPoints(d)
         content:SetFrameLevel(Glass.ContentLevel(d))
@@ -1176,6 +1203,9 @@ function Window.Panel(name, width, height)
     p:SetScript("OnDragStart", p.StartMoving)
     p:SetScript("OnDragStop", p.StopMovingOrSizing)
     p.glass = Glass.Apply(p, "large")
+    -- Nearly opaque: the window behind (its labels, the Director) must not compete
+    -- with the panel's text.
+    Glass.SetSurfaceTint(p.glass, unpack(Window.PANEL_TINT))
     p.content = CreateFrame("Frame", nil, p)
     p.content:SetAllPoints(p)
     p.content:SetFrameLevel(Glass.ContentLevel(p))
@@ -1318,40 +1348,60 @@ function Window.ToggleSettings()
     if not Window.frame then Build() end
     local p = Window.settings
     if not p then
-        p = Window.Panel("TimeIsMoneySettings", 320, 280)
-        local function Toggle(y, key, apply)
+        p = Window.Panel("TimeIsMoneySettings", 320, 250)
+        local function Changed() Window.FillSettings() Window.Refresh() end
+        -- The Director's portrait: two choices, the current one lit.
+        p.portraitLabel = Line(p, 11, -50)
+        local function Choice(x, on)
             local b = NewButton(p.content, nil)
-            b:SetSize(284, Window.BUTTON)
-            b:SetPoint("TOPLEFT", p, "TOPLEFT", 18, y)
+            b:SetSize(96, Window.BUTTON)
+            b:SetPoint("TOPRIGHT", p, "TOPRIGHT", x, -42)
+            -- Choosing the current option changes nothing (no model reload).
             b:SetScript("OnClick", function()
-                apply(not ns.Settings.values[key])
-                Window.FillSettings()
-                Window.Refresh()
+                if ns.Settings.values.model ~= on then ns.Director.SetModel(on) Changed() end
             end)
+            -- The current choice is marked by a check, not by colour alone.
+            b.check = b.glass.top:CreateTexture(nil, "OVERLAY")
+            b.check:SetTexture(Window.CHECK_ICON)
+            b.check:SetSize(16, 16)
+            b.check:SetPoint("LEFT", b, "LEFT", 4, 0)
             return b
         end
-        p.model = Toggle(-46, "model", function(on) ns.Director.SetModel(on) end)
-        p.voice = Toggle(-76, "voice", function(on) ns.Settings.Set("voice", on) end)
-        p.scaleLabel = Line(p, 11, -112)
+        p.modelOn = Choice(-18 - 96 - 4, true)
+        p.modelOff = Choice(-18, false)
+        -- The greeting: a checkbox.
+        p.voice = NewButton(p.content, nil, Window.SQUARE)
+        p.voice:SetWidth(Window.SQUARE)
+        p.voice:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -78)
+        p.voice.check = p.voice.glass.top:CreateTexture(nil, "OVERLAY")
+        p.voice.check:SetTexture(Window.CHECK_ICON)
+        p.voice.check:SetSize(Window.SQUARE - 6, Window.SQUARE - 6)
+        p.voice.check:SetPoint("CENTER", p.voice, "CENTER", 0, 0)
+        p.voice:SetScript("OnClick", function() ns.Settings.Set("voice", not ns.Settings.values.voice) Changed() end)
+        p.voiceLabel = Line(p, 11, -88)
+        p.voiceLabel:ClearAllPoints()
+        p.voiceLabel:SetPoint("LEFT", p.voice, "RIGHT", 8, 0)
+        p.voiceLabel:SetWidth(p:GetWidth() - (18 + Window.SQUARE + 8) - 18) -- wraps inside the panel
+        p.scaleLabel = Line(p, 11, -128)
         p.smaller = NewButton(p.content, nil, Window.SQUARE)
         p.smaller:SetWidth(Window.SQUARE)
-        p.smaller:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18 - Window.SQUARE - 4, -104)
+        p.smaller:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18 - Window.SQUARE - 4, -120)
         p.smaller.label:SetText("-")
         p.smaller:SetScript("OnClick", function() ns.Settings.StepScale(-1) Window.FillSettings() Window.Refresh() end)
         p.larger = NewButton(p.content, nil, Window.SQUARE)
         p.larger:SetWidth(Window.SQUARE)
-        p.larger:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18, -104)
+        p.larger:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18, -120)
         p.larger.label:SetText("+")
         p.larger:SetScript("OnClick", function() ns.Settings.StepScale(1) Window.FillSettings() Window.Refresh() end)
         p.helpButton = NewButton(p.content, nil)
-        p.helpButton:SetSize(284, Window.BUTTON)
-        p.helpButton:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -150)
+        p.helpButton:SetSize(138, Window.BUTTON)
+        p.helpButton:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -166)
         p.helpButton:SetScript("OnClick", function() Window.ShowHelp() end)
         p.newGame = NewButton(p.content, nil)
-        p.newGame:SetSize(284, Window.BUTTON)
-        p.newGame:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -186)
+        p.newGame:SetSize(138, Window.BUTTON)
+        p.newGame:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18, -166)
         -- While saving is off, changes here are not kept: say so.
-        p.notice = Line(p, 10, -220, { 1, 0.5, 0.3 })
+        p.notice = Line(p, 10, -204, { 1, 0.5, 0.3 })
         p.newGame:SetScript("OnClick", function()
             if ns.Host.blocked then
                 Report("not starting over: " .. ns.Host.blocked .. "; the saved data is kept untouched")
@@ -1372,8 +1422,16 @@ end
 function Window.FillSettings()
     local p, L, v = Window.settings, ns.L, ns.Settings.values
     p.title:SetText(L["settings.title"])
-    p.model.label:SetText(L[v.model and "settings.modelOn" or "settings.modelOff"])
-    p.voice.label:SetText(L[v.voice and "settings.voiceOn" or "settings.voiceOff"])
+    p.portraitLabel:SetText(L["settings.portrait"])
+    p.modelOn.label:SetText(L["settings.portraitModel"])
+    p.modelOff.label:SetText(L["settings.portraitFlat"])
+    -- The current choice lit; both stay clickable.
+    Glass.SetSurfaceTint(p.modelOn.glass, unpack(v.model and Window.PRIMARY_TINT or {}))
+    Glass.SetSurfaceTint(p.modelOff.glass, unpack(v.model and {} or Window.PRIMARY_TINT))
+    p.modelOn.check:SetShown(v.model)
+    p.modelOff.check:SetShown(not v.model)
+    p.voice.check:SetShown(v.voice)
+    p.voiceLabel:SetText(L["settings.greeting"])
     p.scaleLabel:SetText(ns.Locale.Format("settings.scale", { percent = math.floor(v.scale * 100 + 0.5) }))
     p.helpButton.label:SetText(L["settings.help"])
     p.newGame.label:SetText(L["settings.newGame"])

@@ -88,16 +88,22 @@ function Director.Build(parent, font)
     strip.portrait = strip:CreateTexture(nil, "ARTWORK")
     strip.portrait:SetSize(Director.HEIGHT, Director.HEIGHT)
     strip.portrait:SetPoint("CENTER", scene, "CENTER", 0, 0)
-    strip.speaker = font(strip, 10, "LEFT")
+    -- The speaker's name (copper), then the Director's role (muted) beside it.
+    strip.speaker = font(strip, 13, "LEFT")
     strip.speaker:SetPoint("TOPLEFT", strip, "TOPLEFT", Director.WIDTH + 12, -8)
+    local copper, muted = ns.Window.COPPER, ns.Window.MUTED -- the window's palette
+    strip.speaker:SetTextColor(copper[1], copper[2], copper[3])
+    strip.role = font(strip, 10, "LEFT")
+    strip.role:SetPoint("BOTTOMLEFT", strip.speaker, "BOTTOMRIGHT", 8, 1)
+    strip.role:SetTextColor(muted[1], muted[2], muted[3])
     strip.line = font(strip, 12, "LEFT")
-    strip.line:SetPoint("TOPLEFT", strip.speaker, "BOTTOMLEFT", 0, -4)
+    strip.line:SetPoint("TOPLEFT", strip.speaker, "BOTTOMLEFT", 0, -3)
     strip.line:SetWordWrap(true)
     -- The company's latest report (the simulation's newest message, localized).
     strip.report = font(strip, 10, "LEFT")
     strip.report:SetPoint("TOPLEFT", strip.line, "BOTTOMLEFT", 0, -6)
     strip.report:SetWordWrap(true)
-    strip.report:SetTextColor(0.7, 0.7, 0.7)
+    strip.report:SetTextColor(muted[1], muted[2], muted[3]) -- muted and smaller: the line leads
     strip:SetScript("OnHide", function() Director.Cancel() end)
     Director.strip = strip
     return strip
@@ -189,7 +195,11 @@ function Director.Update(speaker, line, width, report, isCredit)
     strip:SetWidth(width)
     strip.line:SetWidth(width - Director.WIDTH - 16)
     strip.report:SetWidth(width - Director.WIDTH - 16)
-    strip.speaker:SetText(string.upper(L[speaker]))
+    -- The Director by name with his role; the others by their name alone.
+    local isDirector = speaker == ns.Dialogue.DIRECTOR
+    strip.speaker:SetText(isDirector and L["speaker.directorName"] or L[speaker])
+    strip.role:SetShown(isDirector)
+    if isDirector then strip.role:SetText(L[speaker]) end
     strip.line:SetText(L[line])
     strip.report:SetShown(report ~= nil)
     if report then strip.report:SetText(report) end
@@ -202,7 +212,7 @@ function Director.Update(speaker, line, width, report, isCredit)
         strip.portrait:Show()
     end
     local reportHeight = report and (6 + strip.report:GetStringHeight()) or 0
-    local height = math.max(Director.MIN_STRIP, 8 + 14 + 4 + strip.line:GetStringHeight() + reportHeight + 8)
+    local height = math.max(Director.MIN_STRIP, 8 + 16 + 3 + strip.line:GetStringHeight() + reportHeight + 8)
     strip:SetHeight(height)
     return height
 end

@@ -42,6 +42,18 @@ the embedded LibGlass-1.0 material.
   (#73): View.unavailable gives a localized reason from the same condition the
   simulation disables the control on, for example "Out of Copper Bars", "Not
   enough Company Funds" or "A tournament is already running".
+- **Glass surfaces** (LibGlass r3, after an outside UX critique): cards and
+  buttons take the thin rim; Help, Settings and the confirmation are nearly
+  opaque (Window.PANEL_TINT) so the window behind never competes with their text;
+  Make Copper Bolts, the primary action, carries a restrained green
+  (Window.PRIMARY_TINT) only while it can be used; every unavailable button's
+  surface dims (SetSurfaceEnabled) as well as its label.
+- **The Director's strip** names him: "Gazlowe" in copper with his role
+  "Director" muted beside it; the Ledger and the Unlisted Director by name alone.
+  The company report under the line is smaller and muted.
+- **Settings:** a cog opens them; the Director's portrait is a two-choice
+  selector (Animated / Portrait, the current one lit) and the greeting a
+  checkbox; Help and New game sit side by side.
 - **Counts round as the reference shows them** (#73): toward zero by default, as
   formatWithCommas does (a partial Copper Bar is never shown as a whole one);
   bolts with Math.ceil, which is also what the milestone reports use; bolts per

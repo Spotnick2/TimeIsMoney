@@ -111,7 +111,9 @@ at(7, { endTimer1 = 190, endTimer2 = 150, endTimer4 = 250 }) -- every earlier ti
 Window.Refresh()
 for _, title in ipairs({ "Dragonling Design", "Space Exploration", "Combat", "Negotiation Simulator",
     "Resonance Calculator", "Copper Production", "Company Network", "The Ledger", "Projects" }) do
-    assert(not h.shownText(title), title .. " still shows")
+    -- Card titles only: the Director's strip may name The Ledger as its speaker.
+    local found = h.shownText(title)
+    assert(not found or found.parent == ns.Director.strip, title .. " still shows")
 end
 assert(h.shownText("Manufacturing"))
 

@@ -31,12 +31,14 @@ local function New(saved, libGlass)
         -- The Director's ModelScene (#22; measured in the client by the #10 probe).
         "SetCameraFieldOfView", "SetCameraNearClip", "SetCameraFarClip", "SetCameraPosition",
         "SetCameraOrientationByYawPitchRoll", "SetUseCenterForOrigin", "SetParticleOverrideScale",
-        -- What LibGlass-1.0 r1 calls (its own test_methods checks them against the dump).
+        -- What LibGlass-1.0 r1-r3 calls (its own test_methods checks them against the dump).
         "AddMaskTexture", "Play", "SetBlendMode", "SetClipsChildren",
         "SetDuration", "SetFont", "SetFromAlpha", "SetGradient", "SetHorizTile", "SetMinMaxValues",
         "SetOffset", "SetShadowColor", "SetShadowOffset", "SetSmoothing", "SetStartDelay",
         "SetStatusBarTexture", "SetTextureSliceMargins", "SetTextureSliceMode", "SetToAlpha",
-        "SetValue", "SetVertTile", "SetVertexColor", "Stop",
+        "SetValue", "SetVertTile", "SetVertexColor", "Stop", -- r3 also reads GetAlpha (below)
+        -- The settings icon and the greeting checkbox (Texture methods in the dump).
+        "SetTexCoord",
     }
     for _, m in ipairs(methods) do Widget[m] = function() end end
     function Widget:SetScript(kind, fn) self.scripts[kind] = fn end
@@ -75,6 +77,7 @@ local function New(saved, libGlass)
     end
     function Widget:SetPoint(...) self.point = { ... } end
     function Widget:SetAlpha(a) self.alpha = a end
+    function Widget:GetAlpha() return self.alpha or 1 end
     function Widget:SetTexture(t) self.texture = t end
     function Widget:SetColorTexture(r, g, b, a) self.colorTexture = { r, g, b, a } end
     function Widget:SetTextColor(r, g, b) self.color = { r, g, b } end
@@ -181,13 +184,17 @@ local function New(saved, libGlass)
     -- tests cover the material; here only the API shape matters.
     local glass = {}
     function glass.Apply(host, size)
-        assert(size == "large" or size == "small", "glass size")
+        assert(size == "large" or size == "small" or size == "thin" or size == "thin_small", "glass size")
         captured.glass.applied = captured.glass.applied + 1
         return { size = size, top = env.CreateFrame("Frame", nil, host) }
     end
     function glass.Font(parent, size, justify) return parent:CreateFontString() end
     function glass.Bar(parent, height) return env.CreateFrame("StatusBar", nil, parent) end
-    function glass.Inset(size) return size == "small" and 3 or 6 end -- LibGlass r1 SIZES
+    local INSETS = { large = 6, small = 3, thin = 4, thin_small = 2 } -- LibGlass r3 SIZES
+    function glass.Inset(size) return INSETS[size or "large"] end
+    -- r3: one surface's own tint (none = its built colour) and its disabled look.
+    function glass.SetSurfaceTint(g, r, gr, b, a) g.surfaceTint = r and { r, gr, b, a } or nil end
+    function glass.SetSurfaceEnabled(g, enabled) g.surfaceEnabled = enabled end
     function glass.ContentLevel(host) return host:GetFrameLevel() + 2 end
     function glass.SetBar(bar, max, value) bar.max, bar.value = max, value end
     if not libGlass then env.LibStub = function(name)
