@@ -28,7 +28,8 @@ assert(Settings.values.helpSeen)
 assert(Window.help.title.text == "Time Is Money: Help")
 local headings = {}
 for i, section in ipairs(Window.help.sections) do headings[i] = section.heading.text end
-assert(table.concat(headings, "|") == "Getting started|Controls|Saving progress")
+assert(table.concat(headings, "|") == "Getting started|Controls|Saving progress|Credits")
+assert(h.shownText("a game by Frank Lantz") and h.shownText("decisionproblem.com/paperclips"), "the original credited")
 local controls = Window.help.sections[2].lines
 assert(#controls == #Window.HELP_SECTIONS[2].lines and #controls == 8)
 for i, fs in ipairs(controls) do

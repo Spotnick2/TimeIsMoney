@@ -10,20 +10,33 @@ local Host, Window = ns.Host, ns.Window
 env.SlashCmdList.TIMEISMONEY("start")
 local make = h.button("btnMakePaperclip")
 assert(make.glass.size == "thin_small", "buttons take the thin rim")
-assert(make:IsEnabled() and make.glass.surfaceEnabled == true and make.glass.surfaceTint, "the primary accent while usable")
--- Unavailable: the accent goes and the surface dims.
+-- One button system (#89): no accent at rest; brighter on hover, darker while
+-- pressed; unavailable dims and takes no hover highlight.
+assert(make:IsEnabled() and make.glass.surfaceEnabled == true and make.glass.surfaceTint == nil, "plain glass at rest")
+make.scripts.OnEnter(make)
+assert(make.glass.surfaceTint and make.glass.surfaceTint[4] == Window.HOVER_TINT[4], "hover brightens")
+make.scripts.OnMouseDown(make)
+assert(make.glass.surfaceTint[4] == Window.PRESSED_TINT[4], "pressed darkens")
+make.scripts.OnMouseUp(make)
+assert(make.glass.surfaceTint[4] == Window.HOVER_TINT[4], "back to hover on release")
+make.scripts.OnLeave(make)
+assert(make.glass.surfaceTint == nil, "plain again")
+-- Unavailable: dims, and no hover highlight.
 Host.game.S.wire = 0
 Host.update(0.02)
 Window.Refresh()
 assert(not make:IsEnabled() and make.glass.surfaceEnabled == false and make.glass.surfaceTint == nil)
--- Any other unavailable button dims without an accent.
+make.scripts.OnEnter(make)
+assert(make.glass.surfaceTint == nil, "no hover highlight while unavailable")
+make.scripts.OnLeave(make)
+-- Any other unavailable button dims the same way.
 local S = Host.game.S
 S.funds, S.wire = 0, 1000
 Host.update(0.02)
 Window.Refresh()
 local buy = assert(h.button("btnMakeClipper") or h.button("btnBuyWire"), "a purchase button shows")
 assert(not buy:IsEnabled() and buy.glass.surfaceEnabled == false and buy.glass.surfaceTint == nil)
-assert(make:IsEnabled() and make.glass.surfaceTint, "the accent returns with the bars")
+assert(make:IsEnabled() and make.glass.surfaceTint == nil, "Make is a plain available button again")
 -- The main window: darker than the bare glass, lighter than the panels (#80).
 -- The bare material's alpha from the real library when it is available (the
 -- stand-in has no STYLE).

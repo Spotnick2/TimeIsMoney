@@ -36,12 +36,12 @@ local function Tip(self)
     local state = (Host.blocked and not Host.game and L["minimap.blocked"])
         or (not Host.game and L["minimap.noCompany"]) or (not Host.running and L["minimap.stopped"])
         or (Host.paused and L["minimap.paused"]) or L["minimap.running"]
-    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:SetText("Time Is Money", 1, 1, 1)
-    GameTooltip:AddLine(state, 0.85, 0.6, 0.4)
-    GameTooltip:AddLine(L["minimap.left"], 0.7, 0.7, 0.7)
-    GameTooltip:AddLine(L["minimap.right"], 0.7, 0.7, 0.7)
-    GameTooltip:Show()
+    ns.Window.Tip():SetOwner(self, "ANCHOR_LEFT")
+    ns.Window.Tip():SetText("Time Is Money", 1, 1, 1)
+    ns.Window.Tip():AddLine(state, 0.85, 0.6, 0.4)
+    ns.Window.Tip():AddLine(L["minimap.left"], 0.7, 0.7, 0.7)
+    ns.Window.Tip():AddLine(L["minimap.right"], 0.7, 0.7, 0.7)
+    ns.Window.Tip():Show()
 end
 
 function MinimapButton.Build()
@@ -68,7 +68,7 @@ function MinimapButton.Build()
         end
     end)
     b:SetScript("OnEnter", Tip)
-    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b:SetScript("OnLeave", function() ns.Window.Tip():Hide() end)
     -- Dragging moves it around the edge; the angle is saved when it is let go.
     b:SetScript("OnDragStart", function(self)
         self:SetScript("OnUpdate", function() MinimapButton.Place(MinimapButton.CursorAngle()) end)

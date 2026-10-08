@@ -180,6 +180,27 @@ end
 function View.coins(x) return coinParts(x, COIN_TEXT) end
 -- The same amount with coin icons, for the window.
 function View.money(x) return coinParts(x, View.COIN_ICONS) end
+-- For right-aligned values (funds, revenue, price): once a larger coin shows, every
+-- smaller one does too, padded to two digits ("2g 05s 04c"), so the amount keeps its
+-- width as it changes (#89). Digits are equal width in WoW fonts.
+function View.moneyFixed(x)
+    if isNaN(x) or x == math.huge or x == -math.huge then return View.count(x) end
+    local marks = View.COIN_ICONS
+    local copper = math.floor(math.abs(x) * 100 + 0.5)
+    if copper >= EXACT_COPPER then return coinParts(x, marks) end
+    local negative = x < 0 and copper > 0
+    local gold, silver = math.floor(copper / 10000), math.floor(copper / 100) % 100
+    copper = copper % 100
+    local text
+    if gold > 0 then
+        text = View.count(gold) .. marks.g .. " " .. string.format("%02d", silver) .. marks.s .. " " .. string.format("%02d", copper) .. marks.c
+    elseif silver > 0 then
+        text = silver .. marks.s .. " " .. string.format("%02d", copper) .. marks.c
+    else
+        text = copper .. marks.c
+    end
+    return (negative and "-" or "") .. text
+end
 
 -- The exact amount, when the coins round it (a fraction of a copper): the tooltip
 -- that keeps thresholds visible. nil when the coins already show it exactly. The
@@ -231,9 +252,15 @@ function View.projects(game, money)
     for _, project in ipairs(game.S.activeProjects) do
         local entry = ns.Workshop.projectById[project.id]
         local text = ns.ProjectText[entry.name]
+        -- A project costing more Operations than the Punch Cards hold can never be
+        -- bought by waiting (#89): say how to get there.
+        local ops = text.priceTag and text.priceTag:match("([%d,]+) ops")
+        ops = ops and tonumber((ops:gsub(",", "")))
         list[#list + 1] = {
             id = project.id, name = entry.name, title = text.title, priceTag = View.priceTag(entry.name, game.S, money),
             purpose = text.purpose, enabled = not game.disabled[project.id],
+            capacity = ops and ops > game.S.memory * 1000 and ns.Locale.Format("why.capacity",
+                { n = View.count(ops), cap = View.count(game.S.memory * 1000) }) or nil,
         }
     end
     return list
@@ -597,6 +624,46 @@ function View.itemTip(key, game)
     end
     return { title = View.TERMS[key], category = L("item." .. key .. ".category"), lines = fn(game.S, game),
         use = use, flavor = L("item.quoted", { text = L("item." .. key .. ".flavor") }) }
+end
+
+-- What an action does (#89), for its tooltip: lines under its caption, or nil.
+local function A(key, values) return ns.Locale.Format(key, values or {}) end
+local ACTIONS = {
+    btnMakePaperclip = function(S) return { A("act.make"), A("act.barsLeft", { n = View.count(S.wire) }) } end,
+    btnBuyWire = function(S)
+        return { A("act.buyWire", { n = View.count(S.wireSupply), cost = View.money(S.wireCost) }), View.exactMoney(S.wireCost) }
+    end,
+    btnToggleWireBuyer = function() return { A("act.wireBuyer") } end,
+    btnMakeClipper = function(S)
+        return { A("act.adds", { n = View.rate(S.clipperBoost) }), A("act.cost", { cost = View.money(S.clipperCost) }),
+            View.exactMoney(S.clipperCost) }
+    end,
+    btnMakeMegaClipper = function(S)
+        return { A("act.adds", { n = View.rate(S.megaClipperBoost * 500) }), A("act.cost", { cost = View.money(S.megaClipperCost) }),
+            View.exactMoney(S.megaClipperCost) }
+    end,
+    btnExpandMarketing = function(S)
+        return { A("act.campaign", { level = View.count(S.marketingLvl + 1) }), A("act.cost", { cost = View.money(S.adCost) }) }
+    end,
+    btnLowerPrice = function() return { A("act.lower") } end,
+    btnRaisePrice = function() return { A("act.raise") } end,
+    btnAddProc = function(S)
+        return { A("act.addProc"), A(S.humanFlag == 0 and "act.fromNetwork" or "act.fromTrust", { term = View.TERMS.swarmGifts }) }
+    end,
+    btnAddMem = function(S)
+        return { A("act.addMem"), A(S.humanFlag == 0 and "act.fromNetwork" or "act.fromTrust", { term = View.TERMS.swarmGifts }) }
+    end,
+}
+function View.actionTip(id, S)
+    local fn = id and ACTIONS[id]
+    if not fn then return nil end
+    local lines = {}
+    for _, line in pairs(fn(S)) do lines[#lines + 1] = line end -- drops nil (no exact line)
+    return lines
+end
+-- Board Trust not yet given to Modulators or Punch Cards (first phase).
+function View.availableTrust(S)
+    return S.trust - S.processors - S.memory
 end
 
 -- The Company Network's status text (swarmStatus); 7 hides the status line.
