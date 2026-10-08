@@ -1437,22 +1437,37 @@ function Window.FillReports()
     local p = Window.reports
     local list = ns.Host.reports
     local total = #list
-    p.offset = math.max(0, math.min(p.offset, total - Window.REPORT_ROWS))
+    -- Scrolls until the oldest report is at the top.
+    p.offset = math.max(0, math.min(p.offset, total - 1))
     p.title:SetText(ns.L["reports.title"])
+    -- Rows wrap (translations and long reports take two lines or more), measured
+    -- one below the other until the area is full (Codex review of #87).
+    local y, bottom, shown = -46, -46 - Window.REPORT_ROWS * 18, 0
     for i, row in ipairs(p.rows) do
         local e = list[total - p.offset - i + 1]
-        row.time:SetShown(e ~= nil)
-        row.text:SetShown(e ~= nil)
+        local fits = e ~= nil
         if e then
             row.time:SetText(Clock(e.at))
             row.text:SetText(ns.Messages.Translate(e.text) or "")
+            local height = math.max(14, row.text:GetStringHeight())
+            fits = shown == 0 or y - height >= bottom
+            if fits then
+                row.time:ClearAllPoints()
+                row.time:SetPoint("TOPLEFT", p, "TOPLEFT", 18, y)
+                row.text:ClearAllPoints()
+                row.text:SetPoint("TOPLEFT", p, "TOPLEFT", 18 + 60, y)
+                y = y - height - 4
+                shown = shown + 1
+            end
         end
+        row.time:SetShown(fits)
+        row.text:SetShown(fits)
     end
     p.empty:SetShown(total == 0)
     p.empty:SetText(ns.L["reports.empty"])
-    p.hint:SetShown(total > Window.REPORT_ROWS)
+    p.hint:SetShown(total > shown)
     p.hint:SetText(ns.Locale.Format("reports.range", { first = total == 0 and 0 or p.offset + 1,
-        last = math.min(total, p.offset + Window.REPORT_ROWS), total = total }))
+        last = p.offset + shown, total = total }))
 end
 function Window.ToggleReports()
     if not Window.frame then Build() end
@@ -1468,7 +1483,7 @@ function Window.ToggleReports()
             text:ClearAllPoints()
             text:SetPoint("TOPLEFT", p, "TOPLEFT", 18 + 60, y)
             text:SetWidth(p:GetWidth() - 18 - 60 - 18)
-            text:SetWordWrap(false)
+            text:SetWordWrap(true)
             p.rows[i] = { time = time, text = text }
         end
         p.empty = Line(p, 11, -46, MUTED)

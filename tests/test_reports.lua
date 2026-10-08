@@ -28,14 +28,26 @@ assert(p.rows[1].text.text:find("Copper Modulator", 1, true) or p.rows[1].text.t
 assert(p.rows[1].time.text:find("^%d+:%d%d:%d%d$"), "with its game time")
 assert(p.hint.shown and p.hint.text:find("of " .. #Host.reports, 1, true))
 -- The wheel scrolls: down shows older reports; it stops at both ends.
-local top = p.rows[1].text.text
 p.scripts.OnMouseWheel(p, -1)
 assert(p.offset == 3)
 for _ = 1, 50 do p.scripts.OnMouseWheel(p, -1) end
-assert(p.offset == #Host.reports - Window.REPORT_ROWS, "stops at the oldest")
-assert(p.rows[Window.REPORT_ROWS].text.text == "Welcome to Durotar Supply and Logistics.", "the oldest last")
+assert(p.offset == #Host.reports - 1, "stops with the oldest at the top")
+assert(p.rows[1].text.text == "Welcome to Durotar Supply and Logistics.", "the oldest")
+-- Long reports wrap: rows stack by measured height and never run past the area.
+for _ = 1, 20 do Host.addReport("Welcome to Universal Paperclips", 1000) end
+local tall = ns.Messages.Translate("Welcome to Universal Paperclips")
+p.offset = 0
+local measure = p.rows[1].text.GetStringHeight
+for _, row in ipairs(p.rows) do row.text.GetStringHeight = function() return 40 end end
+Window.FillReports()
+local visible = 0
+for _, row in ipairs(p.rows) do if row.text.shown then visible = visible + 1 end end
+assert(visible < Window.REPORT_ROWS and visible >= 1, "fewer, taller rows fit: " .. visible)
+assert(p.rows[2].text.point[5] <= p.rows[1].text.point[5] - 40, "each below the previous one's height")
+assert(p.hint.text:find("1-" .. visible .. " of", 1, true))
+for _, row in ipairs(p.rows) do row.text.GetStringHeight = measure end
 for _ = 1, 50 do p.scripts.OnMouseWheel(p, 1) end
-assert(p.offset == 0 and p.rows[1].text.text == top, "back to the newest")
+assert(p.offset == 0 and p.rows[1].text.text == tall, "back to the newest")
 env.SlashCmdList.TIMEISMONEY("reports")
 assert(not p:IsShown(), "/tim reports closes it")
 env.SlashCmdList.TIMEISMONEY("reports")
