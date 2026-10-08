@@ -442,7 +442,9 @@ local REASONS = {
     btnBuyWire = short("funds"), btnMakeClipper = short("funds"), btnMakeMegaClipper = short("funds"),
     btnExpandMarketing = short("funds"),
     btnLowerPrice = function() return "why.lowestPrice" end,
-    btnAddProc = function() return "why.trust" end, btnAddMem = function() return "why.trust" end,
+    -- The first phase allocates Board Trust; later phases spend breakthroughs.
+    btnAddProc = function(S) if S.humanFlag == 0 then return "why.short", "swarmGifts" end return "why.trust" end,
+    btnAddMem = function(S) if S.humanFlag == 0 then return "why.short", "swarmGifts" end return "why.trust" end,
     btnNewTournament = function(S)
         if S.tourneyInProg ~= 0 then return "why.tournamentRunning" end
         return "why.short", "operations"
@@ -587,8 +589,14 @@ end
 function View.itemTip(key, game)
     local fn = ITEM_TIPS[key]
     if not fn then return nil end
+    -- + on Modulators and Punch Cards assigns Board Trust in the first phase and
+    -- spends a Network Breakthrough after it (addProc / addMem, humanFlag == 0).
+    local use = L("item." .. key .. ".use")
+    if (key == "processors" or key == "memory") and game.S.humanFlag == 0 then
+        use = L("item.allocate.network", { term = View.TERMS.swarmGifts })
+    end
     return { title = View.TERMS[key], category = L("item." .. key .. ".category"), lines = fn(game.S, game),
-        use = L("item." .. key .. ".use"), flavor = L("item.quoted", { text = L("item." .. key .. ".flavor") }) }
+        use = use, flavor = L("item.quoted", { text = L("item." .. key .. ".flavor") }) }
 end
 
 -- The Company Network's status text (swarmStatus); 7 hides the status line.

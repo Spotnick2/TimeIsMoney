@@ -67,6 +67,7 @@ ns.Locale.Register("enUS", {
     ["item.memory.each"] = "Each holds 1,000 Operations.",
     ["item.memory.total"] = "Capacity: {n} Operations.",
     ["item.memory.use"] = "Use: + assigns a free point of Board Trust to one more.",
+    ["item.allocate.network"] = "Use: + spends one of your {term} on one more.",
     ["item.memory.flavor"] = "Every hole is a fact. Every fact is billable.",
     ["item.harvesters.role"] = "Gather raw material from the land.",
     ["item.harvesters.category"] = "Planetary Works",

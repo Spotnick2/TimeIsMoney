@@ -63,6 +63,15 @@ assert(t.lines[2]:find("7 installed: " .. View.rate(ops) .. " Operations", 1, tr
 t = tipOf("memory")
 assert(t.lines[2]:find("1,000,000 Operations", 1, true))
 
+-- + follows the phase: Board Trust first, Network Breakthroughs after.
+assert(tipOf("processors").use:find("Board Trust", 1, true))
+S.humanFlag = 0
+assert(tipOf("processors").use:find("Network Breakthroughs", 1, true) and tipOf("memory").use:find("Network Breakthroughs", 1, true))
+S.swarmGifts = 0
+assert(View.unavailable("btnAddProc", S) == "Not enough Network Breakthroughs." and View.unavailable("btnAddMem", S) == "Not enough Network Breakthroughs.")
+S.humanFlag = 1
+assert(View.unavailable("btnAddProc", S) == "Every point of Board Trust is already allocated.")
+
 -- Copper Bars: the shipment the button buys.
 S.wireSupply, S.wireCost = 1000, 20
 t = tipOf("wire")
