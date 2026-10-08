@@ -24,6 +24,32 @@ Window.Refresh()
 local buy = assert(h.button("btnMakeClipper") or h.button("btnBuyWire"), "a purchase button shows")
 assert(not buy:IsEnabled() and buy.glass.surfaceEnabled == false and buy.glass.surfaceTint == nil)
 assert(make:IsEnabled() and make.glass.surfaceTint, "the accent returns with the bars")
+-- The main window: darker than the bare glass, lighter than the panels (#80).
+-- The bare material's alpha from the real library when it is available (the
+-- stand-in has no STYLE).
+local envReal = Harness.Load()
+local real = envReal.LibStub("LibGlass-1.0"):New()
+local bare = real.STYLE and real.STYLE.tint[4] or 0.24
+local main = Window.frame.glass.surfaceTint
+assert(main and main[4] > bare and main[4] < Window.PANEL_TINT[4], "the window body is darker, the panels darker still")
+-- No "(not yet)" on any button: the dimmed surface and the tooltip carry it (#80).
+for _, w in ipairs(captured.widgets) do
+    if w.kind == "Button" and w.label and w.label.text then
+        assert(not tostring(w.label.text):find("not yet", 1, true), "no (not yet): " .. tostring(w.label.text))
+    end
+end
+-- Every visible unavailable button says why in its tooltip (no word on the label).
+local checked = 0
+for _, w in ipairs(captured.widgets) do
+    if w.kind == "Button" and h.visible(w) and w.enabled == false and w.scripts.OnEnter then
+        w.scripts.OnEnter(w)
+        local lines = env.GameTooltip.lines or {}
+        assert(#lines >= 2, "a reason for " .. tostring(w.label and w.label.text))
+        w.scripts.OnLeave(w)
+        checked = checked + 1
+    end
+end
+assert(checked > 0, "some buttons are unavailable here")
 -- Panels: nearly opaque.
 Window.ShowHelp()
 assert(Window.help.glass.surfaceTint and Window.help.glass.surfaceTint[4] >= 0.9, "help is nearly opaque")

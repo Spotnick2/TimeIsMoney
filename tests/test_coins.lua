@@ -40,10 +40,10 @@ for _, w in ipairs(captured.widgets) do
 end
 assert(#areas >= 2, "funds and price have tooltip areas")
 -- The price row's area stops short of its -/+ buttons (two 32 px squares). Rows span
--- the card inside its thin rim (LibGlass r3 inset 4).
+-- the card inside its padding (Window.CARD_INSET, 8 px each side).
 local widths = {}
 for _, area in ipairs(areas) do widths[area.width] = true end
-assert(widths[228] and widths[228 - (32 + 32 + 4 + 6)], "funds spans the row; the price stops at its buttons")
+assert(widths[220] and widths[220 - (32 + 32 + 4 + 6)], "funds spans the row; the price stops at its buttons")
 local shown
 local tooltip = env.GameTooltip
 tooltip.AddLine = function(_, text) shown = text end

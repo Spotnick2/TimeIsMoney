@@ -41,11 +41,17 @@ the embedded LibGlass-1.0 material.
       a button's. A purchase made without moving the pointer shows the next cost.
     - The area covers the label and value, never the row's buttons, and still lets
       the window be dragged.
-- **Disabled controls say so** in their label, not only in colour: "(not yet)" on
-  wide buttons, "(+)" / "(-)" on the 32x32 square ones. Their tooltip says why
+- **Unavailable controls look it, not only by colour:** the whole control dims
+  (its glass, label and icon: brightness and opacity, LibGlass r3) while its label
+  and cost stay as they are (#80; "(not yet)" read like a missing unlock). A
+  paused company's controls read "(paused)", a different reason. Their tooltip says why
   (#73): View.unavailable gives a localized reason from the same condition the
   simulation disables the control on, for example "Out of Copper Bars", "Not
   enough Company Funds" or "A tournament is already running".
+- **The main window** is a little darker than the bare glass (Window.MAIN_TINT,
+  #80), the panels darker still.
+- **Help** is in short sections (#80): Getting started, Controls (one command per
+  line) and Saving progress, the brief's exact wording.
 - **Glass surfaces** (LibGlass r3, after an outside UX critique): cards and
   buttons take the thin rim; Help, Settings and the confirmation are nearly
   opaque (Window.PANEL_TINT) so the window behind never competes with their text;
