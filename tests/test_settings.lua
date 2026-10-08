@@ -94,7 +94,7 @@ assert(captured.raised == Window.help, "help in front of the settings")
 Window.help:Hide()
 -- /tim model refreshes an open settings panel.
 env.SlashCmdList.TIMEISMONEY("model")
-assert(Settings.values.model)
+assert(Settings.values.model and p.modelOn.check.shown and not p.modelOff.check.shown, "the panel follows /tim model")
 
 -- Logout writes the settings with the company; a reload reads them back.
 local db = Host.persist()

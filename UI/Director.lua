@@ -91,10 +91,11 @@ function Director.Build(parent, font)
     -- The speaker's name (copper), then the Director's role (muted) beside it.
     strip.speaker = font(strip, 13, "LEFT")
     strip.speaker:SetPoint("TOPLEFT", strip, "TOPLEFT", Director.WIDTH + 12, -8)
-    strip.speaker:SetTextColor(0.85, 0.55, 0.3)
+    local copper, muted = ns.Window.COPPER, ns.Window.MUTED -- the window's palette
+    strip.speaker:SetTextColor(copper[1], copper[2], copper[3])
     strip.role = font(strip, 10, "LEFT")
     strip.role:SetPoint("BOTTOMLEFT", strip.speaker, "BOTTOMRIGHT", 8, 1)
-    strip.role:SetTextColor(0.6, 0.6, 0.6)
+    strip.role:SetTextColor(muted[1], muted[2], muted[3])
     strip.line = font(strip, 12, "LEFT")
     strip.line:SetPoint("TOPLEFT", strip.speaker, "BOTTOMLEFT", 0, -3)
     strip.line:SetWordWrap(true)
@@ -102,7 +103,7 @@ function Director.Build(parent, font)
     strip.report = font(strip, 10, "LEFT")
     strip.report:SetPoint("TOPLEFT", strip.line, "BOTTOMLEFT", 0, -6)
     strip.report:SetWordWrap(true)
-    strip.report:SetTextColor(0.6, 0.6, 0.6) -- muted: the Director's line leads
+    strip.report:SetTextColor(muted[1], muted[2], muted[3]) -- muted and smaller: the line leads
     strip:SetScript("OnHide", function() Director.Cancel() end)
     Director.strip = strip
     return strip

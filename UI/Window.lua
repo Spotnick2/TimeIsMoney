@@ -27,6 +27,7 @@ Window.MESSAGE = 10
 
 local COPPER = { 0.85, 0.6, 0.4 }
 local MUTED = { 0.7, 0.7, 0.7 }
+Window.COPPER, Window.MUTED = COPPER, MUTED -- the Director's strip shares them
 
 local Glass
 
@@ -58,6 +59,7 @@ end
 Window.PANEL_TINT = { 0.05, 0.06, 0.08, 0.92 }
 Window.PRIMARY_TINT = { 0.16, 0.42, 0.20, 0.55 }
 Window.SETTINGS_ICON = "Interface\\Icons\\INV_Misc_Gear_01"
+Window.CHECK_ICON = "Interface\\Buttons\\UI-CheckBox-Check"
 
 -- Tooltips: one renderer. lines[1] is the white title, the rest wrap muted.
 local function ShowTip(owner, lines)
@@ -129,11 +131,16 @@ local function SetButton(b, text, enabled, short)
         b.label:SetText(enabled and text or (text .. " (not yet)"))
     end
     if enabled then b.label:SetTextColor(1, 1, 1) else b.label:SetTextColor(MUTED[1], MUTED[2], MUTED[3]) end
-    -- The glass dims too (LibGlass r3), and the primary action carries the accent
-    -- only while it can be used.
-    Glass.SetSurfaceEnabled(b.glass, enabled)
-    if b.primary then
-        if enabled then Glass.SetSurfaceTint(b.glass, unpack(Window.PRIMARY_TINT)) else Glass.SetSurfaceTint(b.glass) end
+    -- The glass dims too (LibGlass r3), with any icon on it (content on g.top is
+    -- ours to dim), and the primary action carries the accent only while it can be
+    -- used. Only on a change: the window redraws ten times a second.
+    if b.surfaceEnabled ~= enabled then
+        b.surfaceEnabled = enabled
+        Glass.SetSurfaceEnabled(b.glass, enabled)
+        if b.icon then b.icon:SetAlpha(enabled and 1 or 0.4) end
+        if b.primary then
+            if enabled then Glass.SetSurfaceTint(b.glass, unpack(Window.PRIMARY_TINT)) else Glass.SetSurfaceTint(b.glass) end
+        end
     end
 end
 
@@ -415,7 +422,7 @@ end
 -- Lays out the visible rows and fills them in; returns whether the card shows.
 function Card:Update(game, panels)
     local S = game.S
-    local inset = Glass.Inset("large")
+    local inset = Glass.Inset("thin") -- cards take the thin rim (NewCard)
     local y = -inset
     local titled = not self.titled or self.titled(panels)
     self.title:SetShown(titled)
@@ -617,7 +624,7 @@ local function NewProjects(parent)
     card.next:SetScript("OnClick", function() turn(1) end)
     card.pageText = Glass.Font(card.glass.top, 11, "CENTER")
     function card:Update(game, panels)
-        local inset = Glass.Inset("large")
+        local inset = Glass.Inset("thin")
         local list = panels.projects and View.projects(game) or {}
         local perPage = Window.ProjectsPerPage()
         local pages = math.max(1, math.ceil(#list / perPage))
@@ -1349,7 +1356,15 @@ function Window.ToggleSettings()
             local b = NewButton(p.content, nil)
             b:SetSize(96, Window.BUTTON)
             b:SetPoint("TOPRIGHT", p, "TOPRIGHT", x, -42)
-            b:SetScript("OnClick", function() ns.Director.SetModel(on) Changed() end)
+            -- Choosing the current option changes nothing (no model reload).
+            b:SetScript("OnClick", function()
+                if ns.Settings.values.model ~= on then ns.Director.SetModel(on) Changed() end
+            end)
+            -- The current choice is marked by a check, not by colour alone.
+            b.check = b.glass.top:CreateTexture(nil, "OVERLAY")
+            b.check:SetTexture(Window.CHECK_ICON)
+            b.check:SetSize(16, 16)
+            b.check:SetPoint("LEFT", b, "LEFT", 4, 0)
             return b
         end
         p.modelOn = Choice(-18 - 96 - 4, true)
@@ -1359,13 +1374,14 @@ function Window.ToggleSettings()
         p.voice:SetWidth(Window.SQUARE)
         p.voice:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -78)
         p.voice.check = p.voice.glass.top:CreateTexture(nil, "OVERLAY")
-        p.voice.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        p.voice.check:SetTexture(Window.CHECK_ICON)
         p.voice.check:SetSize(Window.SQUARE - 6, Window.SQUARE - 6)
         p.voice.check:SetPoint("CENTER", p.voice, "CENTER", 0, 0)
         p.voice:SetScript("OnClick", function() ns.Settings.Set("voice", not ns.Settings.values.voice) Changed() end)
         p.voiceLabel = Line(p, 11, -88)
         p.voiceLabel:ClearAllPoints()
         p.voiceLabel:SetPoint("LEFT", p.voice, "RIGHT", 8, 0)
+        p.voiceLabel:SetWidth(p:GetWidth() - (18 + Window.SQUARE + 8) - 18) -- wraps inside the panel
         p.scaleLabel = Line(p, 11, -128)
         p.smaller = NewButton(p.content, nil, Window.SQUARE)
         p.smaller:SetWidth(Window.SQUARE)
@@ -1412,6 +1428,8 @@ function Window.FillSettings()
     -- The current choice lit; both stay clickable.
     Glass.SetSurfaceTint(p.modelOn.glass, unpack(v.model and Window.PRIMARY_TINT or {}))
     Glass.SetSurfaceTint(p.modelOff.glass, unpack(v.model and {} or Window.PRIMARY_TINT))
+    p.modelOn.check:SetShown(v.model)
+    p.modelOff.check:SetShown(not v.model)
     p.voice.check:SetShown(v.voice)
     p.voiceLabel:SetText(L["settings.greeting"])
     p.scaleLabel:SetText(ns.Locale.Format("settings.scale", { percent = math.floor(v.scale * 100 + 0.5) }))

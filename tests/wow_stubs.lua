@@ -190,7 +190,8 @@ local function New(saved, libGlass)
     end
     function glass.Font(parent, size, justify) return parent:CreateFontString() end
     function glass.Bar(parent, height) return env.CreateFrame("StatusBar", nil, parent) end
-    function glass.Inset(size) return (size == "small" or size == "thin_small") and 3 or 6 end -- LibGlass SIZES
+    local INSETS = { large = 6, small = 3, thin = 4, thin_small = 2 } -- LibGlass r3 SIZES
+    function glass.Inset(size) return INSETS[size or "large"] end
     -- r3: one surface's own tint (none = its built colour) and its disabled look.
     function glass.SetSurfaceTint(g, r, gr, b, a) g.surfaceTint = r and { r, gr, b, a } or nil end
     function glass.SetSurfaceEnabled(g, enabled) g.surfaceEnabled = enabled end
