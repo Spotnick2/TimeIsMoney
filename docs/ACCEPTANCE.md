@@ -12,7 +12,7 @@ client and are not claimed here.
 | Reference runtime | Node v24.15.0, V8 13.6.233.17-node.48, win32 x64 |
 | Offline Lua | Lua 5.1 (C:\Program Files (x86)\Lua\5.1) |
 | Client | WoW Forever 1.60.1.70245, Interface 16001, embedded Lua 5.1; API evidence 1.60.1.70205 (documented surface identical to the 70245 dump) |
-| LibGlass | r3 (.pkgmeta; r1 at the 1.60.1.70245 client acceptance) |
+| LibGlass | r4 (.pkgmeta; r1 at the 1.60.1.70245 client acceptance) |
 
 ## Simulation parity
 
