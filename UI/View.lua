@@ -447,7 +447,11 @@ local REASONS = {
         if S.tourneyInProg ~= 0 then return "why.tournamentRunning" end
         return "why.short", "operations"
     end,
-    btnRunTournament = function() return "why.setUpTournament" end,
+    -- Disabled while its rounds run (tourneyInProg stays 1), and before any setup.
+    btnRunTournament = function(S)
+        if S.tourneyInProg ~= 0 then return "why.tournamentRunning" end
+        return "why.setUpTournament"
+    end,
     btnImproveInvestments = short("yomi"), btnSynchSwarm = short("yomi"),
     btnEntertainSwarm = short("creativity"),
     btnIncreaseMaxTrust = short("honor"),

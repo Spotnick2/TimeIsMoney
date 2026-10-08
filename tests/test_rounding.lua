@@ -43,6 +43,12 @@ S.tourneyInProg = 1
 assert(View.unavailable("btnNewTournament", S) == "A tournament is already running.")
 S.tourneyInProg = 0
 assert(View.unavailable("btnNewTournament", S) == "Not enough Operations.")
+-- Run: before setup, during the rounds, after they finish (Codex review of #76).
+assert(View.unavailable("btnRunTournament", S) == "Set up a new tournament first.")
+S.tourneyInProg = 1
+assert(View.unavailable("btnRunTournament", S) == "A tournament is already running.")
+S.tourneyInProg = 0
+assert(View.unavailable("btnRunTournament", S) == "Set up a new tournament first.")
 S.probeTrust, S.maxTrust = 5, 5
 assert(View.unavailable("btnIncreaseProbeTrust", S) == "Dragonling Trust is at its maximum.")
 assert(View.unavailable("btnRaiseProbeSpeed", S) and View.unavailable("projectButton1", S))
