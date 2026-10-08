@@ -196,6 +196,11 @@ function Director.Tick(elapsed)
         actor:SetScale(scale)
         actor:SetPosition(0, 0, offset)
         Director.state, Director.poll = "live", nil
+        -- A greeting spoken while the model loaded: he talks now that he is in.
+        if Director.talkWhenLive then
+            Director.talkWhenLive = nil
+            Director.Talk()
+        end
     else
         poll.tries = poll.tries - 1
         if poll.tries <= 0 then
@@ -297,6 +302,8 @@ function Director.Greet(speaker)
         local lines = Director.VOICE.greet
         Director.greetIndex = Director.greetIndex % #lines + 1
         TimeIsMoney.API.PlaySoundFile(lines[Director.greetIndex], "Dialog")
+        -- He says it: the talk animation, now or as soon as the model is in.
+        if not Director.Talk() then Director.talkWhenLive = Director.state == "loading" or nil end
     end
 end
 

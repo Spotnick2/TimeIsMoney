@@ -19,8 +19,17 @@ end
 
 -- Greetings rotate, never the same twice in a row.
 env.SlashCmdList.TIMEISMONEY("start")
+-- The first greeting comes while the model loads: he talks once it is in.
+assert(Director.state == "loading" and Director.talkWhenLive, "the talk waits for the model")
 wait(1)
 assert(Director.state == "live", "the model is live")
+assert(captured.actor.animation == Director.TALK_ANIM or captured.actor.animation == 0, "he talked")
+wait(Director.TALK_SECONDS)
+-- Opening the window again: the greeting and the talk together.
+Window.Toggle() Window.Toggle()
+assert(captured.actor.animation == Director.TALK_ANIM, "he says it with the animation")
+wait(Director.TALK_SECONDS + 0.1)
+assert(captured.actor.animation == 0, "back to idle")
 for _ = 1, 3 do Window.Toggle() Window.Toggle() end
 local said = voices()
 for i = 2, #said do assert(said[i] ~= said[i - 1], "no repeat") end

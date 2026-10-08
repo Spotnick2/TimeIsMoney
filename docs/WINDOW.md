@@ -92,6 +92,8 @@ The reference's own messages come back here in goblin wording in #22's second PR
 
 ## Cues and "New" tags (#90)
 
+- **Gazlowe talks as he greets** (the talk animation with the line; if his model
+  is still loading, as soon as it is in).
 - **Greetings rotate** when the window opens: 550785 "Time is money, friend!",
   550786 "Ah! Potential customers.", 550773 "Yo!", never the same twice in a row
   (Dialog channel; the player's dialog volume and mute apply).
