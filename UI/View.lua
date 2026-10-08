@@ -508,14 +508,29 @@ function View.unavailable(id, S)
         local entry = ns.Workshop.projectById[id]
         local text = entry and ns.ProjectText[entry.name]
         local raw = text and (text.priceTag or computedTag(entry.name, S)) or ""
-        term = (raw:find("yomi", 1, true) and "yomi") or (raw:find("creat", 1, true) and "creativity")
-            or (raw:find(" ops", 1, true) and "operations") or nil
+        term = View.shortOf(raw, S)
     else
         return nil
     end
     local reason = ns.Locale.Format(key, { term = term and View.TERMS[term] or "" })
     local how = term and View.howToGet(term, S)
     return how and (reason .. " " .. how) or reason
+end
+
+-- The first resource a price tag names that the company is short of (the hint's
+-- subject), or nil: Cunning, Ingenuity, Operations, Company Funds.
+local PRICED = {
+    { pattern = "([%d,]+) [Yy]omi", term = "yomi", have = function(S) return S.yomi end },
+    { pattern = "([%d,]+) creat", term = "creativity", have = function(S) return S.creativity end },
+    { pattern = "([%d,]+) ops", term = "operations", have = function(S) return S.operations end },
+    { pattern = "%$([%d,]+)", term = "funds", have = function(S) return S.funds end },
+}
+function View.shortOf(raw, S)
+    for _, priced in ipairs(PRICED) do
+        local amount = raw:match(priced.pattern)
+        amount = amount and tonumber((amount:gsub(",", "")))
+        if amount and priced.have(S) < amount then return priced.term end
+    end
 end
 
 -- Where a resource comes from (#89 follow-up): the hint after "Not enough ...", by

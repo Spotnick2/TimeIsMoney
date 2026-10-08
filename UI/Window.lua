@@ -95,6 +95,7 @@ local function Draggable(area)
     area:SetScript("OnDragStart", function() Window.frame:StartMoving() end)
     area:SetScript("OnDragStop", function() Window.frame:StopMovingOrSizing() end)
 end
+Window.Draggable = Draggable
 
 -- "New" tags (#90): a card, row or project that appears after the window's first
 -- draw is tagged "New" (not a glow: a glow reads as "click me") until it is hovered
@@ -294,13 +295,8 @@ Card.__index = Card
 -- titled(panels), when given, says whether the title's block shows: the reference
 -- keeps each heading inside the block it hides, so the card's other rows can show
 -- without it.
--- What each card is for, on hovering its title (owner, 2026-10-08).
-Window.CARD_KEYS = { Production = "production", Sales = "sales", ["The Ledger"] = "ledger",
-    ["Cartel Investments"] = "investments", ["Negotiation Simulator"] = "negotiation",
-    ["Resonance Calculator"] = "resonance", Manufacturing = "manufacturing", ["Copper Production"] = "copper",
-    Power = "power", ["Space Exploration"] = "space", ["Dragonling Design"] = "design", Combat = "combat",
-    Projects = "projects" }
-local function NewCard(parent, title, titled)
+-- key: what the card is for, its title's tooltip ("card." .. key, owner 2026-10-08).
+local function NewCard(parent, title, titled, key)
     local card = setmetatable({ rows = {}, titled = titled }, Card)
     local f = CreateFrame("Frame", nil, parent)
     f:SetWidth(Window.COLUMN)
@@ -313,7 +309,7 @@ local function NewCard(parent, title, titled)
     card.title:SetText(title)
     card.title:SetTextColor(COPPER[1], COPPER[2], COPPER[3])
     -- The title says what the card is for, and hovering it clears the card's "New".
-    local key = Window.CARD_KEYS[title] or (title == View.TERMS.swarm and "network") or nil
+    card.key = key
     card.titleArea = CreateFrame("Frame", nil, card.content)
     card.titleArea:SetPoint("TOPLEFT", card.title, "TOPLEFT", -2, 2)
     card.titleArea:SetPoint("BOTTOMRIGHT", card.title, "BOTTOMRIGHT", 2, -2)
@@ -624,8 +620,6 @@ function Window.DrawBattle(row, S)
     end
 end
 
--- The photonic chips: ten cells whose brightness follows each chip's value, as the
--- reference sets each chip's opacity (a negative value shows nothing).
 -- The Arcane Crystals (the reference's photonic chips), shown with the Arcane
 -- Crystal icon (item 12363, the "chips" identity). Each slot has a faint outline,
 -- so ten empty slots read as "0 of 10"; an owned crystal shows with its charge as
@@ -805,6 +799,7 @@ function Card:Update(game, panels)
                 Window.DrawBattle(row, S)
                 Window.battleRow = row
             elseif row.kind == "chips" then
+                local icon = ns.Assets.IdentityIcon("chips")
                 for i, cell in ipairs(row.cells) do
                     local slot = row.slots[i]
                     place(slot, self, y - 2, inset + (i - 1) * 20)
@@ -812,10 +807,17 @@ function Card:Update(game, panels)
                     local chip, shown = S.qChips[i], View.chipShown(S, i)
                     local v = chip.value
                     local color = v < 0 and Window.CHIP_NEGATIVE or Window.CHIP_POSITIVE
-                    local icon = ns.Assets.IdentityIcon("chips")
                     if cell.icon ~= icon then cell:SetTexture(icon) cell.icon = icon end
                     cell:SetVertexColor(color[1], color[2], color[3])
-                    cell:SetAlpha(chip.active ~= 0 and math.min(math.abs(v), 1) or 0)
+                    -- Owned: the charge either way (red while negative). Not owned: the
+                    -- reference's own opacity (positive only), so the ending's ten
+                    -- crystals at 0.5 still show while they are taken one by one.
+                    if chip.active ~= 0 then
+                        cell:SetAlpha(math.min(math.abs(v), 1))
+                    else
+                        cell:SetVertexColor(1, 1, 1)
+                        cell:SetAlpha(v > 0 and math.min(v, 1) or 0)
+                    end
                     cell:SetShown(shown)
                     slot:SetShown(shown)
                 end
@@ -893,12 +895,14 @@ Window.PROJECT = 40       -- one project button and its gap
 Window.CHROME = 200       -- window title, card title, paging row and margins
 function Window.ProjectsPerPage()
     -- The Director's strip takes its share of the screen too.
-    local chrome = Window.CHROME + ns.Director.MIN_STRIP + Window.GAP
+    local game = ns.Host.game
+    local speaker = game and ns.Dialogue.Current(game.S)
+    local chrome = Window.CHROME + ns.Director.MinStrip(speaker) + Window.GAP
     return math.max(3, math.floor((UIParent:GetHeight() - chrome) / Window.PROJECT))
 end
 
 local function NewProjects(parent)
-    local card = NewCard(parent, "Projects")
+    local card = NewCard(parent, "Projects", nil, "projects")
     card.buttons, card.page = {}, 1
     local function turn(step)
         card.page = card.page + step
@@ -1074,7 +1078,7 @@ local function Build()
     Window.resume = resume
 
     -- Production: the bolts and the press, then what feeds it.
-    local production = NewCard(content, "Production")
+    local production = NewCard(content, "Production", nil, "production")
     production:Stat("Universe / Sim Level", function(S)
         return JSMath.toString(S.prestigeU + 1) .. " / " .. JSMath.toString(S.prestigeS + 1)
     end, function(_, p) return p.prestige end)
@@ -1104,7 +1108,7 @@ local function Build()
 
     -- Sales: funds, price, demand and campaigns.
     local business = function(_, p) return p.business end
-    local sales = NewCard(content, "Sales")
+    local sales = NewCard(content, "Sales", nil, "sales")
     sales:Stat(T.funds, function(S) return View.moneyFixed(S.funds) end, business, function(S) return View.exactMoney(S.funds) end)
     sales:Stat("Revenue per second", function(S) return View.moneyFixed(S.avgRev) end,
         function(_, p) return p.business and p.revPerSec end)
@@ -1117,7 +1121,7 @@ local function Build()
         business)
 
     -- The Ledger: trust, its allocation and the operations it buys.
-    local ledger = NewCard(content, "The Ledger")
+    local ledger = NewCard(content, "The Ledger", nil, "ledger")
     local computing = function(_, p) return p.computing end
     -- trustDiv and swarmGiftDiv sit inside compDiv: they show only with it.
     local trust = function(_, p) return p.trust end -- inside compDiv (View.panels)
@@ -1138,7 +1142,7 @@ local function Build()
 
     -- Cartel Investments: risk, cash and stocks, deposits and the engine upgrade.
     local investing = function(_, p) return p.investments end
-    local invest = NewCard(content, "Cartel Investments")
+    local invest = NewCard(content, "Cartel Investments", nil, "investments")
     local RISK = { low = "Low Risk", med = "Med Risk", hi = "High Risk" }
     invest:Select("investStrat", function(value) return RISK[value] or value end, investing)
     invest:Stat("Cash", function(S) return View.moneyFixed(S.bankroll) end, investing)
@@ -1155,7 +1159,7 @@ local function Build()
 
     -- Negotiation Simulator: strategy tournaments for Cunning.
     local strategy = function(_, p) return p.strategy end
-    local negotiate = NewCard(content, "Negotiation Simulator")
+    local negotiate = NewCard(content, "Negotiation Simulator", nil, "negotiation")
     negotiate:Stat(T.yomi, function(S) return View.count(S.yomi) end, strategy)
     -- The options' text is the strategy each was added for (allStrats[index]).
     negotiate:Select("stratPicker", function(value, S)
@@ -1175,7 +1179,7 @@ local function Build()
 
     -- Resonance Calculator: the photonic chips and the compute button.
     local quantum = function(_, p) return p.quantum end
-    local resonance = NewCard(content, "Resonance Calculator")
+    local resonance = NewCard(content, "Resonance Calculator", nil, "resonance")
     resonance:Chips(quantum)
     resonance:Action("btnQcompute", function() return "Compute" end, function(_, p) return p.quantum and p.qCompute end)
     resonance:Lines(1, function(_, game) return { View.qComp(game) } end, quantum, function(S) return S.qFade end)
@@ -1184,7 +1188,7 @@ local function Build()
     -- the Company Network. Costs are in bolts (spellf, as the reference prints them).
     local function bolts(x) return View.spell(x) .. " bolts" end
     local creation = function(_, p) return p.creation end
-    local factories = NewCard(content, "Manufacturing")
+    local factories = NewCard(content, "Manufacturing", nil, "manufacturing")
     factories:Stat("Next Upgrade at", function(S) local nfup = View.nextUpgrades(S) return View.count(nfup) .. " Foundries" end,
         function(_, p) return p.creation and p.factoryUpgrade end)
     factories:Stat("Bolts per Second", function(S) return View.spell(S.clipRate) end,
@@ -1203,7 +1207,7 @@ local function Build()
     -- wireProductionDiv and powerDiv sit outside creationDiv: their own flags only.
     local function pipeline(_, p) return p.wireProduction end
     local function within(key) return function(_, p) return p.wireProduction and p[key] end end
-    local wire = NewCard(content, "Copper Production")
+    local wire = NewCard(content, "Copper Production", nil, "copper")
     wire:Stat("Next Upgrade at", function(S) local _, ndup = View.nextUpgrades(S) return View.count(ndup) .. " Drones" end,
         within("droneUpgrade"))
     wire:Stat(T.availableMatter, function(S) return View.spell(S.availableMatter) .. " g" end, pipeline)
@@ -1235,7 +1239,7 @@ local function Build()
         if Window.powerFor ~= Window.redraw then Window.power, Window.powerFor = View.power(S), Window.redraw end
         return Window.power
     end
-    local power = NewCard(content, "Power")
+    local power = NewCard(content, "Power", nil, "power")
     power:Stat("Performance", function(S) return View.count(watts(S).performance, "round") .. "%" end, powered)
     power:Stat("Consumption", function(S) return View.count(watts(S).consumption, "round") .. " MW" end, powered)
     power:Stat("  Foundries", function(S) return View.count(watts(S).factories, "round") .. " MW" end, powered)
@@ -1254,7 +1258,7 @@ local function Build()
             tip = function(S) return "Disassemble All: +" .. bolts(S.batteryBill) end } }, powered)
 
     local swarming = function(_, p) return p.swarm end
-    local network = NewCard(content, T.swarm, function(p) return p.swarm end)
+    local network = NewCard(content, T.swarm, function(p) return p.swarm end, "network")
     network:Stat("Drones", function(S) return View.spell(math.floor(S.harvesterLevel + S.wireDroneLevel)) end, swarming)
     network:Stat("Status", function(S) return View.swarmStatus(S) or "" end,
         function(S, p) return p.swarm and S.swarmStatus ~= 7 end)
@@ -1270,7 +1274,7 @@ local function Build()
 
     -- Phase III: exploration, the dragonling design and combat.
     local spaceShown = function(_, p) return p.space end
-    local cosmos = NewCard(content, "Space Exploration")
+    local cosmos = NewCard(content, "Space Exploration", nil, "space")
     cosmos:Stat(T.colonized, function(S) return View.colonized(S) .. "%" end, spaceShown)
     cosmos:Action("btnMakeProbe", function(S) return "Launch a Dragonling (" .. bolts(S.probeCost) .. ")" end, spaceShown)
     cosmos:Stat("Launched", function(S) return ns.Workshop.formatWithCommas(S.probeLaunchLevel) end, spaceShown)
@@ -1288,7 +1292,7 @@ local function Build()
     cosmos:Stat(T.drifters, function(S) return View.spell(S.drifterCount) end, drifting)
 
     local designing = function(_, p) return p.probeDesign end
-    local design = NewCard(content, "Dragonling Design", function(p) return p.probeDesign end)
+    local design = NewCard(content, "Dragonling Design", function(p) return p.probeDesign end, "design")
     design:Stat(T.probeTrust, function(S)
         return JSMath.toString(S.probeUsedTrust) .. " / " .. JSMath.toString(S.probeTrust) .. " ("
             .. ns.Workshop.formatWithCommas(S.maxTrust) .. " Max)"
@@ -1312,7 +1316,7 @@ local function Build()
         function(_, p) return p.honor end)
 
     local fighting = function(_, p) return p.battle end
-    local combat = NewCard(content, "Combat")
+    local combat = NewCard(content, "Combat", nil, "combat")
     combat:Stat("", function(S) return S.battleName end, fighting)
     combat:Battle(fighting)
     combat:Stat("", function(S)
@@ -1391,7 +1395,7 @@ function Window.Refresh()
     local speaker, line = ns.Dialogue.Current(game.S)
     -- Columns leave room for the strip at its smallest; its real height (a long line
     -- wraps further) is measured once laid out.
-    local stripHeight = speaker and (ns.Director.MIN_STRIP + Window.GAP) or 0
+    local stripHeight = speaker and (ns.Director.MinStrip(speaker) + Window.GAP) or 0
     local limit = UIParent:GetHeight() - Window.MESSAGE - stripHeight - inset
     local x, tallest = inset, 0
     for _, column in ipairs(Window.columns) do

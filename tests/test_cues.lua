@@ -25,6 +25,11 @@ wait(1)
 assert(Director.state == "live", "the model is live")
 assert(captured.actor.animation == Director.TALK_ANIM or captured.actor.animation == 0, "he talked")
 wait(Director.TALK_SECONDS)
+-- A deferred talk never fires late or stale (review of #93): cleared when the
+-- window closes during the load, and dropped if the model comes in after the line.
+Director.talkWhenLive = true
+Director.Cancel()
+assert(Director.talkWhenLive == nil, "cleared with the load")
 -- Opening the window again: the greeting and the talk together.
 Window.Toggle() Window.Toggle()
 assert(captured.actor.animation == Director.TALK_ANIM, "he says it with the animation")

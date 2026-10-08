@@ -171,7 +171,7 @@ local cards = 0
 for _, column in ipairs(Window.columns) do
     for _, card in ipairs(column) do
         local title = card.title.text
-        local key = Window.CARD_KEYS[title] or (title == View.TERMS.swarm and "network")
+        local key = card.key
         assert(key and not ns.L["card." .. key]:find("^card%."), "a description for " .. tostring(title))
         cards = cards + 1
     end
@@ -200,5 +200,23 @@ assert(env.GameTooltip.lines[1] == "Arcane Crystals: 2 of 10", "the tooltip coun
 assert(env.GameTooltip.lines[2]:find("gold while positive, red while negative", 1, true)
     and not env.GameTooltip.lines[2]:find("blue", 1, true), "it names the colours shown")
 chipRow.tipArea.scripts.OnLeave(chipRow.tipArea)
+
+-- The ending: every crystal at the reference's 0.5, owned or not, still shows.
+S.qChips[3].active, S.qChips[3].value = 0, 0.5
+Window.Refresh()
+assert(math.abs(chipRow.cells[3].alpha - 0.5) < 1e-9, "an unowned crystal at 0.5 shows, as in the reference")
+
+-- A project's hint names the resource actually short (review of #93).
+assert(View.shortOf("(15,000 yomi, 30,000 ops)", { yomi = 20000, operations = 10000, creativity = 0, funds = 0 }) == "operations")
+assert(View.shortOf("(3,000 Yomi)", { yomi = 0, operations = 0, creativity = 0, funds = 0 }) == "yomi", "capital Yomi")
+assert(View.shortOf("(3,000 yomi, $10,000,000)", { yomi = 5000, operations = 0, creativity = 0, funds = 5 }) == "funds")
+assert(View.shortOf("(25 creat, 2,500 ops)", { yomi = 0, operations = 5000, creativity = 30, funds = 0 }) == nil, "nothing short")
+
+-- The strip's minimum follows the picture: the 3D scene, or the 84 px portrait.
+assert(ns.Director.MinStrip(ns.Dialogue.DIRECTOR) == ns.Director.HEIGHT + 8)
+assert(ns.Director.MinStrip(ns.Dialogue.LEDGER) == ns.Director.PORTRAIT + 8)
+ns.Settings.Set("model", false)
+assert(ns.Director.MinStrip(ns.Dialogue.DIRECTOR) == ns.Director.PORTRAIT + 8)
+ns.Settings.Set("model", true)
 
 print("ux3: action tooltips, shipment size, available trust, capacity hint, fixed coins, own tooltip, credits and ESC order passed")

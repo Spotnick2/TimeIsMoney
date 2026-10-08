@@ -31,7 +31,13 @@ Director.PORTRAIT = 84                            -- the 2D fallback keeps its m
 Director.FOV, Director.CAMERA = 0.15, 40
 Director.POLLS, Director.POLL_STEP = 30, 0.1 -- the box poll: about 3 s
 Director.REPORT_LINES, Director.REPORT_ALPHA = 3, { 1, 0.7, 0.45 }
-Director.MIN_STRIP = Director.HEIGHT + 8  -- the strip's height when the line is short
+Director.MIN_STRIP = Director.HEIGHT + 8  -- the strip's height with the 3D model
+-- The strip's height when the line is short: the 3D model's scene, or the 84 px
+-- picture (the 2D portrait, the Ledger's and the Unlisted Director's marks).
+function Director.MinStrip(speaker)
+    if speaker == ns.Dialogue.DIRECTOR and ns.Settings.values.model and not Director.failed then return Director.MIN_STRIP end
+    return Director.PORTRAIT + 8
+end
 -- The model and the voice follow the saved settings (UI/Settings.lua).
 local function setting(key) return ns.Settings.values[key] end
 -- "Time is money, friend!": a goblin NPC greeting from the client's own files
@@ -56,6 +62,7 @@ Director.TALK_ANIM = 60 -- Talk: picked by the owner in the client (2026-10-08)
 Director.TALK_SECONDS = 2.5
 Director.CUE_COOLDOWN, Director.DEAL_COOLDOWN = 4, 60
 Director.FADE_SECONDS = 0.5
+Director.GREET_TALK_WINDOW = 1 -- a model that loads later than this after the line stays idle
 Director.clock, Director.lastCue, Director.lastDeal = 0, -math.huge, -math.huge
 Director.greetIndex, Director.dealIndex = 0, 0
 Director.state, Director.token = "none", 0 -- none | loading | live | portrait
@@ -153,9 +160,7 @@ function Director.Build(parent, font)
     -- still drags the window.
     strip.pictureArea = CreateFrame("Button", nil, strip)
     strip.pictureArea:SetAllPoints(scene)
-    strip.pictureArea:RegisterForDrag("LeftButton")
-    strip.pictureArea:SetScript("OnDragStart", function() ns.Window.frame:StartMoving() end)
-    strip.pictureArea:SetScript("OnDragStop", function() ns.Window.frame:StopMovingOrSizing() end)
+    ns.Window.Draggable(strip.pictureArea)
     strip.pictureArea:SetScript("OnClick", function() ns.Window.ToggleReports() end)
     strip.pictureArea:SetScript("OnEnter", reportsTip)
     strip.pictureArea:SetScript("OnLeave", function() ns.Window.Tip():Hide() end)
@@ -166,12 +171,14 @@ end
 
 -- Drops any pending box poll (hidden, replaced, or no longer the Director).
 function Director.Cancel()
+    Director.talkWhenLive = nil
     Director.token = Director.token + 1
     Director.poll = nil
     if Director.state == "loading" then Director.state = "none" end
 end
 
 local function ShowPortrait()
+    Director.talkWhenLive = nil
     local strip = Director.strip
     strip.scene:Hide()
     local ok = pcall(SetPortraitTextureFromCreatureDisplayID, strip.portrait, Director.DISPLAY)
@@ -212,7 +219,7 @@ function Director.Tick(elapsed)
         -- A greeting spoken while the model loaded: he talks now that he is in.
         if Director.talkWhenLive then
             Director.talkWhenLive = nil
-            Director.Talk()
+            if Director.clock - (Director.greetAt or -math.huge) <= Director.GREET_TALK_WINDOW then Director.Talk() end
         end
     else
         poll.tries = poll.tries - 1
@@ -248,6 +255,7 @@ local function ShowModel()
 end
 
 local function DropModel()
+    Director.talkWhenLive = nil
     Director.Cancel()
     Director.strip.scene.actor:ClearModel()
     Director.strip.scene:Hide()
@@ -302,7 +310,7 @@ function Director.Update(speaker, line, width, reports)
         strip.portrait:SetTexture((ns.Assets.IdentityIcon(MARKS[speaker])))
         strip.portrait:Show()
     end
-    local height = math.max(Director.MIN_STRIP, 8 + 16 + 3 + strip.line:GetStringHeight() + reportHeight + 8)
+    local height = math.max(Director.MinStrip(speaker), 8 + 16 + 3 + strip.line:GetStringHeight() + reportHeight + 8)
     strip:SetHeight(height)
     return height
 end
@@ -315,7 +323,9 @@ function Director.Greet(speaker)
         local lines = Director.VOICE.greet
         Director.greetIndex = Director.greetIndex % #lines + 1
         TimeIsMoney.API.PlaySoundFile(lines[Director.greetIndex], "Dialog")
-        -- He says it: the talk animation, now or as soon as the model is in.
+        -- He says it: the talk animation, now or as soon as the model is in (if
+        -- that is still while he speaks: GREET_TALK_WINDOW seconds).
+        Director.greetAt = Director.clock
         if not Director.Talk() then Director.talkWhenLive = Director.state == "loading" or nil end
     end
 end
