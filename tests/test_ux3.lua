@@ -197,6 +197,8 @@ assert(math.abs(c2.alpha - 0.5) < 1e-9 and c2.vertexColor[2] < 0.5, "negative: r
 assert(c3.alpha == 0 and chipRow.slots[3].shown, "not owned: an empty slot")
 chipRow.tipArea.scripts.OnEnter(chipRow.tipArea)
 assert(env.GameTooltip.lines[1] == "Arcane Crystals: 2 of 10", "the tooltip counts them")
+assert(env.GameTooltip.lines[2]:find("gold while positive, red while negative", 1, true)
+    and not env.GameTooltip.lines[2]:find("blue", 1, true), "it names the colours shown")
 chipRow.tipArea.scripts.OnLeave(chipRow.tipArea)
 
 print("ux3: action tooltips, shipment size, available trust, capacity hint, fixed coins, own tooltip, credits and ESC order passed")

@@ -149,7 +149,7 @@ ns.Locale.Register("enUS", {
     ["card.combat"] = "Battles with breakaway franchises: win Renown, lose Dragonlings.",
     ["card.projects"] = "One-time investments: each shows its price; buy them when you can.",
     ["chips.title"] = "Arcane Crystals: {n} of 10",
-    ["chips.how"] = "Each crystal's charge rises and falls: blue while positive, red while negative. Compute turns the total into Operations, so compute while they glow blue; red drains Operations.",
+    ["chips.how"] = "Each crystal's charge rises and falls: gold while positive, red while negative. Compute turns the total into Operations, so compute while they glow gold; red drains Operations.",
     ["chips.buy"] = "More crystals come from the Arcane Crystal project.",
     ["why.capacity"] = "Costs {n} Operations, more than your White Punch Cards hold ({cap}): add Punch Cards to raise the capacity.",
     ["help.creditsTitle"] = "Credits",

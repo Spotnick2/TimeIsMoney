@@ -97,8 +97,8 @@ The reference's own messages come back here in goblin wording in #22's second PR
   "New" tag.
 - **The Arcane Crystals** (the reference's photonic chips) show the Arcane Crystal
   icon (item 12363) in ten faint slots, so an empty row reads "0 of 10". An owned
-  crystal shows its charge as opacity, as is while positive and **red while
-  negative**: the reference shows only the positive half, so a crystal looked as if
+  crystal shows its charge as opacity, gold (the icon as is) while positive and **red
+  while negative**: the reference shows only the positive half, so a crystal looked as if
   it vanished while Compute would drain Operations. The row's tooltip counts the
   crystals and says to compute while they glow, not red. Presentation only.
 

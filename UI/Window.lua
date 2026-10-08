@@ -629,7 +629,7 @@ end
 -- The Arcane Crystals (the reference's photonic chips), shown with the Arcane
 -- Crystal icon (item 12363, the "chips" identity). Each slot has a faint outline,
 -- so ten empty slots read as "0 of 10"; an owned crystal shows with its charge as
--- opacity: as is while positive, tinted red while negative (the reference shows only the
+-- opacity: gold (the icon as is) while positive, tinted red while negative (the reference shows only the
 -- positive half as opacity, so a crystal at negative charge looked like it vanished;
 -- Compute then drains Operations). Presentation only: the values are the
 -- simulation's own (owner, 2026-10-08).
