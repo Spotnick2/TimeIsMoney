@@ -58,6 +58,10 @@ end
 -- action a restrained green. The settings cog is a client icon.
 Window.PANEL_TINT = { 0.05, 0.06, 0.08, 0.92 }
 Window.MAIN_TINT = { 0.07, 0.08, 0.11, 0.55 }
+-- Content padding inside a card. The thin rim reports a 4 px inset, but in the
+-- client its visible bevel is wider: at 4 px a card's last button sat on its bottom
+-- rim and the title on its top one (owner screenshot, 1.60.1.70245, 2026-10-07).
+Window.CARD_INSET = 8
 Window.PRIMARY_TINT = { 0.16, 0.42, 0.20, 0.55 }
 Window.SETTINGS_ICON = "Interface\\Icons\\INV_Misc_Gear_01"
 Window.CHECK_ICON = "Interface\\Buttons\\UI-CheckBox-Check"
@@ -434,7 +438,7 @@ end
 -- Lays out the visible rows and fills them in; returns whether the card shows.
 function Card:Update(game, panels)
     local S = game.S
-    local inset = Glass.Inset("thin") -- cards take the thin rim (NewCard)
+    local inset = Window.CARD_INSET
     local y = -inset
     local titled = not self.titled or self.titled(panels)
     self.title:SetShown(titled)
@@ -637,7 +641,7 @@ local function NewProjects(parent)
     card.next:SetScript("OnClick", function() turn(1) end)
     card.pageText = Glass.Font(card.glass.top, 11, "CENTER")
     function card:Update(game, panels)
-        local inset = Glass.Inset("thin")
+        local inset = Window.CARD_INSET
         local list = panels.projects and View.projects(game) or {}
         local perPage = Window.ProjectsPerPage()
         local pages = math.max(1, math.ceil(#list / perPage))
