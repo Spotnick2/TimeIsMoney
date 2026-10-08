@@ -754,6 +754,20 @@ local function Build()
     helpButton.label:SetText("?")
     helpButton.tipFn = function() return { ns.L["help.title"] } end
     helpButton:SetScript("OnClick", function() Window.ShowHelp() end)
+    -- While paused, an obvious way back (#77): a Resume button in the title bar,
+    -- lit like the primary action, beside "(Paused)" in the title.
+    local resume = NewButton(content, nil, Window.SQUARE)
+    resume:SetWidth(96)
+    resume:SetPoint("RIGHT", helpButton, "LEFT", -8, 0)
+    Glass.SetSurfaceTint(resume.glass, unpack(Window.PRIMARY_TINT))
+    resume.tipFn = function() return { ns.L["window.resume"], ns.L["window.resumeTip"] } end
+    resume:SetScript("OnClick", function()
+        local ok, err = ns.Host.setPaused(false)
+        if not ok then Report("not done: " .. tostring(err)) end
+        Window.Refresh()
+    end)
+    resume:Hide()
+    Window.resume = resume
 
     -- Production: the bolts and the press, then what feeds it.
     local production = NewCard(content, "Production")
@@ -1037,6 +1051,8 @@ function Window.Refresh()
     if state ~= Window.companyState then
         Window.companyState = state
         Window.title:SetText(ns.Host.paused and ("Time Is Money (" .. ns.L["window.paused"] .. ")") or "Time Is Money")
+        Window.resume.label:SetText(ns.L["window.resume"])
+        Window.resume:SetShown(ns.Host.paused)
         if Window.settings and Window.settings:IsShown() then Window.FillSettings() end
     end
     Window.CloseStaleDialog()

@@ -16,8 +16,9 @@ the embedded LibGlass-1.0 material.
   while shown. The simulation runs on the host's own parentless wakeup frame, so
   closing the window, Alt-Z or combat never pause it, and reopening creates no timer.
   Only the player's pause does (#77, Settings or `/tim pause`): the title reads
-  "Time Is Money (Paused)", and every company control is unavailable with "The
-  company is paused" in its tooltip.
+  "Time Is Money (Paused)" with a lit Resume button beside it, and every company
+  control is unavailable, labelled "(paused)", with "The company is paused" in
+  its tooltip.
 - **Panels follow `buttonUpdate`.** Visibility uses the reference's own conditions
   in its order, including its strict comparisons. `creativityOn === 0` never holds,
   because `creativityOn` is a boolean, so the Ingenuity row shows whenever the
