@@ -43,8 +43,10 @@ Inspected local HEAD: 01708d2a4fedc941b4e9ce5aa4109c2afcde1b24.
 - The actor's position scales with the actor, so offsets are in model units.
 - A crop of the top 0.40 of the height with a 1.15 margin frames the 96x72 strip.
 - The cost is under 0.5 ms per frame.
-- Talk, approval and reaction animations are still unidentified: idle only until
-  measured. Do not guess IDs from Retail animation lists.
+- **Talk: animation 60**, picked by the owner on Gazlowe in the client
+  (2026-10-08, `/tim anim`). It dips his head; other animations raise it, so the
+  scene is taller than the crop (below). Approval and reaction animations are still
+  unidentified: do not guess IDs from Retail animation lists.
 
 **Director: Gazlowe, creature display 7052** (npc 3391, Ratchet; owner choice,
 2026-10-03). Use the display ID with SetModelByCreatureDisplayID, the 2D portrait
@@ -67,11 +69,13 @@ Record observations in forever-api-notes.md before making measured claims.
 `UI/Director.lua` puts the Director's strip under the window's cards.
 
 - **Model:** one mouse-disabled ModelScene with Gazlowe, display 7052. Idle runs;
-  no reaction animations until they are measured.
+  the report cue plays the talk animation (60) and returns to idle.
   - It uses the measured recipe above: camera at +40 on X facing back, field of
     view 0.15, clip 0.1-100, centred origin, particles at scale 0.
-  - It is framed on the 0.40 crop with a 1.15 margin, from Gazlowe's **measured
-    height, 1.39**. The live box follows the idle pose and differs between loads
+  - It is framed on the 0.40 crop from Gazlowe's **measured height, 1.39**. The
+    scene is 136 x 120, taller than the 84 px his margin (1.30) was picked at; the
+    margin scales with the height (1.30 x 120 / 84), so his head keeps its size and
+    place with room for the talk animation's dip and other animations' rise. The live box follows the idle pose and differs between loads
     (PORTING-TBC-TO-FOREVER, 70205), so it only signals that the model is in. The
     offset is divided by the scale, because the client scales the actor's position.
   - A drift test keeps the box reading and framing equal to the probe's.

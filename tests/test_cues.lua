@@ -19,8 +19,22 @@ end
 
 -- Greetings rotate, never the same twice in a row.
 env.SlashCmdList.TIMEISMONEY("start")
+-- The first greeting comes while the model loads: he talks once it is in.
+assert(Director.state == "loading" and Director.talkWhenLive, "the talk waits for the model")
 wait(1)
 assert(Director.state == "live", "the model is live")
+assert(captured.actor.animation == Director.TALK_ANIM or captured.actor.animation == 0, "he talked")
+wait(Director.TALK_SECONDS)
+-- A deferred talk never fires late or stale (review of #93): cleared when the
+-- window closes during the load, and dropped if the model comes in after the line.
+Director.talkWhenLive = true
+Director.Cancel()
+assert(Director.talkWhenLive == nil, "cleared with the load")
+-- Opening the window again: the greeting and the talk together.
+Window.Toggle() Window.Toggle()
+assert(captured.actor.animation == Director.TALK_ANIM, "he says it with the animation")
+wait(Director.TALK_SECONDS + 0.1)
+assert(captured.actor.animation == 0, "back to idle")
 for _ = 1, 3 do Window.Toggle() Window.Toggle() end
 local said = voices()
 for i = 2, #said do assert(said[i] ~= said[i - 1], "no repeat") end
@@ -31,14 +45,9 @@ assert(seen[550785] and seen[550786] and seen[550773], "all three greetings")
 -- A new report: the newest line fades in, Gazlowe talks, and the first answer is a
 -- deal line (his voice, at most once a minute).
 local game = Host.game
--- No talk animation until one is measured (docs/MODELS.md): idle stays.
-assert(Director.TALK_ANIM == nil)
-game:displayMessage("Processor added, operations per sec increased")
-wait(0.1)
-assert(captured.actor.animation == nil, "no guessed animation")
+-- The talk animation the owner picked in the client (60, Talk).
+assert(Director.TALK_ANIM == 60)
 wait(Director.DEAL_COOLDOWN + Director.CUE_COOLDOWN)
--- Once measured (the owner picks it with /tim anim), Gazlowe talks.
-Director.TALK_ANIM = 60
 local before = #captured.sounds
 game:displayMessage("AutoClippers available for purchase")
 wait(0.1)
@@ -180,8 +189,10 @@ end
 game.S.investmentEngineFlag = 1
 wait(0.1)
 local invest = assert(cardTitled("Cartel Investments"))
-assert(tagOf(invest) and invest.newArea and h.visible(invest.newArea), "a new card: its title tagged, with a hover area")
-invest.newArea.scripts.OnEnter(invest.newArea)
+assert(tagOf(invest) and h.visible(invest.titleArea), "a new card: its title tagged")
+invest.titleArea.scripts.OnEnter(invest.titleArea)
+assert(env.GameTooltip.lines[2]:find("stock market", 1, true), "and its title says what it is")
+invest.titleArea.scripts.OnLeave(invest.titleArea)
 wait(0.1)
 assert(not tagOf(invest) and invest.newUntil == nil, "hovering the title clears it")
 -- A plain stat row (Revenue per second, after its project) appears in a shown card.

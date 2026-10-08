@@ -36,7 +36,7 @@ Window.Refresh()
 -- The tooltip areas: mouse frames that also drag the window.
 local areas = {}
 for _, w in ipairs(captured.widgets) do
-    if w.kind == "Frame" and w.scripts.OnEnter and w.scripts.OnDragStart and h.visible(w) and not w.itemKey then
+    if w.kind == "Frame" and w.scripts.OnEnter and w.scripts.OnDragStart and h.visible(w) and not w.itemKey and not w.cardTitle then
         areas[#areas + 1] = w
     end
 end

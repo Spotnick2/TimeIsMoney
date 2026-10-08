@@ -166,4 +166,78 @@ assert(capacityFor("project51") and capacityFor("project51"):find("10,000", 1, t
 S.memory = 0
 assert(capacityFor("project217") == nil, "a negative price never needs capacity")
 
+-- Every card's title says what the card is for (owner, 2026-10-08).
+local cards = 0
+for _, column in ipairs(Window.columns) do
+    for _, card in ipairs(column) do
+        local title = card.title.text
+        local key = card.key
+        assert(key and not ns.L["card." .. key]:find("^card%."), "a description for " .. tostring(title))
+        cards = cards + 1
+    end
+end
+assert(cards >= 14, "every card: " .. cards)
+
+-- The crystals: the Arcane Crystal icon, charge as opacity, red while negative,
+-- faint slots for the ones not owned, and a tooltip.
+local chipRow
+for _, column in ipairs(Window.columns) do
+    for _, card in ipairs(column) do
+        for _, row in ipairs(card.rows or {}) do if row.kind == "chips" then chipRow = row end end
+    end
+end
+S.qChips[1].active, S.qChips[2].active = 1, 1
+S.qChips[1].value, S.qChips[2].value, S.qChips[3].value = 0.6, -0.5, 0
+S.qFlag = 1
+Window.Refresh()
+local c1, c2, c3 = chipRow.cells[1], chipRow.cells[2], chipRow.cells[3]
+assert(c1.icon == ns.Assets.IdentityIcon("chips"), "the Arcane Crystal icon")
+assert(math.abs(c1.alpha - 0.6) < 1e-9 and c1.vertexColor[2] == 1, "positive: as is, by its charge")
+assert(math.abs(c2.alpha - 0.5) < 1e-9 and c2.vertexColor[2] < 0.5, "negative: red, never invisible")
+assert(c3.alpha == 0 and chipRow.slots[3].shown, "not owned: an empty slot")
+chipRow.tipArea.scripts.OnEnter(chipRow.tipArea)
+assert(env.GameTooltip.lines[1] == "Arcane Crystals: 2 of 10", "the tooltip counts them")
+assert(env.GameTooltip.lines[2]:find("gold while positive, red while negative", 1, true)
+    and not env.GameTooltip.lines[2]:find("blue", 1, true), "it names the colours shown")
+chipRow.tipArea.scripts.OnLeave(chipRow.tipArea)
+
+-- The ending: every crystal at the reference's 0.5, owned or not, still shows.
+S.qChips[3].active, S.qChips[3].value = 0, 0.5
+Window.Refresh()
+assert(math.abs(chipRow.cells[3].alpha - 0.5) < 1e-9, "an unowned crystal at 0.5 shows, as in the reference")
+
+-- A project's hint names the resource actually short (review of #93).
+assert(View.shortOf("(15,000 yomi, 30,000 ops)", { yomi = 20000, operations = 10000, creativity = 0, funds = 0 }) == "operations")
+assert(View.shortOf("(3,000 Yomi)", { yomi = 0, operations = 0, creativity = 0, funds = 0 }) == "yomi", "capital Yomi")
+assert(View.shortOf("(3,000 yomi, $10,000,000)", { yomi = 5000, operations = 0, creativity = 0, funds = 5 }) == "funds")
+assert(View.shortOf("(25 creat, 2,500 ops)", { yomi = 0, operations = 5000, creativity = 30, funds = 0 }) == nil, "nothing short")
+
+-- The strip's minimum follows the picture: the 3D scene, or the 84 px portrait.
+assert(ns.Director.MinStrip(ns.Dialogue.DIRECTOR) == ns.Director.HEIGHT + 8)
+assert(ns.Director.MinStrip(ns.Dialogue.LEDGER) == ns.Director.PORTRAIT + 8)
+ns.Settings.Set("model", false)
+assert(ns.Director.MinStrip(ns.Dialogue.DIRECTOR) == ns.Director.PORTRAIT + 8)
+ns.Settings.Set("model", true)
+
+-- The fallback picture fits the short strip, and the click area follows the
+-- picture shown (Codex review of #93).
+local strip = ns.Director.strip
+local pp = strip.portrait.point
+assert(pp[1] == "TOP" and pp[2] == strip and pp[5] == -4, "the portrait sits at the strip's top")
+assert(-pp[5] + ns.Director.PORTRAIT <= ns.Director.PORTRAIT + 8, "inside the short strip")
+ns.Settings.Set("model", false)
+Window.Refresh()
+assert(strip.pictureArea.allPoints == strip.portrait, "the click area covers the portrait")
+ns.Settings.Set("model", true)
+Window.Refresh()
+assert(strip.pictureArea.allPoints == strip.scene, "and the scene when the model shows")
+
+-- A negative Operations price (Reverse the Hourglass) says Operations must fall.
+local reversion
+for _, e in ipairs(ns.Workshop.projects) do if e.name == "project217" then reversion = e end end
+S.operations = -9990
+local why = View.unavailable(reversion.id, S)
+assert(why:find("must fall to %-10,000") and not why:find("Copper Modulators generate", 1, true), why)
+assert(View.shortOf("(-10,000 ops)", { yomi = 0, operations = -9990, creativity = 0, funds = 0 }) == nil)
+
 print("ux3: action tooltips, shipment size, available trust, capacity hint, fixed coins, own tooltip, credits and ESC order passed")

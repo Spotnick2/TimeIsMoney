@@ -20,12 +20,24 @@ Director.MODEL_HEIGHT = 1.39
 -- Gazlowe's head past a 96 px frame and it clipped (owner, 2026-10-05). The framing
 -- recomputes the zoom from the frame, so he keeps his size with room to move; the
 -- margin leaves headroom for the ears.
-Director.WIDTH, Director.HEIGHT = 136, 84
-Director.CROP, Director.MARGIN = 0.40, 1.30
+-- The scene is also taller than the framed crop (owner, 2026-10-08): the talk
+-- animation dips the head below an 84 px frame, other animations raise it. The
+-- margin grows with the height, so his head keeps its size and place (the visible
+-- band stays centred on the top 40 % of the model) with room above and below.
+Director.WIDTH, Director.HEIGHT = 136, 120
+Director.FRAMED_HEIGHT = 84                       -- the height the 1.30 margin was picked at
+Director.CROP, Director.MARGIN = 0.40, 1.30 * 120 / 84
+Director.PORTRAIT = 84                            -- the 2D fallback keeps its measured size
 Director.FOV, Director.CAMERA = 0.15, 40
 Director.POLLS, Director.POLL_STEP = 30, 0.1 -- the box poll: about 3 s
 Director.REPORT_LINES, Director.REPORT_ALPHA = 3, { 1, 0.7, 0.45 }
-Director.MIN_STRIP = 92                   -- the strip's height when the line is short
+Director.MIN_STRIP = Director.HEIGHT + 8  -- the strip's height with the 3D model
+-- The strip's height when the line is short: the 3D model's scene, or the 84 px
+-- picture (the 2D portrait, the Ledger's and the Unlisted Director's marks).
+function Director.MinStrip(speaker)
+    if speaker == ns.Dialogue.DIRECTOR and ns.Settings.values.model and not Director.failed then return Director.MIN_STRIP end
+    return Director.PORTRAIT + 8
+end
 -- The model and the voice follow the saved settings (UI/Settings.lua).
 local function setting(key) return ns.Settings.values[key] end
 -- "Time is money, friend!": a goblin NPC greeting from the client's own files
@@ -44,12 +56,13 @@ Director.VOICE = {
 -- DEAL_COOLDOWN, only while the window shows. The sound kit and the animation are
 -- unverified in the client until the owner picks them (/tim cue, /tim anim).
 Director.CUE_SOUNDKIT = 120     -- SOUNDKIT.LOOT_WINDOW_COIN_SOUND
--- No talk animation until one is measured on Gazlowe in the client: docs/MODELS.md
--- forbids guessing IDs from Retail lists. /tim anim <id> tries one; set it here then.
-Director.TALK_ANIM = nil
+-- The talk animation, measured on Gazlowe in the client (docs/MODELS.md forbids
+-- guessing IDs from Retail lists; /tim anim <id> tries others).
+Director.TALK_ANIM = 60 -- Talk: picked by the owner in the client (2026-10-08)
 Director.TALK_SECONDS = 2.5
 Director.CUE_COOLDOWN, Director.DEAL_COOLDOWN = 4, 60
 Director.FADE_SECONDS = 0.5
+Director.GREET_TALK_WINDOW = 1 -- a model that loads later than this after the line stays idle
 Director.clock, Director.lastCue, Director.lastDeal = 0, -math.huge, -math.huge
 Director.greetIndex, Director.dealIndex = 0, 0
 Director.state, Director.token = "none", 0 -- none | loading | live | portrait
@@ -107,8 +120,10 @@ function Director.Build(parent, font)
     scene:Hide()
     strip.scene = scene
     strip.portrait = strip:CreateTexture(nil, "ARTWORK")
-    strip.portrait:SetSize(Director.HEIGHT, Director.HEIGHT)
-    strip.portrait:SetPoint("CENTER", scene, "CENTER", 0, 0)
+    strip.portrait:SetSize(Director.PORTRAIT, Director.PORTRAIT)
+    -- The 84 px picture at the top of the picture column, inside the short strip
+    -- (PORTRAIT + 8): never centred on the taller 3D scene (Codex review of #93).
+    strip.portrait:SetPoint("TOP", strip, "TOPLEFT", Director.WIDTH / 2, -4)
     -- The speaker's name (copper), then the Director's role (muted) beside it.
     strip.speaker = font(strip, 13, "LEFT")
     strip.speaker:SetPoint("TOPLEFT", strip, "TOPLEFT", Director.WIDTH + 12, -8)
@@ -133,13 +148,24 @@ function Director.Build(parent, font)
     strip.report = strip.reports[1]
     strip.reportArea = CreateFrame("Button", nil, strip)
     strip.reportArea:SetScript("OnClick", function() ns.Window.ToggleReports() end)
-    strip.reportArea:SetScript("OnEnter", function(self)
-        ns.Window.Tip():SetOwner(self, "ANCHOR_TOP")
-        ns.Window.Tip():SetText(ns.L["reports.title"], 1, 1, 1)
-        ns.Window.Tip():AddLine(ns.L["reports.open"], muted[1], muted[2], muted[3])
-        ns.Window.Tip():Show()
-    end)
+    local function reportsTip(self)
+        local tip = ns.Window.Tip()
+        tip:SetOwner(self, "ANCHOR_TOP")
+        tip:SetText(ns.L["reports.title"], 1, 1, 1)
+        tip:AddLine(ns.L["reports.open"], muted[1], muted[2], muted[3])
+        tip:Show()
+    end
+    strip.reportArea:SetScript("OnEnter", reportsTip)
     strip.reportArea:SetScript("OnLeave", function() ns.Window.Tip():Hide() end)
+    -- Clicking Gazlowe (or the mark in his place) opens the reports too. The scene
+    -- itself stays mouse-disabled; this button over the picture takes the click and
+    -- still drags the window.
+    strip.pictureArea = CreateFrame("Button", nil, strip)
+    strip.pictureArea:SetAllPoints(scene) -- re-fitted to the picture shown (Update)
+    ns.Window.Draggable(strip.pictureArea)
+    strip.pictureArea:SetScript("OnClick", function() ns.Window.ToggleReports() end)
+    strip.pictureArea:SetScript("OnEnter", reportsTip)
+    strip.pictureArea:SetScript("OnLeave", function() ns.Window.Tip():Hide() end)
     strip:SetScript("OnHide", function() Director.Cancel() end)
     Director.strip = strip
     return strip
@@ -147,12 +173,14 @@ end
 
 -- Drops any pending box poll (hidden, replaced, or no longer the Director).
 function Director.Cancel()
+    Director.talkWhenLive = nil
     Director.token = Director.token + 1
     Director.poll = nil
     if Director.state == "loading" then Director.state = "none" end
 end
 
 local function ShowPortrait()
+    Director.talkWhenLive = nil
     local strip = Director.strip
     strip.scene:Hide()
     local ok = pcall(SetPortraitTextureFromCreatureDisplayID, strip.portrait, Director.DISPLAY)
@@ -190,6 +218,11 @@ function Director.Tick(elapsed)
         actor:SetScale(scale)
         actor:SetPosition(0, 0, offset)
         Director.state, Director.poll = "live", nil
+        -- A greeting spoken while the model loaded: he talks now that he is in.
+        if Director.talkWhenLive then
+            Director.talkWhenLive = nil
+            if Director.clock - (Director.greetAt or -math.huge) <= Director.GREET_TALK_WINDOW then Director.Talk() end
+        end
     else
         poll.tries = poll.tries - 1
         if poll.tries <= 0 then
@@ -224,6 +257,7 @@ local function ShowModel()
 end
 
 local function DropModel()
+    Director.talkWhenLive = nil
     Director.Cancel()
     Director.strip.scene.actor:ClearModel()
     Director.strip.scene:Hide()
@@ -278,7 +312,10 @@ function Director.Update(speaker, line, width, reports)
         strip.portrait:SetTexture((ns.Assets.IdentityIcon(MARKS[speaker])))
         strip.portrait:Show()
     end
-    local height = math.max(Director.MIN_STRIP, 8 + 16 + 3 + strip.line:GetStringHeight() + reportHeight + 8)
+    -- The click area covers the picture actually shown: the scene, or the portrait.
+    strip.pictureArea:ClearAllPoints()
+    strip.pictureArea:SetAllPoints(strip.scene:IsShown() and strip.scene or strip.portrait)
+    local height = math.max(Director.MinStrip(speaker), 8 + 16 + 3 + strip.line:GetStringHeight() + reportHeight + 8)
     strip:SetHeight(height)
     return height
 end
@@ -291,6 +328,10 @@ function Director.Greet(speaker)
         local lines = Director.VOICE.greet
         Director.greetIndex = Director.greetIndex % #lines + 1
         TimeIsMoney.API.PlaySoundFile(lines[Director.greetIndex], "Dialog")
+        -- He says it: the talk animation, now or as soon as the model is in (if
+        -- that is still while he speaks: GREET_TALK_WINDOW seconds).
+        Director.greetAt = Director.clock
+        if not Director.Talk() then Director.talkWhenLive = Director.state == "loading" or nil end
     end
 end
 

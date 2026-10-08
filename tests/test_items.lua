@@ -68,7 +68,8 @@ assert(tipOf("processors").use:find("Board Trust", 1, true))
 S.humanFlag = 0
 assert(tipOf("processors").use:find("Network Breakthroughs", 1, true) and tipOf("memory").use:find("Network Breakthroughs", 1, true))
 S.swarmGifts = 0
-assert(View.unavailable("btnAddProc", S) == "Not enough Network Breakthroughs." and View.unavailable("btnAddMem", S) == "Not enough Network Breakthroughs.")
+assert(View.unavailable("btnAddProc", S):find("^Not enough Network Breakthroughs%. The Company Network sends")
+    and View.unavailable("btnAddMem", S):find("^Not enough Network Breakthroughs%."), "the reason, then where they come from")
 S.humanFlag = 1
 assert(View.unavailable("btnAddProc", S) == "Every point of Board Trust is already allocated.")
 

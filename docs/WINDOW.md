@@ -90,15 +90,29 @@ campaign order, whose condition holds, so a reload shows the same line:
 
 The reference's own messages come back here in goblin wording in #22's second PR.
 
+## Card titles and the crystals (owner, 2026-10-08)
+
+- **Every card's title** has a tooltip saying what the card is for
+  (`Window.CARD_KEYS`, `card.*` strings); hovering it also clears the card's
+  "New" tag.
+- **The Arcane Crystals** (the reference's photonic chips) show the Arcane Crystal
+  icon (item 12363) in ten faint slots, so an empty row reads "0 of 10". An owned
+  crystal shows its charge as opacity, gold (the icon as is) while positive and **red
+  while negative**: the reference shows only the positive half, so a crystal looked as if
+  it vanished while Compute would drain Operations. The row's tooltip counts the
+  crystals and says to compute while they glow, not red. Presentation only.
+
 ## Cues and "New" tags (#90)
 
+- **Gazlowe talks as he greets** (the talk animation with the line; if his model
+  is still loading, as soon as it is in).
 - **Greetings rotate** when the window opens: 550785 "Time is money, friend!",
   550786 "Ah! Potential customers.", 550773 "Yo!", never the same twice in a row
   (Dialog channel; the player's dialog volume and mute apply).
 - **A new report** (seen by the window's redraw while it shows):
   - the newest line fades in;
   - at most once per `CUE_COOLDOWN` (4 s): while Gazlowe speaks, his talk
-    animation once one is measured (`TALK_ANIM`, none by default) and, at most once
+    animation (`TALK_ANIM` 60, picked in the client) and, at most once
     per `DEAL_COOLDOWN` (60 s), a deal line (550772, 550784 or 550782); otherwise,
     whoever speaks, the soft report sound (`CUE_SOUNDKIT`, SFX);
   - only for a report that arrives while the window shows the same company and
@@ -107,8 +121,8 @@ The reference's own messages come back here in goblin wording in #22's second PR
 
   Settings: "Gazlowe's voice" covers every line; "Sound for new reports".
 - **Unverified until picked in the client:** the voice files other than 550785
-  (owner-supplied), a talk animation (none until measured: docs/MODELS.md forbids
-  guessing from Retail lists) and the sound kit (120, played through pcall). Use
+  (owner-supplied) and the sound kit (120, played through pcall). The talk
+  animation (60) was picked by the owner in the client. Use
   `/tim anim <id>`, `/tim voice <fileID>` and `/tim cue <soundKit>` to try them in
   game; docs/MODELS.md lists the emotes as unverified.
 - **"New" tags, not a glow** (a glow reads as "click me"): a row, action or
@@ -177,7 +191,7 @@ timer depends on it, and the parity traces are unchanged.
 - **The strip** shows the newest three under Gazlowe's line, newest first, at
   fading opacity (1, 0.7, 0.45). Unmapped messages are never shown, so the
   earlier reports stay.
-- **The history:** clicking the reports, or `/tim reports`, opens *Company
+- **The history:** clicking the reports or Gazlowe, or `/tim reports`, opens *Company
   reports*: 14 rows, newest first, each with its game time (h:mm:ss); the mouse
   wheel scrolls three at a time, and a line shows which entries are in view.
 - **Saved** beside the company (`TimeIsMoneyDB.reports`) as presentation data:

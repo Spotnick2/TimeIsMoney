@@ -503,10 +503,57 @@ function View.unavailable(id, S)
         key = "why.noneAllocated"
     elseif id:match("^projectButton") then
         key = "why.project"
+        -- A project priced in a resource the player may not know how to earn: the
+        -- first one its price names.
+        local entry = ns.Workshop.projectById[id]
+        local text = entry and ns.ProjectText[entry.name]
+        local raw = text and (text.priceTag or computedTag(entry.name, S)) or ""
+        local below = raw:match("%-([%d,]+) ops")
+        if below then
+            -- A negative price (Reverse the Hourglass): Operations must fall, not rise.
+            key, term = "why.opsBelow", nil
+            return ns.Locale.Format(key, { n = View.count(-tonumber((below:gsub(",", "")))) })
+        end
+        term = View.shortOf(raw, S)
     else
         return nil
     end
-    return ns.Locale.Format(key, { term = term and View.TERMS[term] or "" })
+    local reason = ns.Locale.Format(key, { term = term and View.TERMS[term] or "" })
+    local how = term and View.howToGet(term, S)
+    return how and (reason .. " " .. how) or reason
+end
+
+-- The first resource a price tag names that the company is short of (the hint's
+-- subject), or nil: Cunning, Ingenuity, Operations, Company Funds.
+local PRICED = {
+    { pattern = "([%d,]+) [Yy]omi", term = "yomi", have = function(S) return S.yomi end },
+    { pattern = "([%d,]+) creat", term = "creativity", have = function(S) return S.creativity end },
+    -- (a negative Operations price never counts as short: see View.unavailable)
+    { pattern = "[^%-%d,]([%d,]+) ops", term = "operations", have = function(S) return S.operations end },
+    { pattern = "%$([%d,]+)", term = "funds", have = function(S) return S.funds end },
+}
+function View.shortOf(raw, S)
+    for _, priced in ipairs(PRICED) do
+        local amount = raw:match(priced.pattern)
+        amount = amount and tonumber((amount:gsub(",", "")))
+        if amount and priced.have(S) < amount then return priced.term end
+    end
+end
+
+-- Where a resource comes from (#89 follow-up): the hint after "Not enough ...", by
+-- what the player has unlocked.
+local HOW = {
+    yomi = function(S) return looseZero(S.strategyEngineFlag) and "how.yomiLocked" or "how.yomi" end,
+    creativity = function() return "how.creativity" end,
+    operations = function() return "how.operations" end,
+    funds = function() return "how.funds" end,
+    unused = function() return "how.unused" end,
+    honor = function() return "how.honor" end,
+    swarmGifts = function() return "how.swarmGifts" end,
+}
+function View.howToGet(term, S)
+    local fn = HOW[term]
+    return fn and ns.Locale.Format(fn(S), { term = View.TERMS[term] }) or nil
 end
 
 -- Item tooltips (#84): what each item does, WoW style, with live numbers read from

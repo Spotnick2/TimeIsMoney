@@ -26,7 +26,7 @@ local function New(saved, libGlass)
     -- state they set kept for assertions. Stubs cannot prove pixels.
     local Widget = {}
     local methods = {
-        "ClearAllPoints", "SetAllPoints", "SetToplevel", "SetClampedToScreen",
+        "ClearAllPoints", "SetToplevel", "SetClampedToScreen",
         "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing", "SetUserPlaced",
         "SetMotionScriptsWhileDisabled", "SetJustifyH", "SetWordWrap", "SetStatusBarColor",
         -- The Director's ModelScene (#22; measured in the client by the #10 probe).
@@ -82,7 +82,9 @@ local function New(saved, libGlass)
         return 14 * math.max(1, math.ceil(#tostring(self.text or "") / perLine))
     end
     function Widget:SetPoint(...) self.point = { ... } end
+    function Widget:SetAllPoints(target) self.allPoints = target or true end
     function Widget:SetAlpha(a) self.alpha = a end
+    function Widget:SetVertexColor(r, g, b) self.vertexColor = { r, g, b } end
     function Widget:GetAlpha() return self.alpha or 1 end
     function Widget:SetTexture(t) self.texture = t end
     function Widget:SetColorTexture(r, g, b, a) self.colorTexture = { r, g, b, a } end

@@ -205,7 +205,7 @@ assert(lines[1]:find("^TOURNAMENT RESULTS %(roll over for ") and lines[2]:find("
 Window.Refresh()
 local area
 for _, w in ipairs(captured.widgets) do
-    if w.kind == "Frame" and w.scripts.OnEnter and w.shown and not w.newTagArea then area = w end
+    if w.kind == "Frame" and w.scripts.OnEnter and w.shown and not w.newTagArea and not w.chips and not w.cardTitle then area = w end
 end
 assert(area, "the tournament hover area")
 local resultsHeight = area.height
