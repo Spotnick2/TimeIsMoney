@@ -138,5 +138,19 @@ for _, w in ipairs(captured.widgets) do
 end
 assert(others == 0, others .. " other controls still show")
 
+-- Paused in the single-column window: the title bar keeps room for "(Paused)",
+-- Resume and the three squares (Codex review of #79).
+local single = Window.frame.width
+assert(ns.Host.setPaused(true))
+Window.Refresh()
+local inset = 6
+assert(h.visible(Window.resume) and Window.frame.width >= Window.HeaderWidth(), "the paused header fits")
+assert(Window.HeaderWidth() > single, "the paused header is what widens it")
+assert(inset + Window.title:GetStringWidth() + 12 <= Window.frame.width - inset - 3 * 32 - 8 - Window.resume:GetWidth() - 8,
+    "the title ends before Resume")
+assert(ns.Host.setPaused(false))
+Window.Refresh()
+assert(Window.frame.width == single, "back to one column when resumed")
+
 print((libGlass and "window liquidation (real LibGlass)" or "window liquidation (LibGlass stand-in)")
     .. ": every closing in order, the chips one by one, the final timer and manual production alone passed")

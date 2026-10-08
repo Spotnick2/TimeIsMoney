@@ -1039,6 +1039,15 @@ local function Build()
 end
 
 -- Redraws from the game: card contents, visibility and the window's size.
+-- The title bar's own minimum width: the title, then Resume (while paused) and the
+-- three square buttons, so a narrow (single-column) window never overlaps them.
+function Window.HeaderWidth()
+    local inset = Glass.Inset("large")
+    local buttons = 3 * Window.SQUARE + 2 * 4
+    if Window.resume:IsShown() then buttons = buttons + Window.resume:GetWidth() + 8 end
+    return inset + Window.title:GetStringWidth() + 12 + buttons + inset
+end
+
 function Window.Refresh()
     local f = Window.frame
     local game = ns.Host.game
@@ -1084,7 +1093,7 @@ function Window.Refresh()
         end
         if shown then x = x + Window.COLUMN + Window.GAP end
     end
-    local width = math.max(x - Window.GAP + inset, Window.COLUMN + 2 * inset)
+    local width = math.max(x - Window.GAP + inset, Window.COLUMN + 2 * inset, Window.HeaderWidth())
     Window.strip:ClearAllPoints()
     Window.strip:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
     local report, isCredit = ns.Messages.Translate(game.readouts[1])
