@@ -57,6 +57,7 @@ end
 -- Surface tints (LibGlass r3 SetSurfaceTint): panels nearly opaque, the primary
 -- action a restrained green. The settings cog is a client icon.
 Window.PANEL_TINT = { 0.05, 0.06, 0.08, 0.92 }
+Window.MAIN_TINT = { 0.07, 0.08, 0.11, 0.55 }
 Window.PRIMARY_TINT = { 0.16, 0.42, 0.20, 0.55 }
 Window.SETTINGS_ICON = "Interface\\Icons\\INV_Misc_Gear_01"
 Window.CHECK_ICON = "Interface\\Buttons\\UI-CheckBox-Check"
@@ -130,13 +131,14 @@ local function SetButton(b, text, enabled, short)
     if paused then enabled = false end
     b:SetEnabled(enabled)
     b.text = text
-    -- Square buttons have no room for words: "(+)" marks them unavailable.
     if short then
-        b.label:SetText(enabled and text or ("(" .. text .. ")"))
+        b.label:SetText(text)
     elseif paused then
         b.label:SetText(text .. " " .. ns.L["window.pausedTag"])
     else
-        b.label:SetText(enabled and text or (text .. " (not yet)"))
+        -- Unaffordable is not locked: the label and cost stay as they are; the
+        -- dimmed surface and the muted label show it, the tooltip says why (#80).
+        b.label:SetText(text)
     end
     if enabled then b.label:SetTextColor(1, 1, 1) else b.label:SetTextColor(MUTED[1], MUTED[2], MUTED[3]) end
     -- The glass dims too (LibGlass r3), with any icon on it (content on g.top is
@@ -721,6 +723,10 @@ local function Build()
         Window.PlaceWindow()
     end)
     local g = Glass.Apply(f, "large")
+    -- A little darker than the bare material (#80), so a model or a nameplate behind
+    -- competes less; the panels stay darker still.
+    Glass.SetSurfaceTint(g, unpack(Window.MAIN_TINT))
+    Window.frameGlass = g
     local content = CreateFrame("Frame", nil, f)
     content:SetAllPoints(f)
     content:SetFrameLevel(Glass.ContentLevel(f))
@@ -1355,33 +1361,48 @@ end
 
 -- Help: the persistence message (the brief's exact words) and a short guide. Shown
 -- once for the first company, and on /tim help or the "?" button.
-Window.HELP_LINES = { "help.play", "help.projects", "help.reports", "help.commands" }
+-- Help in short sections (#80): getting started, the controls one per line, then
+-- saving (the brief's exact wording). Each line sits below the last by its measured
+-- height (translations wrap differently); the panel grows to fit.
+Window.HELP_SECTIONS = {
+    { title = "help.startTitle", lines = { "help.play", "help.projects", "help.reports" } },
+    { title = "help.controlsTitle", compact = true,
+        lines = { "help.cmdLedger", "help.cmdPause", "help.cmdSettings", "help.cmdMinimap", "help.cmdHelp", "help.cmdStatus" } },
+    { title = "help.persistenceTitle", lines = { "help.persistence" } },
+}
 function Window.ShowHelp()
     if not Window.frame then Build() end
     local p = Window.help
     if not p then
         p = Window.Panel("TimeIsMoneyHelp", 440, 330)
-        p.persistenceTitle = Line(p, 11, -46, COPPER)
-        p.persistence = Line(p, 12, -62)
-        p.lines = {}
-        for i in ipairs(Window.HELP_LINES) do p.lines[i] = Line(p, 11, 0, MUTED) end
+        p.sections = {}
+        for i, section in ipairs(Window.HELP_SECTIONS) do
+            local s = { heading = Line(p, 12, 0, COPPER), lines = {} }
+            for j in ipairs(section.lines) do s.lines[j] = Line(p, 11, 0, section.compact and nil or MUTED) end
+            p.sections[i] = s
+        end
         Window.help = p
     end
     local L = ns.L
     p.title:SetText(L["help.title"])
-    p.persistenceTitle:SetText(L["help.persistenceTitle"])
-    p.persistence:SetText(L["help.persistence"])
-    -- Each paragraph below the last, by its measured height (translations wrap
-    -- differently); the panel grows to fit.
-    local y = -62 - p.persistence:GetStringHeight() - 14
-    for i, key in ipairs(Window.HELP_LINES) do
-        local line = p.lines[i]
-        line:SetText(L[key])
-        line:ClearAllPoints()
-        line:SetPoint("TOPLEFT", p, "TOPLEFT", 18, y)
-        y = y - line:GetStringHeight() - 10
+    local y = -46
+    for i, section in ipairs(Window.HELP_SECTIONS) do
+        local s = p.sections[i]
+        s.heading:SetText(L[section.title])
+        s.heading:ClearAllPoints()
+        s.heading:SetPoint("TOPLEFT", p, "TOPLEFT", 18, y)
+        y = y - s.heading:GetStringHeight() - 4
+        for j, key in ipairs(section.lines) do
+            local line = s.lines[j]
+            line:SetText(L[key])
+            line:ClearAllPoints()
+            line:SetPoint("TOPLEFT", p, "TOPLEFT", 24, y)
+            line:SetWidth(p:GetWidth() - 24 - 18)
+            y = y - line:GetStringHeight() - (section.compact and 2 or 6)
+        end
+        y = y - 10
     end
-    p:SetHeight(-y + 16)
+    p:SetHeight(-y + 10)
     p:Show()
     p:Raise()
     ns.Settings.Set("helpSeen", true)

@@ -24,6 +24,21 @@ assert(Window.help and Window.help:IsShown(), "the first company shows the help"
 assert(h.shownText("Progress is saved when you log out normally or reload the interface. A crash or forced close "
     .. "can lose progress since the last successful save. After a long session, use /reload when it is safe to do so."))
 assert(Settings.values.helpSeen)
+-- Short sections in order, the controls one per line (#80).
+assert(Window.help.title.text == "Time Is Money: Help")
+local headings = {}
+for i, section in ipairs(Window.help.sections) do headings[i] = section.heading.text end
+assert(table.concat(headings, "|") == "Getting started|Controls|Saving progress")
+local controls = Window.help.sections[2].lines
+assert(#controls >= 5 and controls[1].text:find("^/tim ") and controls[2].text:find("^/tim pause"))
+-- Each line sits below the previous one.
+local last = 0
+for _, section in ipairs(Window.help.sections) do
+    for _, fs in ipairs({ section.heading, unpack(section.lines) }) do
+        assert(fs.point[5] < last, "stacked downwards")
+        last = fs.point[5]
+    end
+end
 Window.help:Hide()
 assert(Host.newGame())
 Window.Refresh()

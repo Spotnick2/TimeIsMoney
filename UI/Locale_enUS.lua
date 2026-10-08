@@ -11,13 +11,20 @@ ns.Locale.Register("enUS", {
     ["confirm.no"] = "Keep this company",
 
     -- Help (the persistence message is the brief's exact wording).
-    ["help.title"] = "Time Is Money: help",
-    ["help.persistenceTitle"] = "Saving",
+    ["help.title"] = "Time Is Money: Help",
+    ["help.startTitle"] = "Getting started",
+    ["help.controlsTitle"] = "Controls",
+    ["help.persistenceTitle"] = "Saving progress",
     ["help.persistence"] = "Progress is saved when you log out normally or reload the interface. A crash or forced close can lose progress since the last successful save. After a long session, use /reload when it is safe to do so.",
     ["help.play"] = "Make Copper Bolts, set the price, and keep Copper Bars in stock. Whirring Bronze Gizmos and Thorium Widgets make bolts while you do other things.",
     ["help.projects"] = "Projects appear as the company grows. Each shows its cost; buy the ones you can afford.",
     ["help.reports"] = "The strip at the bottom: the Director's remarks and the company's latest report.",
-    ["help.commands"] = "/tim opens or closes the ledger. /tim pause pauses or resumes the company (closing the window does not). /tim minimap shows or hides the minimap button. /tim settings: the Director, the window scale, pause and a new game. /tim help: this page.",
+    ["help.cmdLedger"] = "/tim  open or close the ledger (it keeps running when closed)",
+    ["help.cmdPause"] = "/tim pause  pause or resume the company",
+    ["help.cmdSettings"] = "/tim settings  the Director, the window scale and a new game",
+    ["help.cmdMinimap"] = "/tim minimap  show or hide the minimap button",
+    ["help.cmdHelp"] = "/tim help  this page",
+    ["help.cmdStatus"] = "/tim status  the company and the client's performance",
 
     -- Settings.
     ["settings.title"] = "Settings",

@@ -67,7 +67,8 @@ assert(raise.width == 32 and raise.height == 32)
 game.S.margin = 0.01
 Host.update(0.02)
 Window.Refresh()
-assert(button("btnLowerPrice").label.text == "(-)" and button("btnRaisePrice").label.text == "+")
+-- Unavailable is shown by the dimmed control and its tooltip, not by the label (#80).
+assert(button("btnLowerPrice").label.text == "-" and not button("btnLowerPrice").enabled and button("btnRaisePrice").label.text == "+")
 
 -- Drawing never changes the company: the state is identical after many refreshes.
 local before = digest(game.S) .. digest(game.disabled) .. digest(game.readouts)
@@ -86,7 +87,7 @@ game.S.funds = 0
 Host.update(0.02)
 Window.Refresh()
 local buy = assert(button("btnBuyWire"))
-assert(not buy.enabled and buy.label.text:find("(not yet)", 1, true))
+assert(not buy.enabled and not buy.label.text:find("not yet", 1, true) and buy.label.text:find("Buy", 1, true))
 
 -- Projects appear as the game offers them, with their Time Is Money title and cost.
 game.S.funds = 100
