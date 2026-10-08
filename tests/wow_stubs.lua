@@ -16,7 +16,7 @@ local function New(saved, libGlass)
         debugprofilestop = function() captured.clock = (captured.clock or 0) + 0.01 return captured.clock end,
     }
     local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true, TimeIsMoneyConfirm = true, TimeIsMoneyHelp = true,
-        TimeIsMoneySettings = true }
+        TimeIsMoneySettings = true, TimeIsMoneyMinimapButton = true }
     setmetatable(env, { __index = function(_, key)
         if allowedNil[key] then return nil end
         error("Unvalidated global: " .. tostring(key), 2)
@@ -122,6 +122,13 @@ local function New(saved, libGlass)
     end
     captured.fontStrings, captured.widgets, captured.textures = {}, {}, {}
     env.UIParent = setmetatable({ scripts = {}, shown = true, width = 1024, height = 768 }, { __index = Widget })
+    -- The minimap (#78): a 140 px round frame centred at (500, 400) at scale 1; the
+    -- cursor is captured.cursor (screen pixels).
+    env.Minimap = setmetatable({ scripts = {}, shown = true, width = 140, height = 140, level = 2 }, { __index = Widget })
+    function env.Minimap:GetCenter() return 500, 400 end
+    function Widget:GetEffectiveScale() return 1 end
+    function Widget:RegisterForClicks(...) self.clicks = { ... } end
+    env.GetCursorPosition = function() local c = captured.cursor or { 0, 0 } return c[1], c[2] end
     env.GameTooltip = setmetatable({ scripts = {}, shown = false }, { __index = Widget })
     function env.GameTooltip:SetOwner() end
     -- The tooltip's lines, for assertions: SetText starts them, AddLine adds one.
@@ -185,6 +192,13 @@ local function New(saved, libGlass)
     local glass = {}
     function glass.Apply(host, size)
         assert(size == "large" or size == "small" or size == "thin" or size == "thin_small", "glass size")
+        captured.glass.applied = captured.glass.applied + 1
+        return { size = size, top = env.CreateFrame("Frame", nil, host) }
+    end
+    -- r2: the material on a circle; the host must be square and sized first.
+    function glass.Disc(host, size)
+        assert(size == "disc" or size == "disc_small", "disc size")
+        assert(host:GetWidth() > 0 and host:GetWidth() == host:GetHeight(), "a square, sized host")
         captured.glass.applied = captured.glass.applied + 1
         return { size = size, top = env.CreateFrame("Frame", nil, host) }
     end

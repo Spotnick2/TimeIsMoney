@@ -17,7 +17,7 @@ ns.Locale.Register("enUS", {
     ["help.play"] = "Make Copper Bolts, set the price, and keep Copper Bars in stock. Whirring Bronze Gizmos and Thorium Widgets make bolts while you do other things.",
     ["help.projects"] = "Projects appear as the company grows. Each shows its cost; buy the ones you can afford.",
     ["help.reports"] = "The strip at the bottom: the Director's remarks and the company's latest report.",
-    ["help.commands"] = "/tim opens or closes the ledger. /tim pause pauses or resumes the company (closing the window does not). /tim settings: the Director, the window scale, pause and a new game. /tim help: this page.",
+    ["help.commands"] = "/tim opens or closes the ledger. /tim pause pauses or resumes the company (closing the window does not). /tim minimap shows or hides the minimap button. /tim settings: the Director, the window scale, pause and a new game. /tim help: this page.",
 
     -- Settings.
     ["settings.title"] = "Settings",
@@ -32,6 +32,14 @@ ns.Locale.Register("enUS", {
     ["window.paused"] = "Paused",
     ["window.pausedTag"] = "(paused)",
     ["window.resume"] = "Resume",
+    ["minimap.left"] = "Left-click: open or close the ledger",
+    ["minimap.right"] = "Right-click: settings",
+    ["minimap.running"] = "Your company is running.",
+    ["minimap.paused"] = "Your company is paused.",
+    ["minimap.stopped"] = "Your company stopped (/tim status).",
+    ["minimap.noCompany"] = "No company yet: /tim start.",
+    ["minimap.blocked"] = "Saving is off (unrecognized saved data); /tim status says why.",
+    ["settings.minimap"] = "Show the minimap button",
     ["window.resumeTip"] = "The company is paused: nothing runs until you resume it.",
     ["settings.newGame"] = "New game...",
     -- Why a control is unavailable (tooltips, #73). {term} is a goblin term

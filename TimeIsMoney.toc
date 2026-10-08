@@ -30,4 +30,5 @@ UI/Settings.lua
 UI/Dialogue.lua
 UI/Director.lua
 UI/Window.lua
+UI/Minimap.lua
 TimeIsMoney.lua

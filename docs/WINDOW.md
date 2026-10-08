@@ -84,6 +84,17 @@ campaign order, whose condition holds, so a reload shows the same line:
 
 The reference's own messages come back here in goblin wording in #22's second PR.
 
+## The minimap button (#78)
+
+`UI/Minimap.lua`: Gazlowe's 2D portrait (display 7052, the Director's verified
+fallback; the coin icon if the call fails) on a LibGlass `disc_small`, at the
+minimap's edge. Left click acts as `/tim` (the ledger, or how to start a company);
+right click opens or closes Settings. Its tooltip gives the company's state:
+running, paused, stopped or none. Drag it around the edge; the angle is saved on
+release. Settings' "Show the minimap button" and `/tim minimap` hide or show it.
+The client offers no minimap shape query on this build, so the edge is a circle.
+It only reads the host: it never changes the company.
+
 ## Help and settings (#23)
 
 - **Help** ("?" on the title bar, or `/tim help`) gives the brief's exact

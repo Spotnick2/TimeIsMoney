@@ -41,7 +41,7 @@ local function Slash(message)
     local Host = TIM.Host
     if command == "help" then
         TIM.Window.ShowHelp()
-        Print("/tim - open or close the ledger. /tim pause - pause or resume the company. /tim settings - settings and a new game. /tim help - this help. /tim status - runtime and company. /tim start - a new company when there is none.")
+        Print("/tim - open or close the ledger. /tim pause - pause or resume the company. /tim minimap - show or hide the minimap button. /tim settings - settings and a new game. /tim help - this help. /tim status - runtime and company. /tim start - a new company when there is none.")
         Print("Developer: /tim click <control> (e.g. btnMakePaperclip), /tim set <control> <value>, /tim icons, /tim model, /tim newgame.")
     elseif command == "" then
         if Host.game then
@@ -53,6 +53,9 @@ local function Slash(message)
         end
     elseif command == "status" then
         Status()
+    elseif command == "minimap" then
+        Print("Minimap button " .. (TIM.MinimapButton.Toggle() and "shown." or "hidden (/tim minimap shows it again)."))
+        if TIM.Window.settings and TIM.Window.settings:IsShown() then TIM.Window.FillSettings() end
     elseif command == "pause" then
         local ok, err = Host.setPaused(not Host.paused)
         if ok then
@@ -123,6 +126,7 @@ events:SetScript("OnEvent", function(self, event, name)
     TIM.loaded = true
     local state = TIM.Host.loadSaved(TimeIsMoneyDB)
     TIM.Settings.Load(TIM.Host.savedSettings)
+    TIM.MinimapButton.Build()
     if state == "restored" then
         Print(string.format("Your company reopens its ledger at %.1f s.", TIM.Host.game.clock.now / 1000))
     elseif state == "blocked" then

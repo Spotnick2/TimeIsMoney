@@ -9,7 +9,10 @@ ns.Settings = Settings
 TimeIsMoney.Settings = Settings
 
 Settings.SCALE_MIN, Settings.SCALE_MAX, Settings.SCALE_STEP = 0.6, 1.5, 0.1
-Settings.DEFAULTS = { model = true, voice = true, scale = 1, helpSeen = false, point = nil }
+Settings.DEFAULTS = { model = true, voice = true, scale = 1, helpSeen = false, point = nil,
+    minimap = true, minimapAngle = 225 }
+-- minimap: the minimap button shows (#78); minimapAngle: its place on the edge,
+-- degrees counter-clockwise from east (225: lower left).
 -- point: the window's top-left corner in UIParent units (unaffected by the window's
 -- own scale), as { "TOPLEFT", "BOTTOMLEFT", x, y }.
 
@@ -23,6 +26,8 @@ local VALID = {
     model = function(v) return type(v) == "boolean" end,
     voice = function(v) return type(v) == "boolean" end,
     helpSeen = function(v) return type(v) == "boolean" end,
+    minimap = function(v) return type(v) == "boolean" end,
+    minimapAngle = function(v) return finite(v) and v >= 0 and v < 360 end,
     scale = function(v) return finite(v) and v >= Settings.SCALE_MIN - 1e-9 and v <= Settings.SCALE_MAX + 1e-9 end,
     point = function(v)
         return type(v) == "table" and POINTS[v[1]] and POINTS[v[2]] and finite(v[3]) and finite(v[4])
@@ -49,7 +54,8 @@ end
 -- logout (Host.settings is this function).
 function Settings.Data()
     local v = Settings.values
-    return { model = v.model, voice = v.voice, scale = v.scale, helpSeen = v.helpSeen, point = Settings.copyPoint(v.point) }
+    return { model = v.model, voice = v.voice, scale = v.scale, helpSeen = v.helpSeen, point = Settings.copyPoint(v.point),
+        minimap = v.minimap, minimapAngle = v.minimapAngle }
 end
 ns.Host.settings = Settings.Data
 
