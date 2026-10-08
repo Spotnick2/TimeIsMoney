@@ -58,6 +58,7 @@ local function Begin(game)
     Host.halted = nil
     Host.stats = { frames = 0, cpu = 0, steps = 0, dropped = 0, worst = 0 }
     Host.running = true
+    Host.paused, Host.debt = false, 0 -- a new or restored company runs (loadSaved re-applies a saved pause)
     -- The 25 s reference auto-save refreshes the in-memory save (#19). It fires
     -- inside the slow tick, before the scheduler requeues that timer, so the snapshot
     -- is taken after the step returns, when the queue is consistent.
@@ -87,6 +88,7 @@ end
 
 -- Saves (#19) ---------------------------------------------------------------------
 -- TimeIsMoneyDB = { schema = 1, company = <Sim/Save.lua data> or nil,
+--                   paused = true or nil (#77; only with a company),
 --                   prestige = { prestigeU, prestigeS } or nil,
 --                   settings = <UI/Settings.lua data> or nil }
 -- Settings are presentation preferences: read as given (the UI checks each value
@@ -160,6 +162,8 @@ function Host.loadSaved(db)
         Host.random = random
         Begin(game)
         Host.snapshot = saved
+        -- A saved pause (#77). Anything but true runs: older saves have no flag.
+        Host.paused = db.paused == true
     end)
     if not ok then
         Host.game, Host.running = nil, false
@@ -183,6 +187,7 @@ function Host.persist()
         return db
     end
     if game and Host.running then
+        db.paused = Host.paused or nil
         local ok, data = pcall(Host.encodeCompany)
         if ok then
             db.company = data
@@ -210,7 +215,7 @@ end
 -- Owes the simulation `elapsed` real seconds, then advances it in logical steps
 -- until the debt is paid or the frame's CPU budget is spent.
 function Host.update(elapsed)
-    if not Host.running then return end
+    if not Host.running or Host.paused then return end
     local stats = Host.stats
     Host.debt = Host.debt + elapsed * 1000
     if Host.debt > Host.MAX_DEBT then
@@ -241,6 +246,18 @@ function Host.update(elapsed)
     stats.frames = stats.frames + 1
     stats.cpu = stats.cpu + cost
     if cost > stats.worst then stats.worst = cost end
+end
+
+-- Pause (#77): only the player's explicit choice stops the company. Logical time
+-- freezes (no ticks, draws or timers) and resumes exactly where it stopped, with
+-- no catch-up; the owed time is dropped, as for a closed client. Saved, so a pause
+-- survives /reload and a relaunch. Hiding the window or combat never pauses.
+function Host.setPaused(paused)
+    if not Host.game then return false, "no company (/tim start)" end
+    if not Host.running then return false, "the company stopped: " .. tostring(Host.halted) .. " (/tim status)" end
+    Host.paused = paused and true or false
+    Host.debt = 0
+    return true
 end
 
 -- Restarts (#23): the reference's reset() clears the company's save, keeps the
@@ -278,6 +295,7 @@ function Host.click(id, confirmed)
     local game = Host.game
     if not game then return false, "no company (/tim start)" end
     if not Host.running then return false, "the company stopped: " .. tostring(Host.halted) .. " (/tim status)" end
+    if Host.paused then return false, "the company is paused (/tim pause resumes it)" end
     local known = ns.Workshop.clicks[id] or ns.Workshop.projectById[id]
     if not known then return false, "unknown control " .. tostring(id) end
     if Host.CONFIRM[id] and not confirmed then return false, "this needs the player's confirmation" end
@@ -305,6 +323,7 @@ function Host.setValue(id, value)
     local game = Host.game
     if not game then return false, "no company (/tim start)" end
     if not Host.running then return false, "the company stopped: " .. tostring(Host.halted) .. " (/tim status)" end
+    if Host.paused then return false, "the company is paused (/tim pause resumes it)" end
     if not (game.selects[id] or game.ranges[id]) then return false, "unknown value control " .. tostring(id) end
     local ok, err = pcall(game.setValue, game, id, value)
     if not ok then return false, tostring(err) end

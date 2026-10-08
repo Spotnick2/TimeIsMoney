@@ -99,8 +99,9 @@ Normal logout or /reload writes progress; interrupted processes can lose progres
 since the last successful write. In-memory snapshots are not disk saves. Test reload
 continuation AND full exit/relaunch on a recorded build. Never automatically ReloadUI.
 Versioned saves preserve recoverable data and refuse unknown future schemas.
-No frames/closures serialized. Hidden/combat-collapsed windows cannot pause simulation
-or duplicate host timers. Closing WoW stops simulation; no offline catch-up.
+No frames/closures serialized. Only the player's explicit pause (#77) stops the
+simulation; hidden/combat-collapsed windows never pause it or duplicate host timers.
+Closing WoW stops simulation; no offline catch-up.
 
 ## Toolchain and validation
 

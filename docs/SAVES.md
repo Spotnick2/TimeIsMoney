@@ -18,6 +18,7 @@ TimeIsMoneyDB = {
         random = { s1, s2, count },            -- the host's L'Ecuyer stream
         controls = { disabled, projectElements, readouts, selects, ranges, resultsTableDisplay },
     },
+    paused = true or nil,     -- #77: the player paused the company; anything else runs
     prestige = { prestigeU = n, prestigeS = n } or nil,   -- carried into the next company
 }
 ~~~
