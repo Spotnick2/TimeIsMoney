@@ -169,4 +169,48 @@ assert(captured.sounds[#captured.sounds][1] == 550784)
 env.SlashCmdList.TIMEISMONEY("cue 891")
 assert(captured.soundKits[#captured.soundKits] == 891)
 
+-- Hover dismisses every kind of tag (Codex review of #92): a card title, a plain
+-- stat row, and a bulk-action row (its tag on the group's last button).
+local function tagOf(thing) return thing.newTag and h.visible(thing.newTag) end
+local function cardTitled(title)
+    for _, column in ipairs(Window.columns) do
+        for _, card in ipairs(column) do if card.title.text == title then return card end end
+    end
+end
+game.S.investmentEngineFlag = 1
+wait(0.1)
+local invest = assert(cardTitled("Cartel Investments"))
+assert(tagOf(invest) and invest.newArea and h.visible(invest.newArea), "a new card: its title tagged, with a hover area")
+invest.newArea.scripts.OnEnter(invest.newArea)
+wait(0.1)
+assert(not tagOf(invest) and invest.newUntil == nil, "hovering the title clears it")
+-- A plain stat row (Revenue per second, after its project) appears in a shown card.
+game.S.revPerSecFlag = 1
+wait(0.1)
+local sales = assert(cardTitled("Sales"))
+local revenue
+for _, row in ipairs(sales.rows) do if row.label and row.label.text == "Revenue per second" then revenue = row end end
+assert(revenue and tagOf(revenue) and revenue.newArea, "a plain row: tagged, with a hover area")
+revenue.newArea.scripts.OnEnter(revenue.newArea)
+wait(0.1)
+assert(not tagOf(revenue), "hovering the label clears it")
+-- A bulk-action row (Reapers +10/+100/+1k) appears in the already shown Copper
+-- Production card.
+game.S.humanFlag, game.S.wireProductionFlag = 0, 1
+wait(0.1)
+wait(Window.NEW_SECONDS)
+game.S.harvesterFlag = 1
+wait(0.1)
+local wireCard = assert(cardTitled("Copper Production"))
+local bulk
+for _, row in ipairs(wireCard.rows) do if row.buttons and row.buttons[1].id == "btnHarvesterx10" then bulk = row end end
+assert(bulk and tagOf(bulk), "the bulk row is tagged")
+local point = bulk.newTag.point
+assert(point and point[2] == bulk.buttons[#bulk.buttons], "anchored on the group's last button")
+assert(bulk.buttons[1].newOf == bulk, "its buttons know their row")
+bulk.buttons[1].scripts.OnEnter(bulk.buttons[1])
+bulk.buttons[1].scripts.OnLeave(bulk.buttons[1])
+wait(0.1)
+assert(not tagOf(bulk), "hovering a bulk button clears it")
+
 print("cues: rotating greetings, the report cue (talk, deal line, soft sound, throttle, settings), fade-in, New tags and developer commands passed")

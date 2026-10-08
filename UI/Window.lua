@@ -89,6 +89,13 @@ function Window.Tip()
     return Window.tooltip
 end
 
+-- Mouse areas (tooltips, hover) over the window still let it be dragged.
+local function Draggable(area)
+    area:RegisterForDrag("LeftButton")
+    area:SetScript("OnDragStart", function() Window.frame:StartMoving() end)
+    area:SetScript("OnDragStop", function() Window.frame:StopMovingOrSizing() end)
+end
+
 -- "New" tags (#90): a card, row or project that appears after the window's first
 -- draw is tagged "New" (not a glow: a glow reads as "click me") until it is hovered
 -- or has shown for NEW_SECONDS. A newly shown card tags only its title, not each of
@@ -102,12 +109,30 @@ local function NewTag(parent)
     return tag
 end
 -- Shows or hides thing.newTag, making and anchoring it once, when it first shows.
-local function ShowNewTag(thing, tagged, parent, anchor)
+-- hover (optional): a region with no hover of its own (a card title, a plain stat
+-- label); a mouse area over it, shown with the tag, clears the tag when hovered and
+-- still drags the window (#90 review).
+local function ShowNewTag(thing, tagged, parent, anchor, hover, areaParent)
     if tagged and not thing.newTag then
         thing.newTag = NewTag(parent)
         anchor(thing.newTag)
+        if hover then
+            local area = CreateFrame("Frame", nil, areaParent)
+            area:SetPoint("TOPLEFT", hover, "TOPLEFT", -2, 2)
+            area:SetPoint("BOTTOMRIGHT", hover, "BOTTOMRIGHT", 2, -2)
+            area:EnableMouse(true)
+            Draggable(area)
+            area:SetScript("OnEnter", function()
+                thing.newUntil = nil
+                thing.newTag:Hide()
+                area:Hide()
+            end)
+            area.newTagArea = true -- tests tell it from the rows' own hover areas
+            thing.newArea = area
+        end
     end
     if thing.newTag then thing.newTag:SetShown(tagged) end
+    if thing.newArea then thing.newArea:SetShown(tagged) end
 end
 Window.seenProjects = {}
 -- Whether `thing` (a row, a card, a project button) shows its tag now, after its
@@ -169,12 +194,6 @@ local function FromGame(fn)
     end
 end
 
--- Mouse areas (tooltips, hover) over the window still let it be dragged.
-local function Draggable(area)
-    area:RegisterForDrag("LeftButton")
-    area:SetScript("OnDragStart", function() Window.frame:StartMoving() end)
-    area:SetScript("OnDragStop", function() Window.frame:StopMovingOrSizing() end)
-end
 
 -- A glass button bound to a control id. Disabled exactly when the game disables
 -- that control; the label says so too (not colour alone).
@@ -627,15 +646,20 @@ function Card:Update(game, panels)
         end
         for _, r in ipairs(row.regions) do r:SetShown(visible) end
         -- The row's "New" tag: after its label, or on its button's corner.
+        -- Buttons (one, a +, or a bulk group) clear it on hover; a plain label gets a
+        -- hover area of its own.
         if row.button then row.button.newOf = row end
         if row.raise then row.raise.newOf = row end
+        for _, b in ipairs(row.buttons or {}) do b.newOf = row end
+        local plain = row.label and not row.button and not row.buttons and not row.tipArea and not row.raise
         ShowNewTag(row, NewState(row, visible, cardWasShown), self.glass.top, function(tag)
-            if row.button then
-                tag:SetPoint("TOPRIGHT", row.button, "TOPRIGHT", -6, -3)
+            local last = row.buttons and row.buttons[#row.buttons]
+            if row.button or last then
+                tag:SetPoint("TOPRIGHT", row.button or last, "TOPRIGHT", -6, -3)
             elseif row.label then
                 tag:SetPoint("LEFT", row.label, "LEFT", row.label:GetStringWidth() + 6, 0)
             end
-        end)
+        end, plain and row.label or nil, self.content)
         if not visible and row.choices then
             row.open = false
             for _, choice in ipairs(row.choices) do choice:Hide() end
@@ -798,7 +822,7 @@ function Card:Update(game, panels)
     local cardTagged = NewState(self, any, true) and titled
     ShowNewTag(self, cardTagged, self.glass.top, function(tag)
         tag:SetPoint("LEFT", self.title, "LEFT", self.title:GetStringWidth() + 8, 0)
-    end)
+    end, self.title, self.content)
     self.shownLast = any
     return any
 end
@@ -849,7 +873,7 @@ local function NewProjects(parent)
         local cardTagged = NewState(self, #list > 0, true)
         ShowNewTag(self, cardTagged, self.glass.top, function(tag)
             tag:SetPoint("LEFT", self.title, "LEFT", self.title:GetStringWidth() + 8, 0)
-        end)
+        end, self.title, self.content)
         self.shownLast = #list > 0
         for i = 1, math.min(perPage, #list - first) do
             local project = list[first + i]
