@@ -1442,15 +1442,18 @@ function Window.FillReports()
     p.title:SetText(ns.L["reports.title"])
     -- Rows wrap (translations and long reports take two lines or more), measured
     -- one below the other until the area is full (Codex review of #87).
-    local y, bottom, shown = -46, -46 - Window.REPORT_ROWS * 18, 0
+    -- The first report that does not fit ends the page, so a page is always one
+    -- unbroken run of the history (Codex review of #85).
+    local y, bottom, shown, full = -46, -46 - Window.REPORT_ROWS * 18, 0, false
     for i, row in ipairs(p.rows) do
-        local e = list[total - p.offset - i + 1]
-        local fits = e ~= nil
+        local e = not full and list[total - p.offset - i + 1]
+        local fits = e and true or false
         if e then
             row.time:SetText(Clock(e.at))
             row.text:SetText(ns.Messages.Translate(e.text) or "")
             local height = math.max(14, row.text:GetStringHeight())
             fits = shown == 0 or y - height >= bottom
+            full = not fits
             if fits then
                 row.time:ClearAllPoints()
                 row.time:SetPoint("TOPLEFT", p, "TOPLEFT", 18, y)

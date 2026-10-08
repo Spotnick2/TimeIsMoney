@@ -45,6 +45,14 @@ for _, row in ipairs(p.rows) do if row.text.shown then visible = visible + 1 end
 assert(visible < Window.REPORT_ROWS and visible >= 1, "fewer, taller rows fit: " .. visible)
 assert(p.rows[2].text.point[5] <= p.rows[1].text.point[5] - 40, "each below the previous one's height")
 assert(p.hint.text:find("1-" .. visible .. " of", 1, true))
+-- Mixed heights: once one report does not fit, no shorter older one fills the gap.
+local heights = { 100, 100, 60, 14, 14 }
+for i, row in ipairs(p.rows) do row.text.GetStringHeight = function() return heights[i] or 14 end end
+Window.FillReports()
+local seen = {}
+for i, row in ipairs(p.rows) do seen[i] = row.text.shown end
+assert(seen[1] and seen[2] and not seen[3] and not seen[4] and not seen[5], "the page ends at the first misfit")
+assert(p.hint.text:find("1-2 of", 1, true), "and its range is what it shows")
 for _, row in ipairs(p.rows) do row.text.GetStringHeight = measure end
 for _ = 1, 50 do p.scripts.OnMouseWheel(p, 1) end
 assert(p.offset == 0 and p.rows[1].text.text == tall, "back to the newest")
