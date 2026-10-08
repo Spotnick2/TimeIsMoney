@@ -32,7 +32,9 @@ end
 
 local function Tip(self)
     local Host, L = ns.Host, ns.L
-    local state = (not Host.game and L["minimap.noCompany"]) or (not Host.running and L["minimap.stopped"])
+    -- Saving off first: /tim start refuses then, so never suggest it.
+    local state = (Host.blocked and not Host.game and L["minimap.blocked"])
+        or (not Host.game and L["minimap.noCompany"]) or (not Host.running and L["minimap.stopped"])
         or (Host.paused and L["minimap.paused"]) or L["minimap.running"]
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:SetText("Time Is Money", 1, 1, 1)

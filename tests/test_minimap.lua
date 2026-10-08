@@ -72,4 +72,12 @@ assert(values.minimapAngle == 225)
 values = Settings.Load({ minimap = false, minimapAngle = 12.5 })
 assert(values.minimap == false and values.minimapAngle == 12.5)
 
+-- Saving off (unrecognized data): the tooltip never suggests /tim start.
+local env2, captured2, ns2 = Harness.Load()
+ns2.Host.loadSaved({ schema = 999 })
+local b2 = ns2.MinimapButton.button
+b2.scripts.OnEnter(b2)
+local said = table.concat(env2.GameTooltip.lines, "|")
+assert(said:find("Saving is off", 1, true) and not said:find("/tim start", 1, true))
+
 print("minimap: portrait on the edge, clicks, tooltip state, drag and saved angle, hiding, damaged values and no simulation effect passed")

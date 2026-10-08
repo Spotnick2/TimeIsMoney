@@ -38,6 +38,7 @@ ns.Locale.Register("enUS", {
     ["minimap.paused"] = "Your company is paused.",
     ["minimap.stopped"] = "Your company stopped (/tim status).",
     ["minimap.noCompany"] = "No company yet: /tim start.",
+    ["minimap.blocked"] = "Saving is off (unrecognized saved data); /tim status says why.",
     ["settings.minimap"] = "Show the minimap button",
     ["window.resumeTip"] = "The company is paused: nothing runs until you resume it.",
     ["settings.newGame"] = "New game...",
