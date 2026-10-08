@@ -489,6 +489,88 @@ function View.unavailable(id, S)
     return ns.Locale.Format(key, { term = term and View.TERMS[term] or "" })
 end
 
+-- Item tooltips (#84): what each item does, WoW style, with live numbers read from
+-- the simulation's current values. Every rate follows the formula the simulation
+-- runs every 10 ms tick (x100 per second): Gizmos clipClick(clipperBoost *
+-- level / 100), Widgets clipClick(megaClipperBoost * level * 5), Modulators
+-- opCycle = processors / 10; harvesters and converters report the last tick's
+-- actual amounts (matterRate, wireRate). Pure: the window renders it.
+local L = function(key, values) return ns.Locale.Format(key, values or {}) end
+-- A rate with up to two decimals ("1.25", "500", "1,234.5").
+function View.rate(x)
+    if isNaN(x) or x == math.huge or x == -math.huge then return View.count(x) end
+    local whole = View.count(x)
+    local cents = math.floor((math.abs(x) - math.floor(math.abs(x))) * 100 + 0.5)
+    if cents == 0 or cents >= 100 then return View.count(x, "round") end
+    return whole .. (string.format(".%02d", cents):gsub("0$", ""))
+end
+local ITEM_TIPS = {
+    clips = function(S)
+        local lines = { L("item.clips.made", { n = View.count(S.clips, "ceil") }) }
+        if S.humanFlag == 1 then lines[2] = L("item.clips.unsold", { n = View.count(S.unsoldClips) }) end
+        return lines
+    end,
+    wire = function(S, game)
+        local lines = { L("item.wire.each"), L("item.wire.stock", { n = View.count(S.wire) }) }
+        if S.humanFlag == 1 then
+            lines[3] = L("item.wire.shipment", { n = View.count(S.wireSupply), cost = View.money(S.wireCost) })
+        else
+            lines[3] = L("item.wire.refined", { n = View.spell((game.wireRate or 0) * 100) })
+        end
+        return lines
+    end,
+    autoClippers = function(S)
+        return { L("item.makes.each", { n = View.rate(S.clipperBoost) }),
+            L("item.makes.total", { count = View.count(S.clipmakerLevel), n = View.rate(S.clipperBoost * S.clipmakerLevel) }),
+            L("item.whileBars"),
+            L("item.next", { cost = View.money(S.clipperCost) }) }
+    end,
+    megaClippers = function(S)
+        return { L("item.makes.each", { n = View.rate(S.megaClipperBoost * 500) }),
+            L("item.makes.total", { count = View.count(S.megaClipperLevel), n = View.rate(S.megaClipperBoost * S.megaClipperLevel * 500) }),
+            L("item.whileBars"),
+            L("item.next", { cost = View.money(S.megaClipperCost) }) }
+    end,
+    processors = function(S)
+        return { L("item.processors.each"),
+            L("item.processors.total", { count = View.count(S.processors), n = View.rate(S.processors * 10) }),
+            L("item.processors.creativity") }
+    end,
+    memory = function(S)
+        return { L("item.memory.each"), L("item.memory.total", { n = View.count(S.memory * 1000) }) }
+    end,
+    harvesters = function(S, game)
+        return { L("item.harvesters.now", { n = View.spell((game.matterRate or 0) * 100) }),
+            L("item.working", { count = View.spell(S.harvesterLevel) }) }
+    end,
+    wireDrones = function(S, game)
+        return { L("item.wireDrones.now", { n = View.spell((game.wireRate or 0) * 100) }),
+            L("item.working", { count = View.spell(S.wireDroneLevel) }) }
+    end,
+    farms = function(S)
+        return { L("item.farms.each", { n = View.count(S.farmRate) }),
+            L("item.farms.total", { count = View.count(S.farmLevel), n = View.count(S.farmLevel * S.farmRate, "round") }) }
+    end,
+    batteries = function(S)
+        return { L("item.batteries.each", { n = View.count(S.batterySize) }),
+            L("item.batteries.total", { stored = View.count(S.storedPower, "round"), n = View.count(S.batteryLevel * S.batterySize) }) }
+    end,
+}
+View.ITEM_KEYS = { "clips", "wire", "autoClippers", "megaClippers", "processors", "memory", "harvesters",
+    "wireDrones", "farms", "batteries" }
+-- The short, always visible line under an item's row.
+function View.itemRole(key)
+    if not ITEM_TIPS[key] then return nil end
+    return L("item." .. key .. ".role")
+end
+-- { title, category, lines, use, flavor } for an item key, or nil.
+function View.itemTip(key, game)
+    local fn = ITEM_TIPS[key]
+    if not fn then return nil end
+    return { title = View.TERMS[key], category = L("item." .. key .. ".category"), lines = fn(game.S, game),
+        use = L("item." .. key .. ".use"), flavor = L("item." .. key .. ".flavor") }
+end
+
 -- The Company Network's status text (swarmStatus); 7 hides the status line.
 local SWARM = { [0] = "Active", [1] = "Hungry", [2] = "Confused", [3] = "Bored", [4] = "Cold",
     [5] = "Disorganized", [6] = "Sleeping", [8] = "Lonely", [9] = "NO RESPONSE..." }

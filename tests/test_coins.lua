@@ -36,7 +36,9 @@ Window.Refresh()
 -- The tooltip areas: mouse frames that also drag the window.
 local areas = {}
 for _, w in ipairs(captured.widgets) do
-    if w.kind == "Frame" and w.scripts.OnEnter and w.scripts.OnDragStart and h.visible(w) then areas[#areas + 1] = w end
+    if w.kind == "Frame" and w.scripts.OnEnter and w.scripts.OnDragStart and h.visible(w) and not w.itemKey then
+        areas[#areas + 1] = w
+    end
 end
 assert(#areas >= 2, "funds and price have tooltip areas")
 -- The price row's area stops short of its -/+ buttons (two 32 px squares). Rows span

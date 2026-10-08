@@ -90,6 +90,25 @@ campaign order, whose condition holds, so a reload shows the same line:
 
 The reference's own messages come back here in goblin wording in #22's second PR.
 
+## Item tooltips (#84)
+
+Not in Universal Paperclips; presentation only. Each item row (bolts, Copper
+Bars, Gizmos, Widgets, Modulators, Punch Cards, Reapers, Converters, Cores and
+Packs) has:
+
+- **a role line** under its name, short and muted ("Automatically makes Copper
+  Bolts."), words only: Production already shows the combined rate;
+- **a WoW-style tooltip** on hover: the name in its Forever item's quality colour
+  (white until the client has the item's data), a category line, what it does with
+  live numbers, a green "Use:" line naming its button, and yellow flavour text.
+
+Every number comes from the simulation's current values with the formula it runs
+each 10 ms tick (x100 per second): Gizmos `clipperBoost` per unit, Widgets
+`500 x megaClipperBoost`, Modulators 10 Operations per second each (`processors /
+10` per tick, up to the Punch Cards' capacity); Reapers and Converters show the
+last tick's actual amounts. tests/test_items.lua measures the Gizmo, Widget and
+Modulator rates over one logical second and compares them with the tooltip.
+
 ## Company reports (#83)
 
 The simulation posts messages into its five readouts; it also calls an optional
