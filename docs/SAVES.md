@@ -33,7 +33,9 @@ never part of the company or the simulation:
 - the window scale, from 0.6 to 1.5;
 - the window position: its top-left corner in UIParent units, so a change of scale
   leaves it where it was;
-- whether the first-use help was seen.
+- whether the first-use help was seen;
+- the minimap button (#78): shown or hidden, and its angle on the minimap's edge
+  (degrees, 0 to under 360).
 
 `UI/Settings.lua` checks each value on load. A damaged or unknown one falls back to
 its default and never blocks the save. Settings are written even before any company
