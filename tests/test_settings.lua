@@ -39,11 +39,15 @@ local snapshot = h.digest(game.S)
 local draws = Host.random.count
 env.SlashCmdList.TIMEISMONEY("settings")
 local p = Window.settings
-assert(p:IsShown() and p.model.label.text == "Director: animated model" and p.voice.label.text == "Director's greeting: on")
-p.model.scripts.OnClick(p.model)
-assert(not Settings.values.model and p.model.label.text == "Director: portrait" and ns.Director.state == "portrait")
+-- The portrait selector lights the current choice; the greeting is a checkbox.
+assert(p:IsShown() and p.modelOn.label.text == "Animated" and p.modelOff.label.text == "Portrait")
+assert(p.voice.check.shown and p.voiceLabel.text == "Play Gazlowe's greeting")
+p.modelOff.scripts.OnClick(p.modelOff)
+assert(not Settings.values.model and ns.Director.state == "portrait")
+p.modelOff.scripts.OnClick(p.modelOff)
+assert(not Settings.values.model, "choosing the current option keeps it")
 p.voice.scripts.OnClick(p.voice)
-assert(not Settings.values.voice)
+assert(not Settings.values.voice and not p.voice.check.shown, "the checkbox clears")
 local played = #captured.sounds
 Window.Toggle()
 Window.Toggle()
@@ -90,7 +94,7 @@ assert(captured.raised == Window.help, "help in front of the settings")
 Window.help:Hide()
 -- /tim model refreshes an open settings panel.
 env.SlashCmdList.TIMEISMONEY("model")
-assert(p.model.label.text == "Director: animated model" and Settings.values.model)
+assert(Settings.values.model)
 
 -- Logout writes the settings with the company; a reload reads them back.
 local db = Host.persist()

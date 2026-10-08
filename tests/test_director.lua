@@ -77,7 +77,7 @@ end
 captured.modelBox = { -0.4, -0.5, -0.9, 0.4, 0.5, 0.9 } -- a pose's box: 1.8 high
 env.SlashCmdList.TIMEISMONEY("start")
 local game = ns.Host.game
-assert(h.shownText("DIRECTOR") and h.shownText("Time is money, friend!"))
+assert(h.shownText("Gazlowe") and h.shownText("Director") and h.shownText("Time is money, friend!"))
 assert(captured.actor.display == 7052 and captured.modelLoads == 1)
 assert(Director.state == "loading" and #captured.timers == 0, "no C_Timer: the window ticks the poll")
 tick()
@@ -149,7 +149,7 @@ assert(not ns3.Director.strip.scene.shown and ns3.Director.strip.portrait.shown)
 -- The takeover in a running window: the model goes, the company mark shows.
 game.S.humanFlag = 0
 Window.Refresh()
-assert(h.shownText("THE LEDGER") and h.shownText("Terms accepted."))
+assert(h.shownText("The Ledger") and not h.shownText("Gazlowe") and h.shownText("Terms accepted."))
 assert(Director.state == "none" and captured.actor.display == nil and not Director.strip.scene.shown)
 assert(Director.strip.portrait.texture == ns.Assets.IdentityIcon("clips"))
 -- With no line, the strip and its text hide together.

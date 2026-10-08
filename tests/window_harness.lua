@@ -15,7 +15,7 @@ local function Load(opts)
         end
     end
     local libGlass = os.getenv("LIBGLASS")
-    if libGlass == "none" then
+    if libGlass == "none" or (opts and opts.standIn) then
         libGlass = nil
     elseif not libGlass or libGlass == "" then
         libGlass = nil

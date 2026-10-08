@@ -21,10 +21,10 @@ ns.Locale.Register("enUS", {
 
     -- Settings.
     ["settings.title"] = "Settings",
-    ["settings.modelOn"] = "Director: animated model",
-    ["settings.modelOff"] = "Director: portrait",
-    ["settings.voiceOn"] = "Director's greeting: on",
-    ["settings.voiceOff"] = "Director's greeting: off",
+    ["settings.portrait"] = "Director portrait",
+    ["settings.portraitModel"] = "Animated",
+    ["settings.portraitFlat"] = "Portrait",
+    ["settings.greeting"] = "Play Gazlowe's greeting",
     ["settings.scale"] = "Window scale: {percent}%",
     ["settings.help"] = "Help",
     ["settings.newGame"] = "New game...",
@@ -45,6 +45,7 @@ ns.Locale.Register("enUS", {
 
     -- Speakers.
     ["speaker.director"] = "Director",
+    ["speaker.directorName"] = "Gazlowe",
     ["speaker.ledger"] = "The Ledger",
     ["speaker.unlisted"] = "The Unlisted Director",
     -- The original game's credits, shown as written inside this line (attribution).
