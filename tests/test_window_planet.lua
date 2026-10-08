@@ -59,7 +59,9 @@ Window.Refresh()
 local scrap = assert(h.button("btnHarvesterReboot"))
 assert(not scrap.tip, "tooltips are built on hover, not on every redraw")
 scrap.scripts.OnEnter(scrap)
-assert(scrap.tip and scrap.tip[2]:find("^Disassemble All: %+"))
+local shown = env.GameTooltip.lines
+assert(shown and shown[2]:find("^Disassemble All: %+"), "the hover shows what it returns")
+scrap.scripts.OnLeave(scrap)
 
 -- Power figures as updatePower prints them.
 local power = View.power(S)
