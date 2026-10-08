@@ -32,6 +32,26 @@ local function setting(key) return ns.Settings.values[key] end
 -- (sound/creature/goblinmalegruffnpc/goblinmalegruffnpcgreeting01.ogg, file 550785;
 -- picked by ear by the owner, 2026-10-05, from the community listfile).
 Director.GREETING_SOUND = 550785
+-- Gazlowe's lines (#90; owner-supplied goblin NPC voice files, 2026-10-08; each to
+-- be confirmed in the client with /tim voice <id>, as 550785 was). Greetings rotate
+-- when the window opens; the deal lines answer a report now and then.
+Director.VOICE = {
+    greet = { 550785, 550786, 550773 }, -- "Time is money, friend!", "Ah! Potential customers.", "Yo!"
+    deal = { 550772, 550784, 550782 },  -- "I get the best deals anywhere.", "Do I have a deal for you!", "I got what you need."
+}
+-- The report cue (#90): a soft sound, Gazlowe's talk animation, the newest line
+-- fading in. At most one cue every CUE_COOLDOWN seconds; a deal line at most every
+-- DEAL_COOLDOWN, only while the window shows. The sound kit and the animation are
+-- unverified in the client until the owner picks them (/tim cue, /tim anim).
+Director.CUE_SOUNDKIT = 120     -- SOUNDKIT.LOOT_WINDOW_COIN_SOUND
+-- No talk animation until one is measured on Gazlowe in the client: docs/MODELS.md
+-- forbids guessing IDs from Retail lists. /tim anim <id> tries one; set it here then.
+Director.TALK_ANIM = nil
+Director.TALK_SECONDS = 2.5
+Director.CUE_COOLDOWN, Director.DEAL_COOLDOWN = 4, 60
+Director.FADE_SECONDS = 0.5
+Director.clock, Director.lastCue, Director.lastDeal = 0, -math.huge, -math.huge
+Director.greetIndex, Director.dealIndex = 0, 0
 Director.state, Director.token = "none", 0 -- none | loading | live | portrait
 
 -- Framing for a camera at distance d whose field of view spans the frame's larger
@@ -145,6 +165,18 @@ end
 -- POLL_STEP, at most POLLS times. Once it is in, frame the model from its measured
 -- height; with no box, the portrait for the session (until /tim model retries).
 function Director.Tick(elapsed)
+    Director.clock = Director.clock + elapsed
+    local strip = Director.strip
+    if Director.talkUntil and Director.clock >= Director.talkUntil then
+        Director.talkUntil = nil
+        if strip and Director.state == "live" then strip.scene.actor:SetAnimation(0) end -- idle
+    end
+    if Director.fadeIn and strip then
+        Director.fadeIn = Director.fadeIn + elapsed
+        local a = math.min(1, Director.fadeIn / Director.FADE_SECONDS)
+        strip.reports[1]:SetAlpha(a * Director.REPORT_ALPHA[1])
+        if a >= 1 then Director.fadeIn = nil end
+    end
     local poll = Director.poll
     if not poll or poll.token ~= Director.token then return end
     poll.elapsed = poll.elapsed + elapsed
@@ -255,7 +287,42 @@ end
 -- on the dialog channel (the player's dialog volume and mute apply).
 function Director.Greet(speaker)
     if speaker == ns.Dialogue.DIRECTOR and setting("voice") then
-        TimeIsMoney.API.PlaySoundFile(Director.GREETING_SOUND, "Dialog")
+        -- The greetings in turn: never the same line twice in a row.
+        local lines = Director.VOICE.greet
+        Director.greetIndex = Director.greetIndex % #lines + 1
+        TimeIsMoney.API.PlaySoundFile(lines[Director.greetIndex], "Dialog")
+    end
+end
+
+-- Gazlowe's talk animation, back to idle after TALK_SECONDS (live model only).
+function Director.Talk(anim)
+    local strip = Director.strip
+    anim = anim or Director.TALK_ANIM
+    if not strip or Director.state ~= "live" or not anim then return false end
+    strip.scene.actor:SetAnimation(anim)
+    Director.talkUntil = Director.clock + Director.TALK_SECONDS
+    return true
+end
+
+-- A new report while the window shows (#90): the newest line fades in; at most one
+-- cue per CUE_COOLDOWN, Gazlowe talks, and either a deal line (his voice, at most
+-- once per DEAL_COOLDOWN) or the soft report sound plays.
+function Director.Report(speaker)
+    local strip = Director.strip
+    if not strip then return end
+    strip.reports[1]:SetAlpha(0)
+    Director.fadeIn = 0
+    if Director.clock - Director.lastCue < Director.CUE_COOLDOWN then return end
+    Director.lastCue = Director.clock
+    local gazlowe = speaker == ns.Dialogue.DIRECTOR
+    if gazlowe then Director.Talk() end
+    if gazlowe and setting("voice") and Director.clock - Director.lastDeal >= Director.DEAL_COOLDOWN then
+        Director.lastDeal = Director.clock
+        local lines = Director.VOICE.deal
+        Director.dealIndex = Director.dealIndex % #lines + 1
+        TimeIsMoney.API.PlaySoundFile(lines[Director.dealIndex], "Dialog")
+    elseif setting("reportSound") then
+        TimeIsMoney.API.PlaySound(Director.CUE_SOUNDKIT)
     end
 end
 

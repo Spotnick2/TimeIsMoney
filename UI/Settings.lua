@@ -9,7 +9,7 @@ ns.Settings = Settings
 TimeIsMoney.Settings = Settings
 
 Settings.SCALE_MIN, Settings.SCALE_MAX, Settings.SCALE_STEP = 0.6, 1.5, 0.1
-Settings.DEFAULTS = { model = true, voice = true, scale = 1, helpSeen = false, point = nil,
+Settings.DEFAULTS = { model = true, voice = true, reportSound = true, scale = 1, helpSeen = false, point = nil,
     minimap = true, minimapAngle = 225 }
 -- minimap: the minimap button shows (#78); minimapAngle: its place on the edge,
 -- degrees counter-clockwise from east (225: lower left).
@@ -25,6 +25,7 @@ end
 local VALID = {
     model = function(v) return type(v) == "boolean" end,
     voice = function(v) return type(v) == "boolean" end,
+    reportSound = function(v) return type(v) == "boolean" end,
     helpSeen = function(v) return type(v) == "boolean" end,
     minimap = function(v) return type(v) == "boolean" end,
     minimapAngle = function(v) return finite(v) and v >= 0 and v < 360 end,
@@ -54,7 +55,7 @@ end
 -- logout (Host.settings is this function).
 function Settings.Data()
     local v = Settings.values
-    return { model = v.model, voice = v.voice, scale = v.scale, helpSeen = v.helpSeen, point = Settings.copyPoint(v.point),
+    return { model = v.model, voice = v.voice, reportSound = v.reportSound, scale = v.scale, helpSeen = v.helpSeen, point = Settings.copyPoint(v.point),
         minimap = v.minimap, minimapAngle = v.minimapAngle }
 end
 ns.Host.settings = Settings.Data

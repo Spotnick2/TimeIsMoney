@@ -89,6 +89,62 @@ function Window.Tip()
     return Window.tooltip
 end
 
+-- Mouse areas (tooltips, hover) over the window still let it be dragged.
+local function Draggable(area)
+    area:RegisterForDrag("LeftButton")
+    area:SetScript("OnDragStart", function() Window.frame:StartMoving() end)
+    area:SetScript("OnDragStop", function() Window.frame:StopMovingOrSizing() end)
+end
+
+-- "New" tags (#90): a card, row or project that appears after the window's first
+-- draw is tagged "New" (not a glow: a glow reads as "click me") until it is hovered
+-- or has shown for NEW_SECONDS. A newly shown card tags only its title, not each of
+-- its rows. Presentation only, per session.
+Window.NEW_SECONDS = 30
+Window.clock = 0
+local function NewTag(parent)
+    local tag = Glass.Font(parent, 9, "LEFT")
+    tag:SetTextColor(0.35, 1, 0.35)
+    tag:SetText(ns.L["new.tag"])
+    return tag
+end
+-- Shows or hides thing.newTag, making and anchoring it once, when it first shows.
+-- hover (optional): a region with no hover of its own (a card title, a plain stat
+-- label); a mouse area over it, shown with the tag, clears the tag when hovered and
+-- still drags the window (#90 review).
+local function ShowNewTag(thing, tagged, parent, anchor, hover, areaParent)
+    if tagged and not thing.newTag then
+        thing.newTag = NewTag(parent)
+        anchor(thing.newTag)
+        if hover then
+            local area = CreateFrame("Frame", nil, areaParent)
+            area:SetPoint("TOPLEFT", hover, "TOPLEFT", -2, 2)
+            area:SetPoint("BOTTOMRIGHT", hover, "BOTTOMRIGHT", 2, -2)
+            area:EnableMouse(true)
+            Draggable(area)
+            area:SetScript("OnEnter", function()
+                thing.newUntil = nil
+                thing.newTag:Hide()
+                area:Hide()
+            end)
+            area.newTagArea = true -- tests tell it from the rows' own hover areas
+            thing.newArea = area
+        end
+    end
+    if thing.newTag then thing.newTag:SetShown(tagged) end
+    if thing.newArea then thing.newArea:SetShown(tagged) end
+end
+Window.seenProjects = {}
+-- Whether `thing` (a row, a card, a project button) shows its tag now, after its
+-- visibility this redraw; starts the tag when it first appears (once ready).
+local function NewState(thing, visible, allowed)
+    if visible and not thing.wasShown and Window.ready and allowed then thing.newUntil = Window.clock + Window.NEW_SECONDS end
+    if visible then thing.wasShown = true end
+    if thing.newUntil and Window.clock >= thing.newUntil then thing.newUntil = nil end
+    return visible and thing.newUntil ~= nil
+end
+Window.NewState = NewState
+
 -- ESC (#89): the client closes every shown frame named in UISpecialFrames before
 -- opening its menu. Our panels are always listed; the ledger only while no panel is
 -- open, so the first ESC closes the panels and the next the ledger. Entries are added
@@ -138,12 +194,6 @@ local function FromGame(fn)
     end
 end
 
--- Mouse areas (tooltips, hover) over the window still let it be dragged.
-local function Draggable(area)
-    area:RegisterForDrag("LeftButton")
-    area:SetScript("OnDragStart", function() Window.frame:StartMoving() end)
-    area:SetScript("OnDragStop", function() Window.frame:StopMovingOrSizing() end)
-end
 
 -- A glass button bound to a control id. Disabled exactly when the game disables
 -- that control; the label says so too (not colour alone).
@@ -169,6 +219,7 @@ local function NewButton(parent, id, height)
     end)
     b:SetScript("OnEnter", function(self)
         self.hovered = true
+        if self.newOf then self.newOf.newUntil = nil end -- seen: the "New" tag goes
         if self:IsEnabled() and not self.lit then Glass.SetSurfaceTint(self.glass, unpack(Window.HOVER_TINT)) end
         Window.liveTip = { owner = self, lines = function()
             -- Built afresh on every redraw from the button's own tip (fixed, or its
@@ -271,6 +322,7 @@ local function HoverArea(row, parent, live)
     row.tipArea:EnableMouse(true)
     Draggable(row.tipArea)
     row.tipArea:SetScript("OnEnter", function(area)
+        row.newUntil = nil -- seen: the "New" tag goes
         Window.liveTip = live(area)
         Window.UpdateLiveTip()
     end)
@@ -572,6 +624,9 @@ function Card:Update(game, panels)
     local y = -inset
     local titled = not self.titled or self.titled(panels)
     self.title:SetShown(titled)
+    -- A card shown on the previous redraw may tag its new rows; a new card tags
+    -- its title only.
+    local cardWasShown = self.shownLast
     if titled then
         self.title:ClearAllPoints()
         self.title:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, y)
@@ -590,6 +645,21 @@ function Card:Update(game, panels)
             for _, r in ipairs(row.strings or row.cells or row.buttons or {}) do row.regions[#row.regions + 1] = r end
         end
         for _, r in ipairs(row.regions) do r:SetShown(visible) end
+        -- The row's "New" tag: after its label, or on its button's corner.
+        -- Buttons (one, a +, or a bulk group) clear it on hover; a plain label gets a
+        -- hover area of its own.
+        if row.button then row.button.newOf = row end
+        if row.raise then row.raise.newOf = row end
+        for _, b in ipairs(row.buttons or {}) do b.newOf = row end
+        local plain = row.label and not row.button and not row.buttons and not row.tipArea and not row.raise
+        ShowNewTag(row, NewState(row, visible, cardWasShown), self.glass.top, function(tag)
+            local last = row.buttons and row.buttons[#row.buttons]
+            if row.button or last then
+                tag:SetPoint("TOPRIGHT", row.button or last, "TOPRIGHT", -6, -3)
+            elseif row.label then
+                tag:SetPoint("LEFT", row.label, "LEFT", row.label:GetStringWidth() + 6, 0)
+            end
+        end, plain and row.label or nil, self.content)
         if not visible and row.choices then
             row.open = false
             for _, choice in ipairs(row.choices) do choice:Hide() end
@@ -748,6 +818,12 @@ function Card:Update(game, panels)
     end
     self.frame:SetHeight(-y + inset)
     self.frame:SetShown(any)
+    -- The card's own tag, by its title.
+    local cardTagged = NewState(self, any, true) and titled
+    ShowNewTag(self, cardTagged, self.glass.top, function(tag)
+        tag:SetPoint("LEFT", self.title, "LEFT", self.title:GetStringWidth() + 8, 0)
+    end, self.title, self.content)
+    self.shownLast = any
     return any
 end
 
@@ -787,6 +863,18 @@ local function NewProjects(parent)
         self.title:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, -inset)
         local y = -inset - 18
         local shown = 0
+        -- New offers (any page) are tagged, once the card was already showing; a new
+        -- projects card tags its title only.
+        local seen = Window.seenProjects
+        for _, project in ipairs(list) do
+            seen[project.id] = seen[project.id] or {}
+            NewState(seen[project.id], true, self.shownLast)
+        end
+        local cardTagged = NewState(self, #list > 0, true)
+        ShowNewTag(self, cardTagged, self.glass.top, function(tag)
+            tag:SetPoint("LEFT", self.title, "LEFT", self.title:GetStringWidth() + 8, 0)
+        end, self.title, self.content)
+        self.shownLast = #list > 0
         for i = 1, math.min(perPage, #list - first) do
             local project = list[first + i]
             local b = self.buttons[i]
@@ -806,6 +894,12 @@ local function NewProjects(parent)
                 b.icon.value = icon
             end
             b.tip = { project.title, project.priceTag, project.purpose, project.capacity }
+            -- A newly offered project is "New" until hovered or for NEW_SECONDS.
+            local state = seen[project.id]
+            b.newOf = state
+            ShowNewTag(b, state.newUntil ~= nil, b.glass.top, function(tag)
+                tag:SetPoint("TOPRIGHT", b, "TOPRIGHT", -6, -3)
+            end)
             b:ClearAllPoints()
             b:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, y)
             b:SetWidth(Window.COLUMN - 2 * inset)
@@ -1176,6 +1270,7 @@ local function Build()
 
     f:SetScript("OnUpdate", function(_, elapsed)
         Window.elapsed = (Window.elapsed or 0) + elapsed
+        Window.clock = Window.clock + elapsed
         Window.battleElapsed = (Window.battleElapsed or 0) + elapsed
         ns.Director.Tick(elapsed) -- the Director's box poll, only while shown
         if Window.elapsed >= Window.REFRESH then
@@ -1262,10 +1357,21 @@ function Window.Refresh()
     Window.strip:ClearAllPoints()
     Window.strip:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
     local drawn = ns.Director.Update(speaker, line, width - 2 * inset, Window.LatestReports(ns.Director.REPORT_LINES))
+    -- A report since the last redraw (#90): the cue, once the window has drawn once.
+    -- Not on reopening (reports that came while hidden), nor on a new company.
+    local newest = ns.Host.reports[#ns.Host.reports]
+    if newest ~= Window.lastReport then
+        if Window.ready and Window.cueGame == game and newest and ns.Messages.Translate(newest.text) then
+            ns.Director.Report(speaker)
+        end
+        Window.lastReport = newest
+    end
+    Window.cueGame = game
     if speaker then stripHeight = drawn + Window.GAP end
     Window.UpdateLiveTip()
     local height = tallest + stripHeight + Window.MESSAGE + inset
     f:SetSize(width, height)
+    Window.ready = true -- what shows from now on can be "New"
     -- Whatever the content (open selects, many columns), the window fits the screen
     -- in both directions: it scales down when it would not. The player's scale
     -- (settings) applies within that.
@@ -1355,6 +1461,8 @@ function Window.Toggle()
     if Window.frame:IsShown() then
         Window.frame:Hide()
     else
+        -- Reports that came while hidden are not cued on opening (the greeting is).
+        Window.lastReport = ns.Host.reports[#ns.Host.reports]
         Window.frame:Show()
         Window.Refresh()
         local game = ns.Host.game
@@ -1660,7 +1768,7 @@ function Window.ToggleSettings()
     if not Window.frame then Build() end
     local p = Window.settings
     if not p then
-        p = Window.Panel("TimeIsMoneySettings", 320, 322)
+        p = Window.Panel("TimeIsMoneySettings", 320, 358)
         local function Changed() Window.FillSettings() Window.Refresh() end
         -- The Director's portrait: two choices, the current one lit.
         p.portraitLabel = Line(p, 11, -50)
@@ -1699,23 +1807,27 @@ function Window.ToggleSettings()
             return box, label
         end
         p.voice, p.voiceLabel = Checkbox(-78, function() ns.Settings.Set("voice", not ns.Settings.values.voice) end)
+        -- The soft sound for a new report (#90).
+        p.reportSound, p.reportSoundLabel = Checkbox(-114, function()
+            ns.Settings.Set("reportSound", not ns.Settings.values.reportSound)
+        end)
         -- The minimap button (#78).
-        p.minimap, p.minimapLabel = Checkbox(-114, function() ns.MinimapButton.Toggle() end)
-        p.scaleLabel = Line(p, 11, -164)
+        p.minimap, p.minimapLabel = Checkbox(-150, function() ns.MinimapButton.Toggle() end)
+        p.scaleLabel = Line(p, 11, -200)
         p.smaller = NewButton(p.content, nil, Window.SQUARE)
         p.smaller:SetWidth(Window.SQUARE)
-        p.smaller:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18 - Window.SQUARE - 4, -156)
+        p.smaller:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18 - Window.SQUARE - 4, -192)
         p.smaller.label:SetText("-")
         p.smaller:SetScript("OnClick", function() ns.Settings.StepScale(-1) Window.FillSettings() Window.Refresh() end)
         p.larger = NewButton(p.content, nil, Window.SQUARE)
         p.larger:SetWidth(Window.SQUARE)
-        p.larger:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18, -156)
+        p.larger:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18, -192)
         p.larger.label:SetText("+")
         p.larger:SetScript("OnClick", function() ns.Settings.StepScale(1) Window.FillSettings() Window.Refresh() end)
         -- Pause or resume the company (#77).
         p.pause = NewButton(p.content, nil)
         p.pause:SetSize(284, Window.BUTTON)
-        p.pause:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -202)
+        p.pause:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -238)
         p.pause:SetScript("OnClick", function()
             local ok, err = ns.Host.setPaused(not ns.Host.paused)
             if not ok then Report("pause refused: " .. err) end
@@ -1723,13 +1835,13 @@ function Window.ToggleSettings()
         end)
         p.helpButton = NewButton(p.content, nil)
         p.helpButton:SetSize(138, Window.BUTTON)
-        p.helpButton:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -238)
+        p.helpButton:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -274)
         p.helpButton:SetScript("OnClick", function() Window.ShowHelp() end)
         p.newGame = NewButton(p.content, nil)
         p.newGame:SetSize(138, Window.BUTTON)
-        p.newGame:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18, -238)
+        p.newGame:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18, -274)
         -- While saving is off, changes here are not kept: say so.
-        p.notice = Line(p, 10, -276, { 1, 0.5, 0.3 })
+        p.notice = Line(p, 10, -312, { 1, 0.5, 0.3 })
         p.newGame:SetScript("OnClick", function()
             if ns.Host.blocked then
                 Report("not starting over: " .. ns.Host.blocked .. "; the saved data is kept untouched")
@@ -1760,6 +1872,8 @@ function Window.FillSettings()
     p.modelOn.check:SetShown(v.model)
     p.modelOff.check:SetShown(not v.model)
     p.voice.check:SetShown(v.voice)
+    p.reportSound.check:SetShown(v.reportSound)
+    p.reportSoundLabel:SetText(L["settings.reportSound"])
     p.voiceLabel:SetText(L["settings.greeting"])
     p.minimap.check:SetShown(v.minimap)
     p.minimapLabel:SetText(L["settings.minimap"])

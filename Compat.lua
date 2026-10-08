@@ -21,6 +21,8 @@ function TIM.API.GetSpellTexture(spellID) return (C_Spell.GetSpellTexture(spellI
 function TIM.API.GetTime() return GetTime() end
 -- A sound file by ID on a channel ("Dialog" follows the player's dialog volume).
 function TIM.API.PlaySoundFile(fileID, channel) return PlaySoundFile(fileID, channel) end
+-- A UI sound kit on the SFX channel (#90).
+function TIM.API.PlaySound(kit) return pcall(C_Sound.PlaySound, kit) end
 -- The player's faction ("Alliance", "Horde", or "Neutral"/nil before a choice).
 function TIM.API.PlayerFaction() return (UnitFactionGroup("player")) end
 
