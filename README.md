@@ -2,20 +2,35 @@
 
 > A goblin company teaches an enchanted ledger to make bolts. The ledger gets very good at its job.
 
+![Time Is Money: the ledger window, with Gazlowe as Director](docs/images/showcase.png)
+
 A single-player World of Warcraft: Forever addon mini-game based on Universal
 Paperclips, presented as goblin industrial satire in Liquid Glass. Preserve three
 phases, all 96 projects, recovery, prestige choices and terminal liquidation.
 Company funds and materials are entirely simulated.
 
-**Status: the whole game simulation runs in the client (developer commands); the
-ledger window, saves and presentation are in progress (M4).**
-Commands: /timeismoney, /tim, /tim help, /tim status, /tim start (developer; the company is saved at logout).
+**Status: 0.1.0, the first release ([changelog](CHANGELOG.md)).** The whole game
+runs in the ledger window, with saves, settings and the animated Director.
+
+## Playing
+
+1. Install the TimeIsMoney folder into the Forever client's Interface\AddOns folder
+   (from CurseForge, or the release archive) and restart the game.
+2. Type **/tim start** to found your company: the ledger and the help page open.
+   After that, **/tim** opens or closes the ledger.
+3. Progress is saved when you log out or /reload. A crash or forced close can lose
+   progress since the last save. Nothing is produced while you are offline.
+
+Commands: /tim start, /tim (open or close the ledger; the company keeps working while it is
+closed), /tim pause, /tim settings, /tim reports, /tim minimap, /tim help, /tim status.
+
+## Developing
 
 - [Implementation spec](docs/plan/Time-Is-Money-Implementation-Spec.md) and
   [creative brief](docs/plan/Time-Is-Money-Original-Plan.md); original concepts in [storyboards](docs/storyboard).
 - [Roadmap and issue catalog](docs/BACKLOG.md).
 - [Pure-Lua simulation](docs/reference/WORKSHOP.md), its [client host adapter](docs/HOST.md) and [saved games](docs/SAVES.md).
-- [Release acceptance matrix](docs/ACCEPTANCE.md) and [project traceability](docs/reference/PROJECTS.md).
+- [Releases](docs/RELEASE.md), the [release acceptance matrix](docs/ACCEPTANCE.md) and [project traceability](docs/reference/PROJECTS.md).
 - [Animated goblin Director](docs/MODELS.md), using AltStable's roster pet renderer.
 - [References and evidence](docs/REFERENCES.md).
 - [Agent instructions](CLAUDE.md), also reached through [AGENTS.md](AGENTS.md).
@@ -47,7 +62,7 @@ derived from the original game at
 [decisionproblem.com](https://www.decisionproblem.com/paperclips/). Please support
 the creator by playing or purchasing the official version.
 
-The addon's in-game help (planned) will link to the official versions. See
+The addon's in-game help credits the original and links to it. See
 [LICENSE](LICENSE) for the third-party notice: the MIT License covers this addon's
 original code, not the Universal Paperclips IP, narrative text or game logic, and
 not Blizzard's assets.

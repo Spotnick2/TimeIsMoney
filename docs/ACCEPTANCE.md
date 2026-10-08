@@ -1,7 +1,7 @@
 # Release acceptance (#24)
 
-The pass/fail matrix for the first beta. Every row names its evidence; a row
-passes only on the versions below. Rows marked **open** need the owner in the
+The pass/fail matrix for the first release (0.1.0, docs/RELEASE.md). Every row
+names its evidence; a row passes only on the versions below. Rows marked **open** need the owner in the
 client and are not claimed here.
 
 ## Versions
