@@ -16,7 +16,8 @@ local function New(saved, libGlass)
         debugprofilestop = function() captured.clock = (captured.clock or 0) + 0.01 return captured.clock end,
     }
     local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true, TimeIsMoneyConfirm = true, TimeIsMoneyHelp = true,
-        TimeIsMoneySettings = true, TimeIsMoneyMinimapButton = true, TimeIsMoneyReports = true }
+        TimeIsMoneySettings = true, TimeIsMoneyMinimapButton = true, TimeIsMoneyReports = true,
+        GREEN_FONT_COLOR = true, NORMAL_FONT_COLOR = true }
     setmetatable(env, { __index = function(_, key)
         if allowedNil[key] then return nil end
         error("Unvalidated global: " .. tostring(key), 2)
@@ -141,6 +142,9 @@ local function New(saved, libGlass)
     env.C_Item = {
         GetItemIconByID = function(id) return captured.itemIcons[id] end,
         RequestLoadItemDataByID = function(id) captured.requested[#captured.requested + 1] = id end,
+        -- Item quality (#84): captured.qualities[id], nil while not loaded.
+        GetItemQualityByID = function(id) return captured.qualities and captured.qualities[id] end,
+        GetItemQualityColor = function(q) if q == 2 then return 0.12, 1, 0 end return 1, 1, 1 end,
     }
     env.C_Spell = { GetSpellTexture = function(id) return 100000 + id end }
     -- C_Timer.After: callbacks queue until the test runs them (captured:RunTimers()).

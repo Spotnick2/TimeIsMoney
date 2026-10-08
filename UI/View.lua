@@ -442,7 +442,9 @@ local REASONS = {
     btnBuyWire = short("funds"), btnMakeClipper = short("funds"), btnMakeMegaClipper = short("funds"),
     btnExpandMarketing = short("funds"),
     btnLowerPrice = function() return "why.lowestPrice" end,
-    btnAddProc = function() return "why.trust" end, btnAddMem = function() return "why.trust" end,
+    -- The first phase allocates Board Trust; later phases spend breakthroughs.
+    btnAddProc = function(S) if S.humanFlag == 0 then return "why.short", "swarmGifts" end return "why.trust" end,
+    btnAddMem = function(S) if S.humanFlag == 0 then return "why.short", "swarmGifts" end return "why.trust" end,
     btnNewTournament = function(S)
         if S.tourneyInProg ~= 0 then return "why.tournamentRunning" end
         return "why.short", "operations"
@@ -487,6 +489,114 @@ function View.unavailable(id, S)
         return nil
     end
     return ns.Locale.Format(key, { term = term and View.TERMS[term] or "" })
+end
+
+-- Item tooltips (#84): what each item does, WoW style, with live numbers read from
+-- the simulation's current values. Every rate follows the formula the simulation
+-- runs every 10 ms tick (x100 per second): Gizmos clipClick(clipperBoost *
+-- level / 100), Widgets clipClick(megaClipperBoost * level * 5), Modulators
+-- opCycle = processors / 10; harvesters and converters report the last tick's
+-- actual amounts (matterRate, wireRate). Pure: the window renders it.
+local L = function(key, values) return ns.Locale.Format(key, values or {}) end
+-- A line in the plural form for count (key.one / key.other), placeholders filled.
+local function P(key, count, values)
+    return (ns.Locale.Plural(key, count):gsub("{(%w+)}", function(name)
+        local v = values[name]
+        return v ~= nil and tostring(v) or ("{" .. name .. "}")
+    end))
+end
+-- A rate with up to two decimals ("1.25", "500", "1,234.5"), in the locale's number
+-- form; huge values fall back to whole counts.
+function View.rate(x)
+    if isNaN(x) or x == math.huge or x == -math.huge or math.abs(x) >= 1e15 then return View.count(x, "round") end
+    local cents = math.floor(math.abs(x) * 100 + 0.5)
+    local whole, frac = math.floor(cents / 100), cents % 100
+    local text = View.count(whole)
+    if frac > 0 then text = text .. (string.format(".%02d", frac):gsub("0$", "")) end
+    if x < 0 and cents > 0 then text = "-" .. text end
+    return ns.Locale.Number(text)
+end
+-- A price as the buttons show it, with the exact amount when coins round it.
+local function price(lines, x)
+    lines[#lines + 1] = L("item.next", { cost = View.money(x) })
+    local exact = View.exactMoney(x)
+    if exact then lines[#lines + 1] = exact end
+end
+local function makes(S, level, each)
+    local lines = { P("item.makes.each", each, { n = View.rate(each) }),
+        P("item.makes.total", each * level, { count = View.count(level), n = View.rate(each * level) }),
+        L("item.whileBars") }
+    return lines
+end
+local ITEM_TIPS = {
+    clips = function(S)
+        local made = math.ceil(S.clips)
+        local lines = { P("item.clips.made", made, { n = View.count(S.clips, "ceil") }) }
+        if S.humanFlag == 1 then lines[2] = L("item.clips.unsold", { n = View.count(S.unsoldClips) }) end
+        return lines
+    end,
+    wire = function(S)
+        -- The item row shows in the first phase only (manufacturing = humanFlag).
+        local lines = { L("item.wire.each"), P("item.wire.stock", math.floor(S.wire), { n = View.count(S.wire) }) }
+        lines[3] = P("item.wire.shipment", S.wireSupply, { n = View.count(S.wireSupply), cost = View.money(S.wireCost) })
+        local exact = View.exactMoney(S.wireCost)
+        if exact then lines[4] = exact end
+        return lines
+    end,
+    autoClippers = function(S)
+        local lines = makes(S, S.clipmakerLevel, S.clipperBoost)
+        price(lines, S.clipperCost)
+        return lines
+    end,
+    megaClippers = function(S)
+        local lines = makes(S, S.megaClipperLevel, S.megaClipperBoost * 500)
+        price(lines, S.megaClipperCost)
+        return lines
+    end,
+    processors = function(S)
+        return { L("item.processors.each"),
+            L("item.processors.total", { count = View.count(S.processors), n = View.rate(S.processors * 10) }),
+            L("item.processors.creativity") }
+    end,
+    memory = function(S)
+        return { L("item.memory.each"), L("item.memory.total", { n = View.count(S.memory * 1000) }) }
+    end,
+    harvesters = function(S, game)
+        return { L("item.harvesters.now", { n = View.spell((game.matterRate or 0) * 100) }),
+            L("item.working", { count = View.spell(S.harvesterLevel) }) }
+    end,
+    wireDrones = function(S, game)
+        return { L("item.wireDrones.now", { n = View.spell((game.wireRate or 0) * 100) }),
+            L("item.working", { count = View.spell(S.wireDroneLevel) }) }
+    end,
+    farms = function(S)
+        return { L("item.farms.each", { n = View.count(S.farmRate) }),
+            L("item.farms.total", { count = View.count(S.farmLevel), n = View.count(S.farmLevel * S.farmRate, "round") }) }
+    end,
+    batteries = function(S)
+        return { L("item.batteries.each", { n = View.count(S.batterySize) }),
+            L("item.batteries.total", { stored = View.count(S.storedPower, "round"), n = View.count(S.batteryLevel * S.batterySize) }) }
+    end,
+}
+View.ITEM_KEYS = { "clips", "wire", "autoClippers", "megaClippers", "processors", "memory", "harvesters",
+    "wireDrones", "farms", "batteries" }
+-- The short, always visible line under an item's row.
+function View.itemRole(key)
+    if not ITEM_TIPS[key] then return nil end
+    return L("item." .. key .. ".role")
+end
+-- { title, category, lines, use, flavor } for an item key, or nil.
+function View.itemTip(key, game)
+    local fn = ITEM_TIPS[key]
+    if not fn then return nil end
+    -- + on Modulators and Punch Cards assigns Board Trust in the first phase and
+    -- spends a Network Breakthrough after it (addProc / addMem, humanFlag == 0).
+    local use = L("item." .. key .. ".use")
+    if (key == "processors" or key == "memory") and game.S.humanFlag == 0 then
+        use = L("item.allocate.network", { term = View.TERMS.swarmGifts })
+    end
+    return { title = View.TERMS[key], category = L("item." .. key .. ".category"), lines = fn(game.S, game),
+        use = use, flavor = L("item.quoted", { text = L("item." .. key .. ".flavor") }) }
 end
 
 -- The Company Network's status text (swarmStatus); 7 hides the status line.
