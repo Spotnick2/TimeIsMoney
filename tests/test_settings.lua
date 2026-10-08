@@ -30,7 +30,16 @@ local headings = {}
 for i, section in ipairs(Window.help.sections) do headings[i] = section.heading.text end
 assert(table.concat(headings, "|") == "Getting started|Controls|Saving progress")
 local controls = Window.help.sections[2].lines
-assert(#controls >= 5 and controls[1].text:find("^/tim ") and controls[2].text:find("^/tim pause"))
+assert(#controls == #Window.HELP_SECTIONS[2].lines and #controls == 7)
+for i, fs in ipairs(controls) do
+    assert(fs.text:find("^/tim") and fs.text ~= Window.HELP_SECTIONS[2].lines[i], "a translated command line")
+end
+-- /tim help prints the same lines in chat.
+local before = #captured.messages
+env.SlashCmdList.TIMEISMONEY("help")
+local printed = {}
+for i = before + 1, #captured.messages do printed[#printed + 1] = captured.messages[i] end
+assert(table.concat(printed, "\n"):find(controls[3].text, 1, true), "chat and panel share the lines")
 -- Each line sits below the previous one.
 local last = 0
 for _, section in ipairs(Window.help.sections) do

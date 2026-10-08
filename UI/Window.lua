@@ -110,7 +110,8 @@ local function NewButton(parent, id, height)
             -- Unavailable: say what is missing (#73), under the tooltip or alone.
             local game = ns.Host.game
             local why = not self:IsEnabled() and game and
-                ((ns.Host.paused and (self.id or self.company) and ns.L["why.paused"]) or View.unavailable(self.id, game.S))
+                ((ns.Host.paused and (self.id or self.company) and ns.L["why.paused"]) or View.unavailable(self.id, game.S)
+                    or (self.why and ns.L[self.why]))
             if not why then return self.tip end
             local lines = {}
             for i, line in ipairs(self.tip or { self.text or "" }) do lines[i] = line end
@@ -135,16 +136,13 @@ local function SetButton(b, text, enabled, short)
     if paused then enabled = false end
     b:SetEnabled(enabled)
     b.text = text
-    if short then
-        b.label:SetText(text)
-    elseif paused then
-        b.label:SetText(text .. " " .. ns.L["window.pausedTag"])
-    else
-        -- Unaffordable is not locked: the label and cost stay as they are; the
-        -- dimmed surface and the muted label show it, the tooltip says why (#80).
-        b.label:SetText(text)
-    end
+    -- Unaffordable is not locked: the label and cost stay as they are (#80). The
+    -- control dims (glass, label and icon lose brightness and opacity) and its
+    -- tooltip says why. Only the pause, a different reason, is named on the label
+    -- (not on the squares, which have no room).
+    b.label:SetText((paused and not short) and (text .. " " .. ns.L["window.pausedTag"]) or text)
     if enabled then b.label:SetTextColor(1, 1, 1) else b.label:SetTextColor(MUTED[1], MUTED[2], MUTED[3]) end
+    b.label:SetAlpha(enabled and 1 or 0.6)
     -- The glass dims too (LibGlass r3), with any icon on it (content on g.top is
     -- ours to dim), and the primary action carries the accent only while it can be
     -- used. Only on a change: the window redraws ten times a second.
@@ -361,6 +359,8 @@ function Card:Range(id, label, max, show)
     end
     row.lower10, row.lower = square(-10, "<<"), square(-1, "<")
     row.raise, row.raise10 = square(1, ">"), square(10, ">>")
+    -- Reasons for the tooltip when a step cannot move further (#80).
+    row.lower10.why, row.lower.why, row.raise.why, row.raise10.why = "why.rangeLow", "why.rangeLow", "why.rangeHigh", "why.rangeHigh"
     self.rows[#self.rows + 1] = row
     return row
 end
@@ -691,6 +691,7 @@ local function NewProjects(parent)
             self.pageText:ClearAllPoints()
             self.pageText:SetPoint("TOP", self.content, "TOPLEFT", Window.COLUMN / 2, y - 6)
             self.pageText:SetText(self.page .. " / " .. pages .. " (" .. #list .. " offers)")
+            self.prev.why, self.next.why = "why.firstPage", "why.lastPage"
             SetButton(self.prev, "Prev", self.page > 1)
             SetButton(self.next, "Next", self.page < pages)
             y = y - Window.BUTTON - 4
@@ -730,7 +731,7 @@ local function Build()
     -- A little darker than the bare material (#80), so a model or a nameplate behind
     -- competes less; the panels stay darker still.
     Glass.SetSurfaceTint(g, unpack(Window.MAIN_TINT))
-    Window.frameGlass = g
+    f.glass = g
     local content = CreateFrame("Frame", nil, f)
     content:SetAllPoints(f)
     content:SetFrameLevel(Glass.ContentLevel(f))
@@ -1371,7 +1372,8 @@ end
 Window.HELP_SECTIONS = {
     { title = "help.startTitle", lines = { "help.play", "help.projects", "help.reports" } },
     { title = "help.controlsTitle", compact = true,
-        lines = { "help.cmdLedger", "help.cmdPause", "help.cmdSettings", "help.cmdMinimap", "help.cmdHelp", "help.cmdStatus" } },
+        lines = { "help.cmdLedger", "help.cmdPause", "help.cmdSettings", "help.cmdMinimap", "help.cmdHelp", "help.cmdStatus",
+            "help.cmdStart" } },
     { title = "help.persistenceTitle", lines = { "help.persistence" } },
 }
 function Window.ShowHelp()
@@ -1382,7 +1384,9 @@ function Window.ShowHelp()
         p.sections = {}
         for i, section in ipairs(Window.HELP_SECTIONS) do
             local s = { heading = Line(p, 12, 0, COPPER), lines = {} }
-            for j in ipairs(section.lines) do s.lines[j] = Line(p, 11, 0, section.compact and nil or MUTED) end
+            -- Paragraphs muted; the controls list in full white.
+            local color = (not section.compact) and MUTED or nil
+            for j in ipairs(section.lines) do s.lines[j] = Line(p, 11, 0, color) end
             p.sections[i] = s
         end
         Window.help = p

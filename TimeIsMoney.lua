@@ -1,6 +1,6 @@
 -- Entry point: load, saves, status, help, the ledger window and the developer
 -- commands that drive the simulation directly.
-local ADDON = ...
+local ADDON, ns = ...
 TimeIsMoney = TimeIsMoney or {}
 local TIM = TimeIsMoney
 
@@ -41,7 +41,10 @@ local function Slash(message)
     local Host = TIM.Host
     if command == "help" then
         TIM.Window.ShowHelp()
-        Print("/tim - open or close the ledger. /tim pause - pause or resume the company. /tim minimap - show or hide the minimap button. /tim settings - settings and a new game. /tim help - this help. /tim status - runtime and company. /tim start - a new company when there is none.")
+        -- The same command lines as the Help panel's Controls section.
+        for _, section in ipairs(TIM.Window.HELP_SECTIONS) do
+            if section.compact then for _, key in ipairs(section.lines) do Print(ns.L[key]) end end
+        end
         Print("Developer: /tim click <control> (e.g. btnMakePaperclip), /tim set <control> <value>, /tim icons, /tim model, /tim newgame.")
     elseif command == "" then
         if Host.game then
