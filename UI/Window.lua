@@ -98,9 +98,18 @@ Window.clock = 0
 local function NewTag(parent)
     local tag = Glass.Font(parent, 9, "LEFT")
     tag:SetTextColor(0.35, 1, 0.35)
-    tag:Hide()
+    tag:SetText(ns.L["new.tag"])
     return tag
 end
+-- Shows or hides thing.newTag, making and anchoring it once, when it first shows.
+local function ShowNewTag(thing, tagged, parent, anchor)
+    if tagged and not thing.newTag then
+        thing.newTag = NewTag(parent)
+        anchor(thing.newTag)
+    end
+    if thing.newTag then thing.newTag:SetShown(tagged) end
+end
+Window.seenProjects = {}
 -- Whether `thing` (a row, a card, a project button) shows its tag now, after its
 -- visibility this redraw; starts the tag when it first appears (once ready).
 local function NewState(thing, visible, allowed)
@@ -598,7 +607,7 @@ function Card:Update(game, panels)
     self.title:SetShown(titled)
     -- A card shown on the previous redraw may tag its new rows; a new card tags
     -- its title only.
-    local cardWasShown = self.wasShown
+    local cardWasShown = self.shownLast
     if titled then
         self.title:ClearAllPoints()
         self.title:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, y)
@@ -618,20 +627,15 @@ function Card:Update(game, panels)
         end
         for _, r in ipairs(row.regions) do r:SetShown(visible) end
         -- The row's "New" tag: after its label, or on its button's corner.
-        row.newTag = row.newTag or NewTag(self.glass.top)
         if row.button then row.button.newOf = row end
         if row.raise then row.raise.newOf = row end
-        local tagged = NewState(row, visible, cardWasShown)
-        row.newTag:SetShown(tagged)
-        if tagged then
-            row.newTag:SetText(ns.L["new.tag"])
-            row.newTag:ClearAllPoints()
+        ShowNewTag(row, NewState(row, visible, cardWasShown), self.glass.top, function(tag)
             if row.button then
-                row.newTag:SetPoint("TOPRIGHT", row.button, "TOPRIGHT", -6, -3)
+                tag:SetPoint("TOPRIGHT", row.button, "TOPRIGHT", -6, -3)
             elseif row.label then
-                row.newTag:SetPoint("LEFT", row.label, "LEFT", row.label:GetStringWidth() + 6, 0)
+                tag:SetPoint("LEFT", row.label, "LEFT", row.label:GetStringWidth() + 6, 0)
             end
-        end
+        end)
         if not visible and row.choices then
             row.open = false
             for _, choice in ipairs(row.choices) do choice:Hide() end
@@ -791,14 +795,11 @@ function Card:Update(game, panels)
     self.frame:SetHeight(-y + inset)
     self.frame:SetShown(any)
     -- The card's own tag, by its title.
-    self.newTag = self.newTag or NewTag(self.glass.top)
-    local cardTagged = NewState(self, any, true)
-    self.newTag:SetShown(cardTagged and titled)
-    if cardTagged and titled then
-        self.newTag:SetText(ns.L["new.tag"])
-        self.newTag:ClearAllPoints()
-        self.newTag:SetPoint("LEFT", self.title, "LEFT", self.title:GetStringWidth() + 8, 0)
-    end
+    local cardTagged = NewState(self, any, true) and titled
+    ShowNewTag(self, cardTagged, self.glass.top, function(tag)
+        tag:SetPoint("LEFT", self.title, "LEFT", self.title:GetStringWidth() + 8, 0)
+    end)
+    self.shownLast = any
     return any
 end
 
@@ -838,6 +839,18 @@ local function NewProjects(parent)
         self.title:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, -inset)
         local y = -inset - 18
         local shown = 0
+        -- New offers (any page) are tagged, once the card was already showing; a new
+        -- projects card tags its title only.
+        local seen = Window.seenProjects
+        for _, project in ipairs(list) do
+            seen[project.id] = seen[project.id] or {}
+            NewState(seen[project.id], true, self.shownLast)
+        end
+        local cardTagged = NewState(self, #list > 0, true)
+        ShowNewTag(self, cardTagged, self.glass.top, function(tag)
+            tag:SetPoint("LEFT", self.title, "LEFT", self.title:GetStringWidth() + 8, 0)
+        end)
+        self.shownLast = #list > 0
         for i = 1, math.min(perPage, #list - first) do
             local project = list[first + i]
             local b = self.buttons[i]
@@ -858,18 +871,11 @@ local function NewProjects(parent)
             end
             b.tip = { project.title, project.priceTag, project.purpose, project.capacity }
             -- A newly offered project is "New" until hovered or for NEW_SECONDS.
-            local seen = Window.seenProjects or {}
-            Window.seenProjects = seen
-            seen[project.id] = seen[project.id] or {}
-            b.newOf = seen[project.id]
-            b.newTag = b.newTag or NewTag(b.glass.top)
-            local tagged = NewState(seen[project.id], true, true)
-            b.newTag:SetShown(tagged)
-            if tagged then
-                b.newTag:SetText(ns.L["new.tag"])
-                b.newTag:ClearAllPoints()
-                b.newTag:SetPoint("TOPRIGHT", b, "TOPRIGHT", -6, -3)
-            end
+            local state = seen[project.id]
+            b.newOf = state
+            ShowNewTag(b, state.newUntil ~= nil, b.glass.top, function(tag)
+                tag:SetPoint("TOPRIGHT", b, "TOPRIGHT", -6, -3)
+            end)
             b:ClearAllPoints()
             b:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, y)
             b:SetWidth(Window.COLUMN - 2 * inset)
@@ -1328,11 +1334,15 @@ function Window.Refresh()
     Window.strip:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
     local drawn = ns.Director.Update(speaker, line, width - 2 * inset, Window.LatestReports(ns.Director.REPORT_LINES))
     -- A report since the last redraw (#90): the cue, once the window has drawn once.
+    -- Not on reopening (reports that came while hidden), nor on a new company.
     local newest = ns.Host.reports[#ns.Host.reports]
     if newest ~= Window.lastReport then
-        if Window.lastReport ~= nil or Window.ready then ns.Director.Report(speaker) end
+        if Window.ready and Window.cueGame == game and newest and ns.Messages.Translate(newest.text) then
+            ns.Director.Report(speaker)
+        end
         Window.lastReport = newest
     end
+    Window.cueGame = game
     if speaker then stripHeight = drawn + Window.GAP end
     Window.UpdateLiveTip()
     local height = tallest + stripHeight + Window.MESSAGE + inset
@@ -1427,6 +1437,8 @@ function Window.Toggle()
     if Window.frame:IsShown() then
         Window.frame:Hide()
     else
+        -- Reports that came while hidden are not cued on opening (the greeting is).
+        Window.lastReport = ns.Host.reports[#ns.Host.reports]
         Window.frame:Show()
         Window.Refresh()
         local game = ns.Host.game

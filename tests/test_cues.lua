@@ -31,10 +31,18 @@ assert(seen[550785] and seen[550786] and seen[550773], "all three greetings")
 -- A new report: the newest line fades in, Gazlowe talks, and the first answer is a
 -- deal line (his voice, at most once a minute).
 local game = Host.game
+-- No talk animation until one is measured (docs/MODELS.md): idle stays.
+assert(Director.TALK_ANIM == nil)
+game:displayMessage("Processor added, operations per sec increased")
+wait(0.1)
+assert(captured.actor.animation == nil, "no guessed animation")
+wait(Director.DEAL_COOLDOWN + Director.CUE_COOLDOWN)
+-- Once measured (the owner picks it with /tim anim), Gazlowe talks.
+Director.TALK_ANIM = 60
 local before = #captured.sounds
 game:displayMessage("AutoClippers available for purchase")
 wait(0.1)
-assert(captured.actor.animation == Director.TALK_ANIM, "Gazlowe talks")
+assert(captured.actor.animation == 60, "Gazlowe talks")
 assert(#captured.sounds == before + 1 and captured.sounds[#captured.sounds][2] == "Dialog", "a deal line")
 local deal = captured.sounds[#captured.sounds][1]
 assert(deal == 550772 or deal == 550784 or deal == 550782)
@@ -96,6 +104,62 @@ wait(0.1)
 local tags = 0
 for _, fs in ipairs(captured.fontStrings) do if fs.text == "New" and h.visible(fs) then tags = tags + 1 end end
 assert(tags >= 1 and tags <= 2, "the new card's title (and nothing per row): " .. tags)
+
+-- No cue for reports that came while the window was hidden (the greeting plays).
+wait(Director.DEAL_COOLDOWN)
+Window.frame:Hide()
+game:displayMessage("AutoClippers available for purchase")
+local soundsBefore, kitsBefore = #captured.sounds, #captured.soundKits
+Window.Toggle()
+wait(0.1)
+assert(#captured.sounds == soundsBefore + 1 and #captured.soundKits == kitsBefore, "the greeting only")
+-- No cue on a new company.
+wait(Director.CUE_COOLDOWN)
+soundsBefore, kitsBefore = #captured.sounds, #captured.soundKits
+Window.NewGame()
+Window.dialog.yes.scripts.OnClick(Window.dialog.yes)
+wait(0.1)
+assert(#captured.soundKits == kitsBefore and #captured.sounds == soundsBefore, "a new company is no report")
+game = Host.game
+-- No cue for a message the strip does not show.
+wait(Director.CUE_COOLDOWN)
+kitsBefore = #captured.soundKits
+game:displayMessage("Some unmapped reference text")
+wait(0.1)
+assert(#captured.soundKits == kitsBefore, "no cue for an unshown report")
+-- Whoever speaks, the report sound plays (Gazlowe's lines only when he speaks).
+local current = ns.Dialogue.Current
+ns.Dialogue.Current = function() return ns.Dialogue.LEDGER, "beat.welcome" end
+wait(Director.CUE_COOLDOWN)
+kitsBefore, soundsBefore = #captured.soundKits, #captured.sounds
+game:displayMessage("AutoClippers available for purchase")
+wait(0.1)
+assert(#captured.soundKits == kitsBefore + 1 and #captured.sounds == soundsBefore, "the sound, not his voice")
+ns.Dialogue.Current = current
+
+-- Projects: paging never makes old offers "New"; a new projects card tags its title only.
+local function visibleTags()
+    local n = 0
+    for _, fs in ipairs(captured.fontStrings) do if fs.text == "New" and h.visible(fs) then n = n + 1 end end
+    return n
+end
+wait(Window.NEW_SECONDS)
+assert(visibleTags() == 0)
+for _, e in ipairs(ns.Workshop.projects) do
+    if #game.S.activeProjects >= 30 then break end
+    game.S.activeProjects[#game.S.activeProjects + 1] = { id = e.id }
+    game.projectElements[e.id] = true
+end
+game.S.projectsFlag = 1
+wait(0.1)
+assert(visibleTags() <= 1, "the new projects card: its title only, not every project")
+wait(Window.NEW_SECONDS)
+local card
+for _, w in ipairs(captured.widgets) do if w.label and w.label.text == "Next" and h.visible(w) then card = w end end
+assert(card, "the offers span pages")
+card.scripts.OnClick(card)
+wait(0.1)
+assert(visibleTags() == 0, "the next page's offers were already seen")
 
 -- Developer commands to pick the IDs in game.
 env.SlashCmdList.TIMEISMONEY("anim 64")

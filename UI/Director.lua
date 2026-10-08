@@ -44,7 +44,9 @@ Director.VOICE = {
 -- DEAL_COOLDOWN, only while the window shows. The sound kit and the animation are
 -- unverified in the client until the owner picks them (/tim cue, /tim anim).
 Director.CUE_SOUNDKIT = 120     -- SOUNDKIT.LOOT_WINDOW_COIN_SOUND
-Director.TALK_ANIM = 60         -- AnimationData Talk
+-- No talk animation until one is measured on Gazlowe in the client: docs/MODELS.md
+-- forbids guessing IDs from Retail lists. /tim anim <id> tries one; set it here then.
+Director.TALK_ANIM = nil
 Director.TALK_SECONDS = 2.5
 Director.CUE_COOLDOWN, Director.DEAL_COOLDOWN = 4, 60
 Director.FADE_SECONDS = 0.5
@@ -295,8 +297,9 @@ end
 -- Gazlowe's talk animation, back to idle after TALK_SECONDS (live model only).
 function Director.Talk(anim)
     local strip = Director.strip
-    if not strip or Director.state ~= "live" then return false end
-    strip.scene.actor:SetAnimation(anim or Director.TALK_ANIM)
+    anim = anim or Director.TALK_ANIM
+    if not strip or Director.state ~= "live" or not anim then return false end
+    strip.scene.actor:SetAnimation(anim)
     Director.talkUntil = Director.clock + Director.TALK_SECONDS
     return true
 end
@@ -311,9 +314,9 @@ function Director.Report(speaker)
     Director.fadeIn = 0
     if Director.clock - Director.lastCue < Director.CUE_COOLDOWN then return end
     Director.lastCue = Director.clock
-    if speaker ~= ns.Dialogue.DIRECTOR then return end
-    Director.Talk()
-    if setting("voice") and Director.clock - Director.lastDeal >= Director.DEAL_COOLDOWN then
+    local gazlowe = speaker == ns.Dialogue.DIRECTOR
+    if gazlowe then Director.Talk() end
+    if gazlowe and setting("voice") and Director.clock - Director.lastDeal >= Director.DEAL_COOLDOWN then
         Director.lastDeal = Director.clock
         local lines = Director.VOICE.deal
         Director.dealIndex = Director.dealIndex % #lines + 1
