@@ -34,15 +34,12 @@ other than 550785, and the taller scene and 2D portrait after #93 (docs/WINDOW.m
 
 ## CurseForge (owner)
 
-- The name **TimeIsMoney** is taken on CurseForge (curseforge.com/wow/addons/timeismoney,
-  a Retail gold tracker by Ryrin). The project needs another name and slug, for
-  example "Time Is Money (Forever)", slug `time-is-money-forever`.
-- The addon folder stays `TimeIsMoney`. That addon is Retail only and Retail and
-  Forever keep separate AddOns folders, so the two never share one. If the same
-  folder name is ever a problem, note that the client names the saved-variables
-  file after the folder: a rename is a save migration, not a packaging change.
-- Uploading needs the project ID (`## X-Curse-Project-ID:` in the TOC, or the
-  packager's `-p`) and a `CF_API_KEY` secret on a tag-triggered workflow. CI today is
-  read-only and never uploads. Check that CurseForge lists a Forever game version
-  for Interface 16001 before the first upload.
+- The project is set up by the owner: **Time Is Money**, slug `time-is-money`
+  (curseforge.com/wow/addons/time-is-money), unlisted until the owner lists it,
+  with the round Gazlowe logo. Publishing is the owner's.
+- `timeismoney`, without hyphens, is another project: a Retail gold tracker by Ryrin.
+  The folder `TimeIsMoney` stays: that addon is Retail only, and Retail and Forever
+  keep separate AddOns folders. The client names the saved-variables file after the
+  folder, so a rename would be a save migration, not a packaging change.
+- This repository's CI is read-only and never uploads.
 - The project page can use docs/images/showcase.png.
