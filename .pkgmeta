@@ -5,7 +5,7 @@ externals:
   # expects. Pinned to a tag; bumped only in a release made anyway.
   Libs/LibGlass-1.0:
     url: https://github.com/Spotnick2/LibGlass
-    tag: r3
+    tag: r4
 manual-changelog:
   filename: CHANGELOG.md
   markup-type: markdown
