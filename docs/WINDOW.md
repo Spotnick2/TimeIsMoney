@@ -90,6 +90,37 @@ campaign order, whose condition holds, so a reload shows the same line:
 
 The reference's own messages come back here in goblin wording in #22's second PR.
 
+## Buttons, tooltips and ESC (#89)
+
+- **One button system:**
+  - **available:** the plain glass, bright text;
+  - **hover:** brighter (`Window.HOVER_TINT`);
+  - **pressed:** darker (`Window.PRESSED_TINT`);
+  - **unavailable:** dimmed (LibGlass `SetSurfaceEnabled`), with no hover highlight.
+
+  No button carries a permanent accent, because a green Make made the others read
+  as disabled. Lit *choices* (the portrait selector, Resume) keep their tint.
+- **Every action says what it does** in its tooltip (`View.actionTip`): Make,
+  Buy Copper Bars (the shipment and its cost), Bar Buyer, Gizmo, Widget, Run a
+  Campaign, price - and +, and the allocation + buttons. An unavailable one also
+  gives the reason (#73).
+- **The addon's own tooltip** (`TimeIsMoneyTooltip`, the client's
+  `GameTooltipTemplate` on a nearly opaque glass body) carries every tooltip, so
+  card text never shows through. The shared GameTooltip is untouched; if the
+  template is missing, it is used instead.
+- **Spending clarity:** the purchase button names the shipment size; *Available*
+  Board Trust sits under the total in the first phase; a project whose Operations
+  price exceeds the Punch Cards' capacity says to add Punch Cards.
+- **Fixed-width coins** for funds, revenue and price (`View.moneyFixed`: "2g 05s
+  04c"); buttons and tags stay compact.
+- **ESC:** the panels are always in `UISpecialFrames`; the ledger only while no
+  panel is open. The first ESC closes the panels, the next the ledger, then the
+  game menu. Entries are edited in place; the global is never reassigned.
+- The main window body is darker (`MAIN_TINT` 0.78) and the panels nearly solid
+  (0.96). The title is centred on the header buttons' row. Help ends with
+  **Credits**: Universal Paperclips by Frank Lantz, combat programming by Bennett
+  Foddy, (c) 2017 Everybody House Games, and the original's address.
+
 ## Item tooltips (#84)
 
 Not in Universal Paperclips; presentation only. Each item row (bolts, Copper

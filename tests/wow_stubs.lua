@@ -17,7 +17,7 @@ local function New(saved, libGlass)
     }
     local allowedNil = { TimeIsMoney = true, TimeIsMoneyDB = true, TimeIsMoneyWindow = true, TimeIsMoneyIcons = true, TimeIsMoneyConfirm = true, TimeIsMoneyHelp = true,
         TimeIsMoneySettings = true, TimeIsMoneyMinimapButton = true, TimeIsMoneyReports = true,
-        GREEN_FONT_COLOR = true, NORMAL_FONT_COLOR = true }
+        GREEN_FONT_COLOR = true, NORMAL_FONT_COLOR = true, TimeIsMoneyTooltip = true }
     setmetatable(env, { __index = function(_, key)
         if allowedNil[key] then return nil end
         error("Unvalidated global: " .. tostring(key), 2)
@@ -49,7 +49,12 @@ local function New(saved, libGlass)
     function Widget:GetHeight() return self.height or 0 end
     function Widget:GetWidth() return self.width or 0 end
     function Widget:SetScale(s) self.scale = s end
-    function Widget:Show() self.shown = true end
+    -- Showing a hidden widget fires its OnShow, as the client does.
+    function Widget:Show()
+        local was = self.shown
+        self.shown = true
+        if not was and self.scripts and self.scripts.OnShow then self.scripts.OnShow(self) end
+    end
     -- Hiding a shown widget fires its OnHide, as the client does.
     function Widget:Hide()
         local was = self.shown
@@ -129,6 +134,9 @@ local function New(saved, libGlass)
     function env.Minimap:GetCenter() return 500, 400 end
     function Widget:GetEffectiveScale() return 1 end
     function Widget:RegisterForClicks(...) self.clicks = { ... } end
+    -- Frames ESC closes before the game menu (#89); the addon only edits entries.
+    env.UISpecialFrames = {}
+    env._G = env
     env.GetCursorPosition = function() local c = captured.cursor or { 0, 0 } return c[1], c[2] end
     env.GameTooltip = setmetatable({ scripts = {}, shown = false }, { __index = Widget })
     function env.GameTooltip:SetOwner() end
@@ -219,7 +227,14 @@ local function New(saved, libGlass)
         assert(name == "LibGlass-1.0")
         return { New = function(self) assert(self ~= nil, "colon call") return glass end }
     end end
-    env.CreateFrame = function(kind, name, parent)
+    env.CreateFrame = function(kind, name, parent, template)
+        -- The addon's own tooltip (#89): recorded, and answered by the tooltip
+        -- recorder so tests read its lines in one place.
+        if kind == "GameTooltip" then
+            captured.tooltipCreated = { name = name, parent = parent, template = template }
+            if name then env[name] = env.GameTooltip end
+            return env.GameTooltip
+        end
         if kind ~= "Frame" or parent ~= nil or name ~= nil then
             assert(kind == "Frame" or kind == "Button" or kind == "StatusBar" or kind == "ModelScene",
                 "widget kind " .. tostring(kind))

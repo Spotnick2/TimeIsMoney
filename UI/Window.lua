@@ -56,8 +56,12 @@ end
 
 -- Surface tints (LibGlass r3 SetSurfaceTint): panels nearly opaque, the primary
 -- action a restrained green. The settings cog is a client icon.
-Window.PANEL_TINT = { 0.05, 0.06, 0.08, 0.92 }
-Window.MAIN_TINT = { 0.07, 0.08, 0.11, 0.55 }
+Window.PANEL_TINT = { 0.04, 0.05, 0.07, 0.96 }
+Window.MAIN_TINT = { 0.06, 0.07, 0.10, 0.78 }
+-- Buttons (#89): one system. Available: the plain glass; hover: brighter;
+-- pressed: darker; unavailable: dimmed (LibGlass), with no hover highlight.
+Window.HOVER_TINT = { 0.55, 0.58, 0.66, 0.42 }
+Window.PRESSED_TINT = { 0.02, 0.02, 0.03, 0.60 }
 -- Content padding inside a card. The thin rim reports a 4 px inset, but in the
 -- client its visible bevel is wider: at 4 px a card's last button sat on its bottom
 -- rim and the title on its top one (owner screenshot, 1.60.1.70245, 2026-10-07).
@@ -66,12 +70,64 @@ Window.PRIMARY_TINT = { 0.16, 0.42, 0.20, 0.55 }
 Window.SETTINGS_ICON = "Interface\\Icons\\INV_Misc_Gear_01"
 Window.CHECK_ICON = "Interface\\Buttons\\UI-CheckBox-Check"
 
+-- The addon's own tooltip (#89): the client's tooltip template on a nearly opaque
+-- glass body, so card text never shows through; the shared GameTooltip stays as it
+-- is for every other addon. Falls back to GameTooltip if the template is missing.
+function Window.Tip()
+    if Window.tooltip then return Window.tooltip end
+    Glass = Glass or LibStub("LibGlass-1.0"):New()
+    local ok, tip = pcall(CreateFrame, "GameTooltip", "TimeIsMoneyTooltip", UIParent, "GameTooltipTemplate")
+    if ok and tip then
+        tip:SetFrameStrata("TOOLTIP")
+        if tip.NineSlice then tip.NineSlice:Hide() end -- the glass replaces its border
+        tip.glass = Glass.Apply(tip, "large")
+        Glass.SetSurfaceTint(tip.glass, unpack(Window.PANEL_TINT))
+        Window.tooltip = tip
+    else
+        Window.tooltip = GameTooltip
+    end
+    return Window.tooltip
+end
+
+-- ESC (#89): the client closes every shown frame named in UISpecialFrames before
+-- opening its menu. Our panels are always listed; the ledger only while no panel is
+-- open, so the first ESC closes the panels and the next the ledger. Entries are added
+-- and removed in place: the global table itself is never reassigned (a write to a
+-- Blizzard global taints, PORTING-TBC-TO-FOREVER).
+Window.ESC_PANELS = { "TimeIsMoneyHelp", "TimeIsMoneySettings", "TimeIsMoneyReports", "TimeIsMoneyConfirm",
+    "TimeIsMoneyIcons" }
+local function Listed(name)
+    for i, n in ipairs(UISpecialFrames) do if n == name then return i end end
+end
+-- From a panel's OnHide: never edit the list inside the client's ESC loop (adding
+-- the ledger there would close it with the same press); do it on the next frame.
+function Window.EscapeLater()
+    C_Timer.After(0, function() Window.UpdateEscape() end)
+end
+function Window.UpdateEscape()
+    local open = false
+    for _, name in ipairs(Window.ESC_PANELS) do
+        local frame = _G[name]
+        if frame then
+            if not Listed(name) then table.insert(UISpecialFrames, name) end
+            if frame:IsShown() then open = true end
+        end
+    end
+    local i = Listed("TimeIsMoneyWindow")
+    if open and i then
+        table.remove(UISpecialFrames, i)
+    elseif not open and not i then
+        table.insert(UISpecialFrames, "TimeIsMoneyWindow")
+    end
+end
+
 -- Tooltips: one renderer. lines[1] is the white title, the rest wrap muted.
 local function ShowTip(owner, lines)
-    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    GameTooltip:SetText(lines[1], 1, 1, 1)
-    for i = 2, #lines do GameTooltip:AddLine(lines[i], MUTED[1], MUTED[2], MUTED[3], true) end
-    GameTooltip:Show()
+    local tip = Window.Tip()
+    tip:SetOwner(owner, "ANCHOR_RIGHT")
+    tip:SetText(lines[1], 1, 1, 1)
+    for i = 2, #lines do tip:AddLine(lines[i], MUTED[1], MUTED[2], MUTED[3], true) end
+    tip:Show()
 end
 
 -- A tooltip line read from the running company, or nil.
@@ -104,25 +160,47 @@ local function NewButton(parent, id, height)
     b:SetScript("OnClick", function(self) if self.id then Click(self.id) end end)
     -- Live like every hover tooltip: re-read on each redraw while hovered, so a cost
     -- that changes under the pointer (a purchase) shows its new value and title.
+    -- Hover and pressed looks, only while it can be used.
+    b:SetScript("OnMouseDown", function(self)
+        if self:IsEnabled() and not self.lit then Glass.SetSurfaceTint(self.glass, unpack(Window.PRESSED_TINT)) end
+    end)
+    b:SetScript("OnMouseUp", function(self)
+        if self:IsEnabled() and self.hovered and not self.lit then Glass.SetSurfaceTint(self.glass, unpack(Window.HOVER_TINT)) end
+    end)
     b:SetScript("OnEnter", function(self)
+        self.hovered = true
+        if self:IsEnabled() and not self.lit then Glass.SetSurfaceTint(self.glass, unpack(Window.HOVER_TINT)) end
         Window.liveTip = { owner = self, lines = function()
-            if self.tipFn then self.tip = self.tipFn() end
-            -- Unavailable: say what is missing (#73), under the tooltip or alone.
+            -- Built afresh on every redraw from the button's own tip (fixed, or its
+            -- tipFn), what it does (#89) and why not (#73); nothing is written back.
+            local base = self.tipFn and self.tipFn() or self.tip
             local game = ns.Host.game
+            local lines
+            local does = game and View.actionTip(self.id, game.S)
+            if does then
+                lines = { self.text or "" }
+                for _, line in ipairs(does) do lines[#lines + 1] = line end
+                for i = 2, #(base or {}) do lines[#lines + 1] = base[i] end
+            elseif base then
+                lines = {}
+                for i, line in ipairs(base) do lines[i] = line end
+            end
             local why = not self:IsEnabled() and game and
                 ((ns.Host.paused and (self.id or self.company) and ns.L["why.paused"]) or View.unavailable(self.id, game.S)
                     or (self.why and ns.L[self.why]))
-            if not why then return self.tip end
-            local lines = {}
-            for i, line in ipairs(self.tip or { self.text or "" }) do lines[i] = line end
-            lines[#lines + 1] = why
+            if why then
+                lines = lines or { self.text or "" }
+                lines[#lines + 1] = why
+            end
             return lines
         end }
         Window.UpdateLiveTip()
     end)
     b:SetScript("OnLeave", function(self)
+        self.hovered = false
+        if not self.lit then Glass.SetSurfaceTint(self.glass) end
         if Window.liveTip and Window.liveTip.owner == self then Window.liveTip = nil end
-        GameTooltip:Hide()
+        Window.Tip():Hide()
     end)
     b:SetMotionScriptsWhileDisabled(true)
     return b
@@ -150,8 +228,9 @@ local function SetButton(b, text, enabled, short)
         b.surfaceEnabled = enabled
         Glass.SetSurfaceEnabled(b.glass, enabled)
         if b.icon then b.icon:SetAlpha(enabled and 1 or 0.4) end
-        if b.primary then
-            if enabled then Glass.SetSurfaceTint(b.glass, unpack(Window.PRIMARY_TINT)) else Glass.SetSurfaceTint(b.glass) end
+        -- No hover highlight while unavailable; it comes back under the pointer.
+        if not b.lit then
+            if enabled and b.hovered then Glass.SetSurfaceTint(b.glass, unpack(Window.HOVER_TINT)) else Glass.SetSurfaceTint(b.glass) end
         end
     end
 end
@@ -197,7 +276,7 @@ local function HoverArea(row, parent, live)
     end)
     row.tipArea:SetScript("OnLeave", function(area)
         if Window.liveTip and Window.liveTip.owner == area then Window.liveTip = nil end
-        GameTooltip:Hide()
+        Window.Tip():Hide()
     end)
 end
 local function TipArea(row, parent, tip)
@@ -217,7 +296,7 @@ function Window.UpdateLiveTip()
     if not tip then return end
     if tip.render then
         tip.shown = tip.render(tip.owner)
-        if not tip.shown then GameTooltip:Hide() end
+        if not tip.shown then Window.Tip():Hide() end
         return
     end
     local lines = tip.lines()
@@ -225,7 +304,7 @@ function Window.UpdateLiveTip()
         ShowTip(tip.owner, lines)
         tip.shown = true
     elseif tip.shown then
-        GameTooltip:Hide()
+        Window.Tip():Hide()
         tip.shown = false
     end
 end
@@ -255,23 +334,24 @@ end
 -- category, what it does (live), a green "Use:" line and yellow flavour text.
 function Window.ShowItemTip(owner, key)
     local game = ns.Host.game
-    local tip = game and View.itemTip(key, game)
-    if not tip then return false end
+    local item = game and View.itemTip(key, game)
+    if not item then return false end
+    local tip = Window.Tip()
     local identity = ns.Assets.identity[key]
     local r, g, b = 1, 1, 1
     if identity then
         local qr, qg, qb = TimeIsMoney.API.ItemQualityColor(identity.item)
         if qr then r, g, b = qr, qg, qb end
     end
-    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    GameTooltip:SetText(tip.title, r, g, b)
-    GameTooltip:AddLine(tip.category, 1, 1, 1)
-    for _, line in ipairs(tip.lines) do GameTooltip:AddLine(line, 1, 1, 1, true) end
+    tip:SetOwner(owner, "ANCHOR_RIGHT")
+    tip:SetText(item.title, r, g, b)
+    tip:AddLine(item.category, 1, 1, 1)
+    for _, line in ipairs(item.lines) do tip:AddLine(line, 1, 1, 1, true) end
     -- The client's own colours when present (GREEN_FONT_COLOR, NORMAL_FONT_COLOR).
     local green, yellow = GREEN_FONT_COLOR, NORMAL_FONT_COLOR
-    GameTooltip:AddLine(tip.use, green and green.r or 0.12, green and green.g or 1, green and green.b or 0, true)
-    GameTooltip:AddLine(tip.flavor, yellow and yellow.r or 1, yellow and yellow.g or 0.82, yellow and yellow.b or 0, true)
-    GameTooltip:Show()
+    tip:AddLine(item.use, green and green.r or 0.12, green and green.g or 1, green and green.b or 0, true)
+    tip:AddLine(item.flavor, yellow and yellow.r or 1, yellow and yellow.g or 0.82, yellow and yellow.b or 0, true)
+    tip:Show()
     return true
 end
 
@@ -725,7 +805,7 @@ local function NewProjects(parent)
                 b.icon:SetTexture(icon)
                 b.icon.value = icon
             end
-            b.tip = { project.title, project.priceTag, project.purpose }
+            b.tip = { project.title, project.priceTag, project.purpose, project.capacity }
             b:ClearAllPoints()
             b:SetPoint("TOPLEFT", self.content, "TOPLEFT", inset, y)
             b:SetWidth(Window.COLUMN - 2 * inset)
@@ -760,11 +840,13 @@ local function NewProjects(parent)
 end
 
 local function Build()
-    Glass = LibStub("LibGlass-1.0"):New()
+    Glass = Glass or LibStub("LibGlass-1.0"):New() -- one instance (the tooltip may come first)
+    Window.Tip()
     -- An item icon that loads later redraws whatever shows it.
     -- The main window redraws every 0.1 s anyway; the check panel on its next tick.
     ns.Assets.onLoaded = function() Window.iconsDirty = true end
     local f = CreateFrame("Frame", "TimeIsMoneyWindow", UIParent)
+    f:SetScript("OnShow", function() Window.UpdateEscape() end)
     -- Where the player left it (saved), else above the centre.
     if not ns.Settings.values.point then f:SetPoint("CENTER", UIParent, "CENTER", 0, 80) end
     f:SetFrameStrata("MEDIUM")
@@ -794,7 +876,8 @@ local function Build()
     Window.frame, Window.content = f, content
 
     local title = Glass.Font(g.top, 14, "LEFT")
-    title:SetPoint("TOPLEFT", content, "TOPLEFT", Glass.Inset("large"), -Glass.Inset("large"))
+    -- Centred on the header buttons' row, clear of the rim (#89).
+    title:SetPoint("LEFT", content, "TOPLEFT", Glass.Inset("large") + 6, -Glass.Inset("large") - Window.SQUARE / 2)
     title:SetText("Time Is Money")
     Window.title = title
     title:SetTextColor(COPPER[1], COPPER[2], COPPER[3])
@@ -827,6 +910,7 @@ local function Build()
     resume:SetWidth(96)
     resume:SetPoint("RIGHT", helpButton, "LEFT", -8, 0)
     Glass.SetSurfaceTint(resume.glass, unpack(Window.PRIMARY_TINT))
+    resume.lit = true
     resume.tipFn = function() return { ns.L["window.resume"], ns.L["window.resumeTip"] } end
     resume:SetScript("OnClick", function()
         local ok, err = ns.Host.setPaused(false)
@@ -842,12 +926,13 @@ local function Build()
         return JSMath.toString(S.prestigeU + 1) .. " / " .. JSMath.toString(S.prestigeS + 1)
     end, function(_, p) return p.prestige end)
     production:WithIcon(production:Stat(T.clips, function(S) return View.count(S.clips, "ceil") end), "clips")
-    -- The primary action: a restrained green while it can be used.
-    production:Action("btnMakePaperclip", function() return T.make end).button.primary = true
+    production:Action("btnMakePaperclip", function() return T.make end)
     local manufacturing = function(_, p) return p.manufacturing end
     production:Stat("Bolts per second", function(S) return View.count(S.clipRate, "round") end, manufacturing)
     production:WithIcon(production:Stat(T.wire, function(S) return View.count(S.wire) end, manufacturing), "wire")
-    production:Action("btnBuyWire", function(S) return "Buy " .. T.wire .. " (" .. View.money(S.wireCost) .. ")" end,
+    production:Action("btnBuyWire", function(S)
+        return "Buy " .. View.count(S.wireSupply) .. " " .. T.wire .. " (" .. View.money(S.wireCost) .. ")"
+    end,
         manufacturing)
     production:Action("btnToggleWireBuyer", function(S)
         return "Bar Buyer: " .. (S.wireBuyerStatus == 1 and "ON" or "OFF")
@@ -867,11 +952,11 @@ local function Build()
     -- Sales: funds, price, demand and campaigns.
     local business = function(_, p) return p.business end
     local sales = NewCard(content, "Sales")
-    sales:Stat(T.funds, function(S) return View.money(S.funds) end, business, function(S) return View.exactMoney(S.funds) end)
-    sales:Stat("Revenue per second", function(S) return View.money(S.avgRev) end,
+    sales:Stat(T.funds, function(S) return View.moneyFixed(S.funds) end, business, function(S) return View.exactMoney(S.funds) end)
+    sales:Stat("Revenue per second", function(S) return View.moneyFixed(S.avgRev) end,
         function(_, p) return p.business and p.revPerSec end)
     sales:Stat(T.unsold, function(S) return View.count(S.unsoldClips) end, business)
-    sales:Adjust(T.price, function(S) return View.money(S.margin) end, "btnLowerPrice", "btnRaisePrice", business,
+    sales:Adjust(T.price, function(S) return View.moneyFixed(S.margin) end, "btnLowerPrice", "btnRaisePrice", business,
         function(S) return View.exactMoney(S.margin) end)
     sales:Stat("Public Demand", function(S) return View.count(S.demand * 10) .. "%" end, business)
     sales:Stat(T.marketing, function(S) return View.count(S.marketingLvl) end, business)
@@ -884,6 +969,9 @@ local function Build()
     -- trustDiv and swarmGiftDiv sit inside compDiv: they show only with it.
     local trust = function(_, p) return p.trust end -- inside compDiv (View.panels)
     ledger:Stat(T.trust, function(S) return View.count(S.trust) end, trust)
+    -- What the + buttons can still use (#89).
+    ledger:Stat("  Available", function(S) return View.count(View.availableTrust(S)) end,
+        function(S, p) return p.trust and S.humanFlag == 1 end)
     ledger:Stat("Next Trust at", function(S) return View.count(S.nextTrust) .. " bolts" end, trust)
     ledger:Stat(T.swarmGifts, function(S) return View.count(S.swarmGifts) end,
         function(_, p) return p.swarmGift end)
@@ -900,9 +988,9 @@ local function Build()
     local invest = NewCard(content, "Cartel Investments")
     local RISK = { low = "Low Risk", med = "Med Risk", hi = "High Risk" }
     invest:Select("investStrat", function(value) return RISK[value] or value end, investing)
-    invest:Stat("Cash", function(S) return View.money(S.bankroll) end, investing)
-    invest:Stat("Stocks", function(S) return View.money(S.secTotal) end, investing)
-    invest:Stat("Total", function(S) return View.money(S.portTotal) end, investing)
+    invest:Stat("Cash", function(S) return View.moneyFixed(S.bankroll) end, investing)
+    invest:Stat("Stocks", function(S) return View.moneyFixed(S.secTotal) end, investing)
+    invest:Stat("Total", function(S) return View.moneyFixed(S.portTotal) end, investing)
     invest:Action("btnInvest", function() return "Deposit" end, investing)
     invest:Action("btnWithdraw", function() return "Withdraw" end, investing)
     local slots = {}
@@ -1204,6 +1292,9 @@ function Window.Confirm(questionKey, onYes)
     local d = Window.dialog
     if not d then
         d = CreateFrame("Frame", "TimeIsMoneyConfirm", UIParent)
+        d:Hide() -- created shown; hidden first so its first Show fires OnShow (ESC list)
+        d:SetScript("OnShow", function() Window.UpdateEscape() end)
+        d:SetScript("OnHide", function() Window.EscapeLater() end)
         d:SetSize(340, 120)
         d:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
         -- Above the panels (help, settings: DIALOG), so a confirmation opened from them
@@ -1316,7 +1407,8 @@ function Window.Panel(name, width, height)
     p:SetFrameStrata("DIALOG")
     p:SetToplevel(true)
     -- Opening a panel brings it in front of the others.
-    p:SetScript("OnShow", function(self) self:Raise() end)
+    p:SetScript("OnShow", function(self) self:Raise() Window.UpdateEscape() end)
+    p:SetScript("OnHide", function() Window.EscapeLater() end)
     p:SetClampedToScreen(true)
     p:SetMovable(true)
     p:EnableMouse(true)
@@ -1381,7 +1473,7 @@ function Window.FillIcons()
                 for _, user in ipairs(e.users) do lines[#lines + 1] = user end
                 ShowTip(self, lines)
             end)
-            cell:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            cell:SetScript("OnLeave", function() Window.Tip():Hide() end)
             f.cells[i] = cell
         end
         cell.entry = entry
@@ -1440,6 +1532,7 @@ Window.HELP_SECTIONS = {
         lines = { "help.cmdLedger", "help.cmdPause", "help.cmdSettings", "help.cmdMinimap", "help.cmdHelp", "help.cmdStatus",
             "help.cmdReports", "help.cmdStart" } },
     { title = "help.persistenceTitle", lines = { "help.persistence" } },
+    { title = "help.creditsTitle", lines = { "help.credits", "help.creditsLink" } },
 }
 function Window.ShowHelp()
     if not Window.frame then Build() end
@@ -1663,6 +1756,7 @@ function Window.FillSettings()
     -- The current choice lit; both stay clickable.
     Glass.SetSurfaceTint(p.modelOn.glass, unpack(v.model and Window.PRIMARY_TINT or {}))
     Glass.SetSurfaceTint(p.modelOff.glass, unpack(v.model and {} or Window.PRIMARY_TINT))
+    p.modelOn.lit, p.modelOff.lit = v.model, not v.model
     p.modelOn.check:SetShown(v.model)
     p.modelOff.check:SetShown(not v.model)
     p.voice.check:SetShown(v.voice)

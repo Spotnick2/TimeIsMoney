@@ -161,7 +161,9 @@ View.COIN_ICONS = {
     s = "|TInterface\\MoneyFrame\\UI-SilverIcon:0:0:2:0|t",
     c = "|TInterface\\MoneyFrame\\UI-CopperIcon:0:0:2:0|t",
 }
-local function coinParts(x, marks)
+-- fixed (#89): once a larger coin shows, every smaller one does too, padded to two
+-- digits, so a right-aligned amount keeps its width.
+local function coinParts(x, marks, fixed)
     if isNaN(x) or x == math.huge or x == -math.huge then return View.count(x) end
     local copper = math.floor(math.abs(x) * 100 + 0.5)
     local negative = x < 0 and copper > 0
@@ -172,14 +174,22 @@ local function coinParts(x, marks)
         local gold, silver = math.floor(copper / 10000), math.floor(copper / 100) % 100
         copper = copper % 100
         if gold > 0 then parts[#parts + 1] = View.count(gold) .. marks.g end
-        if silver > 0 then parts[#parts + 1] = silver .. marks.s end
-        if copper > 0 or #parts == 0 then parts[#parts + 1] = copper .. marks.c end
+        if silver > 0 or (fixed and gold > 0) then
+            parts[#parts + 1] = (fixed and gold > 0 and string.format("%02d", silver) or silver) .. marks.s
+        end
+        if copper > 0 or #parts == 0 or fixed then
+            parts[#parts + 1] = (fixed and #parts > 0 and string.format("%02d", copper) or copper) .. marks.c
+        end
     end
     return (negative and "-" or "") .. table.concat(parts, " ")
 end
 function View.coins(x) return coinParts(x, COIN_TEXT) end
 -- The same amount with coin icons, for the window.
 function View.money(x) return coinParts(x, View.COIN_ICONS) end
+-- For right-aligned values (funds, revenue, price): once a larger coin shows, every
+-- smaller one does too, padded to two digits ("2g 05s 04c"), so the amount keeps its
+-- width as it changes (#89). Digits are equal width in WoW fonts.
+function View.moneyFixed(x) return coinParts(x, View.COIN_ICONS, true) end
 
 -- The exact amount, when the coins round it (a fraction of a copper): the tooltip
 -- that keeps thresholds visible. nil when the coins already show it exactly. The
@@ -231,9 +241,17 @@ function View.projects(game, money)
     for _, project in ipairs(game.S.activeProjects) do
         local entry = ns.Workshop.projectById[project.id]
         local text = ns.ProjectText[entry.name]
+        -- A project costing more Operations than the Punch Cards hold can never be
+        -- bought by waiting (#89): say how to get there.
+        local raw = text.priceTag or computedTag(entry.name, game.S) or ""
+        local ops = raw:match("(%-?[%d,]+) ops")
+        ops = ops and tonumber((ops:gsub(",", "")))
+        if ops and ops < 0 then ops = nil end -- a negative price (the reversion) never needs capacity
         list[#list + 1] = {
             id = project.id, name = entry.name, title = text.title, priceTag = View.priceTag(entry.name, game.S, money),
             purpose = text.purpose, enabled = not game.disabled[project.id],
+            capacity = ops and ops > game.S.memory * 1000 and ns.Locale.Format("why.capacity",
+                { n = View.count(ops), cap = View.count(game.S.memory * 1000) }) or nil,
         }
     end
     return list
@@ -597,6 +615,77 @@ function View.itemTip(key, game)
     end
     return { title = View.TERMS[key], category = L("item." .. key .. ".category"), lines = fn(game.S, game),
         use = use, flavor = L("item.quoted", { text = L("item." .. key .. ".flavor") }) }
+end
+
+-- What an action does (#89), for its tooltip: lines under its caption, or nil.
+local function A(key, values) return ns.Locale.Format(key, values or {}) end
+local ACTIONS = {
+    btnMakePaperclip = function(S) return { A("act.make"), A("act.barsLeft", { n = View.count(S.wire) }) } end,
+    btnBuyWire = function(S)
+        return { A("act.buyWire", { n = View.count(S.wireSupply), cost = View.money(S.wireCost) }), View.exactMoney(S.wireCost) }
+    end,
+    btnToggleWireBuyer = function() return { A("act.wireBuyer") } end,
+    btnMakeClipper = function(S)
+        return { A("act.adds", { n = View.rate(S.clipperBoost) }), A("act.cost", { cost = View.money(S.clipperCost) }) }
+    end,
+    btnMakeMegaClipper = function(S)
+        return { A("act.adds", { n = View.rate(S.megaClipperBoost * 500) }), A("act.cost", { cost = View.money(S.megaClipperCost) }) }
+    end,
+    btnExpandMarketing = function(S)
+        return { A("act.campaign", { level = View.count(S.marketingLvl + 1) }), A("act.cost", { cost = View.money(S.adCost) }) }
+    end,
+    btnLowerPrice = function() return { A("act.lower") } end,
+    btnRaisePrice = function() return { A("act.raise") } end,
+    btnAddProc = function(S)
+        return { A("act.addProc"), A(S.humanFlag == 0 and "act.fromNetwork" or "act.fromTrust", { term = View.TERMS.swarmGifts }) }
+    end,
+    btnAddMem = function(S)
+        return { A("act.addMem"), A(S.humanFlag == 0 and "act.fromNetwork" or "act.fromTrust", { term = View.TERMS.swarmGifts }) }
+    end,
+}
+-- The later actions (#89 review): what each does, from the simulation's effect.
+ACTIONS.btnInvest = function() return { A("act.invest") } end
+ACTIONS.btnWithdraw = function() return { A("act.withdraw") } end
+ACTIONS.btnImproveInvestments = function(S) return { A("act.improveInvest") } end
+ACTIONS.btnNewTournament = function(S) return { A("act.newTourney", { n = View.count(S.tourneyCost) }) } end
+ACTIONS.btnRunTournament = function() return { A("act.runTourney") } end
+ACTIONS.btnToggleAutoTourney = function() return { A("act.autoTourney") } end
+ACTIONS.btnQcompute = function() return { A("act.qcompute") } end
+ACTIONS.btnSynchSwarm = function() return { A("act.synch") } end
+ACTIONS.btnEntertainSwarm = function() return { A("act.entertain") } end
+ACTIONS.btnMakeFactory = function() return { A("act.build", { what = View.TERMS.factories }) } end
+ACTIONS.btnMakeProbe = function() return { A("act.launch") } end
+ACTIONS.btnIncreaseProbeTrust = function() return { A("act.probeTrust") } end
+ACTIONS.btnIncreaseMaxTrust = function() return { A("act.maxTrust") } end
+for prefix, key in pairs({ Harvester = "harvesters", WireDrone = "wireDrones", Farm = "farms", Battery = "batteries" }) do
+    local make = prefix == "Harvester" and "btnMakeHarvester" or prefix == "WireDrone" and "btnMakeWireDrone"
+        or prefix == "Farm" and "btnMakeFarm" or "btnMakeBattery"
+    ACTIONS[make] = function() return { A("act.build", { what = View.TERMS[key] }) } end
+    for _, n in ipairs({ 10, 100, 1000 }) do
+        ACTIONS["btn" .. prefix .. "x" .. n] = function()
+            return { A("act.buildBulk", { n = View.count(n), what = View.TERMS[key] }) }
+        end
+    end
+    ACTIONS["btn" .. prefix .. "Reboot"] = function()
+        return { A(key == "batteries" and "act.rebootBatteries" or "act.reboot", { what = View.TERMS[key] }) }
+    end
+end
+ACTIONS.btnFactoryReboot = function() return { A("act.reboot", { what = View.TERMS.factories }) } end
+for _, name in ipairs({ "Speed", "Nav", "Rep", "Haz", "Fac", "Harv", "Wire", "Combat" }) do
+    local term = View.TERMS["probe" .. name]
+    ACTIONS["btnRaiseProbe" .. name] = function() return { A("act.raiseProbe", { what = term }) } end
+    ACTIONS["btnLowerProbe" .. name] = function() return { A("act.lowerProbe", { what = term }) } end
+end
+function View.actionTip(id, S)
+    local fn = id and ACTIONS[id]
+    if not fn then return nil end
+    local lines = {}
+    for _, line in pairs(fn(S)) do lines[#lines + 1] = line end -- drops nil (no exact line)
+    return lines
+end
+-- Board Trust not yet given to Modulators or Punch Cards (first phase).
+function View.availableTrust(S)
+    return S.trust - S.processors - S.memory
 end
 
 -- The Company Network's status text (swarmStatus); 7 hides the status line.
