@@ -56,6 +56,16 @@ assert(p.hint.text:find("1-2 of", 1, true), "and its range is what it shows")
 for _, row in ipairs(p.rows) do row.text.GetStringHeight = measure end
 for _ = 1, 50 do p.scripts.OnMouseWheel(p, 1) end
 assert(p.offset == 0 and p.rows[1].text.text == tall, "back to the newest")
+-- Clicking Gazlowe opens and closes them too, with the same tooltip.
+local picture = ns.Director.strip.pictureArea
+picture.scripts.OnClick(picture)
+assert(not p:IsShown(), "clicking Gazlowe closes it")
+picture.scripts.OnClick(picture)
+assert(p:IsShown(), "and opens it")
+picture.scripts.OnEnter(picture)
+assert(env.GameTooltip.lines[1] == "Company reports")
+picture.scripts.OnLeave(picture)
+assert(picture.scripts.OnDragStart, "the window still drags from there")
 env.SlashCmdList.TIMEISMONEY("reports")
 assert(not p:IsShown(), "/tim reports closes it")
 env.SlashCmdList.TIMEISMONEY("reports")

@@ -139,13 +139,26 @@ function Director.Build(parent, font)
     strip.report = strip.reports[1]
     strip.reportArea = CreateFrame("Button", nil, strip)
     strip.reportArea:SetScript("OnClick", function() ns.Window.ToggleReports() end)
-    strip.reportArea:SetScript("OnEnter", function(self)
-        ns.Window.Tip():SetOwner(self, "ANCHOR_TOP")
-        ns.Window.Tip():SetText(ns.L["reports.title"], 1, 1, 1)
-        ns.Window.Tip():AddLine(ns.L["reports.open"], muted[1], muted[2], muted[3])
-        ns.Window.Tip():Show()
-    end)
+    local function reportsTip(self)
+        local tip = ns.Window.Tip()
+        tip:SetOwner(self, "ANCHOR_TOP")
+        tip:SetText(ns.L["reports.title"], 1, 1, 1)
+        tip:AddLine(ns.L["reports.open"], muted[1], muted[2], muted[3])
+        tip:Show()
+    end
+    strip.reportArea:SetScript("OnEnter", reportsTip)
     strip.reportArea:SetScript("OnLeave", function() ns.Window.Tip():Hide() end)
+    -- Clicking Gazlowe (or the mark in his place) opens the reports too. The scene
+    -- itself stays mouse-disabled; this button over the picture takes the click and
+    -- still drags the window.
+    strip.pictureArea = CreateFrame("Button", nil, strip)
+    strip.pictureArea:SetAllPoints(scene)
+    strip.pictureArea:RegisterForDrag("LeftButton")
+    strip.pictureArea:SetScript("OnDragStart", function() ns.Window.frame:StartMoving() end)
+    strip.pictureArea:SetScript("OnDragStop", function() ns.Window.frame:StopMovingOrSizing() end)
+    strip.pictureArea:SetScript("OnClick", function() ns.Window.ToggleReports() end)
+    strip.pictureArea:SetScript("OnEnter", reportsTip)
+    strip.pictureArea:SetScript("OnLeave", function() ns.Window.Tip():Hide() end)
     strip:SetScript("OnHide", function() Director.Cancel() end)
     Director.strip = strip
     return strip

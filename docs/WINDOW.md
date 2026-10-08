@@ -179,7 +179,7 @@ timer depends on it, and the parity traces are unchanged.
 - **The strip** shows the newest three under Gazlowe's line, newest first, at
   fading opacity (1, 0.7, 0.45). Unmapped messages are never shown, so the
   earlier reports stay.
-- **The history:** clicking the reports, or `/tim reports`, opens *Company
+- **The history:** clicking the reports or Gazlowe, or `/tim reports`, opens *Company
   reports*: 14 rows, newest first, each with its game time (h:mm:ss); the mouse
   wheel scrolls three at a time, and a line shows which entries are in view.
 - **Saved** beside the company (`TimeIsMoneyDB.reports`) as presentation data:
