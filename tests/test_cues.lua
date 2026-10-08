@@ -31,14 +31,9 @@ assert(seen[550785] and seen[550786] and seen[550773], "all three greetings")
 -- A new report: the newest line fades in, Gazlowe talks, and the first answer is a
 -- deal line (his voice, at most once a minute).
 local game = Host.game
--- No talk animation until one is measured (docs/MODELS.md): idle stays.
-assert(Director.TALK_ANIM == nil)
-game:displayMessage("Processor added, operations per sec increased")
-wait(0.1)
-assert(captured.actor.animation == nil, "no guessed animation")
+-- The talk animation the owner picked in the client (60, Talk).
+assert(Director.TALK_ANIM == 60)
 wait(Director.DEAL_COOLDOWN + Director.CUE_COOLDOWN)
--- Once measured (the owner picks it with /tim anim), Gazlowe talks.
-Director.TALK_ANIM = 60
 local before = #captured.sounds
 game:displayMessage("AutoClippers available for purchase")
 wait(0.1)

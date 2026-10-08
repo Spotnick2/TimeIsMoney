@@ -20,12 +20,18 @@ Director.MODEL_HEIGHT = 1.39
 -- Gazlowe's head past a 96 px frame and it clipped (owner, 2026-10-05). The framing
 -- recomputes the zoom from the frame, so he keeps his size with room to move; the
 -- margin leaves headroom for the ears.
-Director.WIDTH, Director.HEIGHT = 136, 84
-Director.CROP, Director.MARGIN = 0.40, 1.30
+-- The scene is also taller than the framed crop (owner, 2026-10-08): the talk
+-- animation dips the head below an 84 px frame, other animations raise it. The
+-- margin grows with the height, so his head keeps its size and place (the visible
+-- band stays centred on the top 40 % of the model) with room above and below.
+Director.WIDTH, Director.HEIGHT = 136, 120
+Director.FRAMED_HEIGHT = 84                       -- the height the 1.30 margin was picked at
+Director.CROP, Director.MARGIN = 0.40, 1.30 * 120 / 84
+Director.PORTRAIT = 84                            -- the 2D fallback keeps its measured size
 Director.FOV, Director.CAMERA = 0.15, 40
 Director.POLLS, Director.POLL_STEP = 30, 0.1 -- the box poll: about 3 s
 Director.REPORT_LINES, Director.REPORT_ALPHA = 3, { 1, 0.7, 0.45 }
-Director.MIN_STRIP = 92                   -- the strip's height when the line is short
+Director.MIN_STRIP = Director.HEIGHT + 8  -- the strip's height when the line is short
 -- The model and the voice follow the saved settings (UI/Settings.lua).
 local function setting(key) return ns.Settings.values[key] end
 -- "Time is money, friend!": a goblin NPC greeting from the client's own files
@@ -44,9 +50,9 @@ Director.VOICE = {
 -- DEAL_COOLDOWN, only while the window shows. The sound kit and the animation are
 -- unverified in the client until the owner picks them (/tim cue, /tim anim).
 Director.CUE_SOUNDKIT = 120     -- SOUNDKIT.LOOT_WINDOW_COIN_SOUND
--- No talk animation until one is measured on Gazlowe in the client: docs/MODELS.md
--- forbids guessing IDs from Retail lists. /tim anim <id> tries one; set it here then.
-Director.TALK_ANIM = nil
+-- The talk animation, measured on Gazlowe in the client (docs/MODELS.md forbids
+-- guessing IDs from Retail lists; /tim anim <id> tries others).
+Director.TALK_ANIM = 60 -- Talk: picked by the owner in the client (2026-10-08)
 Director.TALK_SECONDS = 2.5
 Director.CUE_COOLDOWN, Director.DEAL_COOLDOWN = 4, 60
 Director.FADE_SECONDS = 0.5
@@ -107,7 +113,7 @@ function Director.Build(parent, font)
     scene:Hide()
     strip.scene = scene
     strip.portrait = strip:CreateTexture(nil, "ARTWORK")
-    strip.portrait:SetSize(Director.HEIGHT, Director.HEIGHT)
+    strip.portrait:SetSize(Director.PORTRAIT, Director.PORTRAIT)
     strip.portrait:SetPoint("CENTER", scene, "CENTER", 0, 0)
     -- The speaker's name (copper), then the Director's role (muted) beside it.
     strip.speaker = font(strip, 13, "LEFT")

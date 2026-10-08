@@ -82,6 +82,11 @@ assert(captured.actor.display == 7052 and captured.modelLoads == 1)
 assert(Director.state == "loading" and #captured.timers == 0, "no C_Timer: the window ticks the poll")
 tick()
 assert(Director.state == "live", "the box arrived: framed")
+-- The taller scene keeps the head's size: the same scale as the 84 px framing it
+-- was picked at (room above and below for animations, owner 2026-10-08).
+local s84 = Director.Framing({ h = 1.39 }, Director.WIDTH, Director.FRAMED_HEIGHT, 40, 0.15, Director.CROP, 1.30)
+local s120 = Director.Framing({ h = 1.39 }, Director.WIDTH, Director.HEIGHT, 40, 0.15, Director.CROP, Director.MARGIN)
+assert(math.abs(s84 - s120) < 1e-9 and Director.HEIGHT > Director.FRAMED_HEIGHT, "same head size, more room")
 local scale, offset = Director.Framing({ h = 1.39 }, Director.WIDTH, Director.HEIGHT, 40, 0.15, Director.CROP,
     Director.MARGIN)
 assert(math.abs(captured.actor.scaleValue - scale) < 1e-12 and math.abs(captured.actor.position[3] - offset) < 1e-12,
