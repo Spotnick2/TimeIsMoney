@@ -30,7 +30,7 @@ local headings = {}
 for i, section in ipairs(Window.help.sections) do headings[i] = section.heading.text end
 assert(table.concat(headings, "|") == "Getting started|Controls|Saving progress")
 local controls = Window.help.sections[2].lines
-assert(#controls == #Window.HELP_SECTIONS[2].lines and #controls == 7)
+assert(#controls == #Window.HELP_SECTIONS[2].lines and #controls == 8)
 for i, fs in ipairs(controls) do
     assert(fs.text:find("^/tim") and fs.text ~= Window.HELP_SECTIONS[2].lines[i], "a translated command line")
 end

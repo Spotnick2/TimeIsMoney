@@ -90,6 +90,24 @@ campaign order, whose condition holds, so a reload shows the same line:
 
 The reference's own messages come back here in goblin wording in #22's second PR.
 
+## Company reports (#83)
+
+The simulation posts messages into its five readouts; it also calls an optional
+presentation hook, `game.onMessage`, which the host uses to keep a history: the
+last 200 messages with their logical time (`Host.reports`). No state, draw or
+timer depends on it, and the parity traces are unchanged.
+
+- **The strip** shows the newest three under Gazlowe's line, newest first, at
+  fading opacity (1, 0.7, 0.45). Unmapped messages are never shown, so the
+  earlier reports stay.
+- **The history:** clicking the reports, or `/tim reports`, opens *Company
+  reports*: 14 rows, newest first, each with its game time (h:mm:ss); the mouse
+  wheel scrolls three at a time, and a line shows which entries are in view.
+- **Saved** beside the company (`TimeIsMoneyDB.reports`) as presentation data:
+  entries are checked one by one and damaged ones dropped, never blocking the
+  save. A save from before #83 starts from the company's five readouts, with no
+  times. A new company starts a new history.
+
 ## The minimap button (#78)
 
 `UI/Minimap.lua`: Gazlowe's 2D portrait (display 7052, the Director's verified

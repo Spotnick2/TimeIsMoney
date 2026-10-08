@@ -171,6 +171,9 @@ end
 function Game:displayMessage(msg)
     local r = self.readouts
     r[5], r[4], r[3], r[2], r[1] = r[4], r[3], r[2], r[1], msg
+    -- Presentation hook (#83): the host records the report history. No state,
+    -- draw or timer depends on it.
+    if self.onMessage then self.onMessage(msg) end
 end
 
 -- timeCruncher: JavaScript % is fmod. Non-finite input follows JavaScript without
