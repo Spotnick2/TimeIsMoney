@@ -38,11 +38,23 @@ make.scripts.OnLeave(make)
 
 -- Every control the simulation can disable has a reason, in the window's terms.
 S.funds, S.wireCost = 0, 20
-assert(View.unavailable("btnBuyWire", S) == "Not enough Company Funds.")
+assert(View.unavailable("btnBuyWire", S) == "Not enough Company Funds. Company Funds come from selling bolts.")
 S.tourneyInProg = 1
 assert(View.unavailable("btnNewTournament", S) == "A tournament is already running.")
 S.tourneyInProg = 0
-assert(View.unavailable("btnNewTournament", S) == "Not enough Operations.")
+assert(View.unavailable("btnNewTournament", S):find("^Not enough Operations%. Copper Modulators generate Operations"))
+-- Cunning: where it comes from, by what is unlocked (owner, 2026-10-08).
+S.yomi, S.investUpgradeCost, S.strategyEngineFlag = 0, 100, 0
+assert(View.unavailable("btnImproveInvestments", S) == "Not enough Cunning. Cunning is won in tournaments: unlock the Negotiation Simulator project first.")
+S.strategyEngineFlag = 1
+assert(View.unavailable("btnImproveInvestments", S) == "Not enough Cunning. Win Cunning by running tournaments in the Negotiation Simulator.")
+-- A project priced in Cunning says where Cunning comes from too.
+local yomiProject
+for _, e in ipairs(ns.Workshop.projects) do
+    local text = ns.ProjectText[e.name]
+    if text and text.priceTag and text.priceTag:find("yomi", 1, true) then yomiProject = e break end
+end
+assert(yomiProject and View.unavailable(yomiProject.id, S):find("Negotiation Simulator", 1, true), "a Cunning-priced project")
 -- Run: before setup, during the rounds, after they finish (Codex review of #76).
 assert(View.unavailable("btnRunTournament", S) == "Set up a new tournament first.")
 S.tourneyInProg = 1

@@ -503,10 +503,35 @@ function View.unavailable(id, S)
         key = "why.noneAllocated"
     elseif id:match("^projectButton") then
         key = "why.project"
+        -- A project priced in a resource the player may not know how to earn: the
+        -- first one its price names.
+        local entry = ns.Workshop.projectById[id]
+        local text = entry and ns.ProjectText[entry.name]
+        local raw = text and (text.priceTag or computedTag(entry.name, S)) or ""
+        term = (raw:find("yomi", 1, true) and "yomi") or (raw:find("creat", 1, true) and "creativity")
+            or (raw:find(" ops", 1, true) and "operations") or nil
     else
         return nil
     end
-    return ns.Locale.Format(key, { term = term and View.TERMS[term] or "" })
+    local reason = ns.Locale.Format(key, { term = term and View.TERMS[term] or "" })
+    local how = term and View.howToGet(term, S)
+    return how and (reason .. " " .. how) or reason
+end
+
+-- Where a resource comes from (#89 follow-up): the hint after "Not enough ...", by
+-- what the player has unlocked.
+local HOW = {
+    yomi = function(S) return looseZero(S.strategyEngineFlag) and "how.yomiLocked" or "how.yomi" end,
+    creativity = function() return "how.creativity" end,
+    operations = function() return "how.operations" end,
+    funds = function() return "how.funds" end,
+    unused = function() return "how.unused" end,
+    honor = function() return "how.honor" end,
+    swarmGifts = function() return "how.swarmGifts" end,
+}
+function View.howToGet(term, S)
+    local fn = HOW[term]
+    return fn and ns.Locale.Format(fn(S), { term = View.TERMS[term] }) or nil
 end
 
 -- Item tooltips (#84): what each item does, WoW style, with live numbers read from
