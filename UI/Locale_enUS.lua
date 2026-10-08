@@ -17,7 +17,7 @@ ns.Locale.Register("enUS", {
     ["help.play"] = "Make Copper Bolts, set the price, and keep Copper Bars in stock. Whirring Bronze Gizmos and Thorium Widgets make bolts while you do other things.",
     ["help.projects"] = "Projects appear as the company grows. Each shows its cost; buy the ones you can afford.",
     ["help.reports"] = "The strip at the bottom: the Director's remarks and the company's latest report.",
-    ["help.commands"] = "/tim opens or closes the ledger. /tim settings: the Director, the window scale and a new game. /tim help: this page.",
+    ["help.commands"] = "/tim opens or closes the ledger. /tim pause pauses or resumes the company (closing the window does not). /tim settings: the Director, the window scale, pause and a new game. /tim help: this page.",
 
     -- Settings.
     ["settings.title"] = "Settings",
@@ -27,6 +27,12 @@ ns.Locale.Register("enUS", {
     ["settings.greeting"] = "Play Gazlowe's greeting",
     ["settings.scale"] = "Window scale: {percent}%",
     ["settings.help"] = "Help",
+    ["settings.pause"] = "Pause the company",
+    ["settings.resume"] = "Resume the company",
+    ["window.paused"] = "Paused",
+    ["window.pausedTag"] = "(paused)",
+    ["window.resume"] = "Resume",
+    ["window.resumeTip"] = "The company is paused: nothing runs until you resume it.",
     ["settings.newGame"] = "New game...",
     -- Why a control is unavailable (tooltips, #73). {term} is a goblin term
     -- (View.TERMS).
@@ -41,6 +47,7 @@ ns.Locale.Register("enUS", {
     ["why.probeTrust"] = "No Dragonling Trust left to assign.",
     ["why.noneAllocated"] = "Nothing assigned here to take back.",
     ["why.project"] = "The price is not met yet.",
+    ["why.paused"] = "The company is paused: resume it in Settings or with /tim pause.",
     ["settings.notSaved"] = "Saving is off (unrecognized saved data): changes here are not kept after logout.",
 
     -- Speakers.

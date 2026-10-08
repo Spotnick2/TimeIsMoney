@@ -69,6 +69,20 @@ Until the ledger window (#20), developer slash commands drive it: `/tim start`,
 `/tim click <control>` and `/tim set <control> <value>`. `/tim start` opens a company
 only when there is none and saving is not blocked.
 
+## Pause (#77)
+
+Only the player's explicit pause stops the company: Settings or `/tim pause`.
+While paused, `Host.update` returns at once, so logical time freezes: no ticks,
+draws or timers. Resume continues exactly where it stopped. The owed time is
+dropped rather than caught up, as for a closed client, so a paused and an unpaused
+run of the same logical length reach the same state and draws (tests/test_pause.lua).
+Commands are refused while paused (one check, `Host.refusal`), except the
+tournament lines' pointer moves, which are not decisions. The window's controls
+are unavailable, labelled "(paused)", with the reason in their tooltip. Pausing
+and resuming drop any owed time and count it in `/tim status`. The pause is saved (`TimeIsMoneyDB.paused`) and
+survives `/reload` and a relaunch. A new company always runs. Hiding the window,
+Alt-Z or combat never pause it.
+
 ## Auto-save
 
 The reference saves to browser storage every 250 slow ticks (25 s) without changing

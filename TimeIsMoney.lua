@@ -24,7 +24,7 @@ local function Status()
     local S, stats = game.S, Host.stats
     local seconds = game.clock.now / 1000
     Print(string.format("%s at %.1f s logical: %s clips, $%s, wire %s, %d steps.",
-        Host.running and "Running" or ("Stopped (" .. tostring(Host.halted) .. ")"), seconds,
+        Host.running and (Host.paused and "Paused" or "Running") or ("Stopped (" .. tostring(Host.halted) .. ")"), seconds,
         tostring(math.floor(S.clips)), tostring(S.funds), tostring(math.floor(S.wire)), stats.steps))
     if stats.frames > 0 then
         Print(string.format("CPU: %.2f ms per frame on average (%.0f ms per logical second), worst %.1f ms; %.0f ms of time dropped.",
@@ -41,7 +41,7 @@ local function Slash(message)
     local Host = TIM.Host
     if command == "help" then
         TIM.Window.ShowHelp()
-        Print("/tim - open or close the ledger. /tim settings - settings and a new game. /tim help - this help. /tim status - runtime and company. /tim start - a new company when there is none.")
+        Print("/tim - open or close the ledger. /tim pause - pause or resume the company. /tim settings - settings and a new game. /tim help - this help. /tim status - runtime and company. /tim start - a new company when there is none.")
         Print("Developer: /tim click <control> (e.g. btnMakePaperclip), /tim set <control> <value>, /tim icons, /tim model, /tim newgame.")
     elseif command == "" then
         if Host.game then
@@ -53,6 +53,15 @@ local function Slash(message)
         end
     elseif command == "status" then
         Status()
+    elseif command == "pause" then
+        local ok, err = Host.setPaused(not Host.paused)
+        if ok then
+            Print(Host.paused and "Company paused: nothing runs until you resume (/tim pause)." or "Company resumed.")
+            TIM.Window.Refresh()
+            if TIM.Window.settings and TIM.Window.settings:IsShown() then TIM.Window.FillSettings() end
+        else
+            Print("pause refused: " .. err)
+        end
     elseif command == "icons" then
         TIM.Window.ToggleIcons()
     elseif command == "settings" then

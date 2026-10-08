@@ -104,7 +104,8 @@ local function NewButton(parent, id, height)
             if self.tipFn then self.tip = self.tipFn() end
             -- Unavailable: say what is missing (#73), under the tooltip or alone.
             local game = ns.Host.game
-            local why = not self:IsEnabled() and game and View.unavailable(self.id, game.S)
+            local why = not self:IsEnabled() and game and
+                ((ns.Host.paused and (self.id or self.company) and ns.L["why.paused"]) or View.unavailable(self.id, game.S))
             if not why then return self.tip end
             local lines = {}
             for i, line in ipairs(self.tip or { self.text or "" }) do lines[i] = line end
@@ -122,11 +123,18 @@ local function NewButton(parent, id, height)
 end
 
 local function SetButton(b, text, enabled, short)
+    -- A paused company's controls do nothing (#77): unavailable, and the label and
+    -- tooltip say it is the pause. Company controls have an id or the company flag
+    -- (selects and range steps, which act through Host.setValue).
+    local paused = (b.id or b.company) and ns.Host.paused
+    if paused then enabled = false end
     b:SetEnabled(enabled)
     b.text = text
     -- Square buttons have no room for words: "(+)" marks them unavailable.
     if short then
         b.label:SetText(enabled and text or ("(" .. text .. ")"))
+    elseif paused then
+        b.label:SetText(text .. " " .. ns.L["window.pausedTag"])
     else
         b.label:SetText(enabled and text or (text .. " (not yet)"))
     end
@@ -271,6 +279,7 @@ function Card:Select(id, caption, show)
     local row = { kind = "select", height = Window.BUTTON + 4, id = id, caption = caption, show = show,
         choices = {} }
     row.button = NewButton(self.content, nil)
+    row.button.company = true
     row.button:SetScript("OnClick", function()
         row.open = not row.open
         Window.Refresh()
@@ -339,6 +348,7 @@ function Card:Range(id, label, max, show)
     local function square(delta, text)
         local b = NewButton(self.content, nil, Window.SQUARE)
         b:SetWidth(Window.SQUARE)
+        b.company = true
         b:SetScript("OnClick", function() nudge(delta) end)
         b.text = text
         return b
@@ -464,6 +474,7 @@ function Card:Update(game, panels)
                     local choice = row.choices[i]
                     if not choice then
                         choice = NewButton(self.content, nil)
+                        choice.company = true
                         choice:SetScript("OnClick", function(b) row.choose(b.value) end)
                         row.choices[i] = choice
                     end
@@ -718,6 +729,7 @@ local function Build()
     local title = Glass.Font(g.top, 14, "LEFT")
     title:SetPoint("TOPLEFT", content, "TOPLEFT", Glass.Inset("large"), -Glass.Inset("large"))
     title:SetText("Time Is Money")
+    Window.title = title
     title:SetTextColor(COPPER[1], COPPER[2], COPPER[3])
     local close = NewButton(content, nil, Window.SQUARE)
     close:SetWidth(Window.SQUARE)
@@ -742,6 +754,20 @@ local function Build()
     helpButton.label:SetText("?")
     helpButton.tipFn = function() return { ns.L["help.title"] } end
     helpButton:SetScript("OnClick", function() Window.ShowHelp() end)
+    -- While paused, an obvious way back (#77): a Resume button in the title bar,
+    -- lit like the primary action, beside "(Paused)" in the title.
+    local resume = NewButton(content, nil, Window.SQUARE)
+    resume:SetWidth(96)
+    resume:SetPoint("RIGHT", helpButton, "LEFT", -8, 0)
+    Glass.SetSurfaceTint(resume.glass, unpack(Window.PRIMARY_TINT))
+    resume.tipFn = function() return { ns.L["window.resume"], ns.L["window.resumeTip"] } end
+    resume:SetScript("OnClick", function()
+        local ok, err = ns.Host.setPaused(false)
+        if not ok then Report("not done: " .. tostring(err)) end
+        Window.Refresh()
+    end)
+    resume:Hide()
+    Window.resume = resume
 
     -- Production: the bolts and the press, then what feeds it.
     local production = NewCard(content, "Production")
@@ -1013,12 +1039,31 @@ local function Build()
 end
 
 -- Redraws from the game: card contents, visibility and the window's size.
+-- The title bar's own minimum width: the title, then Resume (while paused) and the
+-- three square buttons, so a narrow (single-column) window never overlaps them.
+function Window.HeaderWidth()
+    local inset = Glass.Inset("large")
+    local buttons = 3 * Window.SQUARE + 2 * 4
+    if Window.resume:IsShown() then buttons = buttons + Window.resume:GetWidth() + 8 end
+    return inset + Window.title:GetStringWidth() + 12 + buttons + inset
+end
+
 function Window.Refresh()
     local f = Window.frame
     local game = ns.Host.game
     if not (f and f:IsShown() and game) then return end
     local panels = View.panels(game.S)
     Window.redraw = (Window.redraw or 0) + 1
+    -- The title says when the company is paused, and an open settings panel follows
+    -- any change of company state (a pause, a new game, a halt), only on a change.
+    local state = tostring(game) .. tostring(ns.Host.paused) .. tostring(ns.Host.running)
+    if state ~= Window.companyState then
+        Window.companyState = state
+        Window.title:SetText(ns.Host.paused and ("Time Is Money (" .. ns.L["window.paused"] .. ")") or "Time Is Money")
+        Window.resume.label:SetText(ns.L["window.resume"])
+        Window.resume:SetShown(ns.Host.paused)
+        if Window.settings and Window.settings:IsShown() then Window.FillSettings() end
+    end
     Window.CloseStaleDialog()
     local inset = Glass.Inset("large")
     -- A column that would outgrow the screen continues in the next one, so the
@@ -1048,7 +1093,7 @@ function Window.Refresh()
         end
         if shown then x = x + Window.COLUMN + Window.GAP end
     end
-    local width = math.max(x - Window.GAP + inset, Window.COLUMN + 2 * inset)
+    local width = math.max(x - Window.GAP + inset, Window.COLUMN + 2 * inset, Window.HeaderWidth())
     Window.strip:ClearAllPoints()
     Window.strip:SetPoint("TOPLEFT", Window.content, "TOPLEFT", inset, -tallest)
     local report, isCredit = ns.Messages.Translate(game.readouts[1])
@@ -1348,7 +1393,7 @@ function Window.ToggleSettings()
     if not Window.frame then Build() end
     local p = Window.settings
     if not p then
-        p = Window.Panel("TimeIsMoneySettings", 320, 250)
+        p = Window.Panel("TimeIsMoneySettings", 320, 286)
         local function Changed() Window.FillSettings() Window.Refresh() end
         -- The Director's portrait: two choices, the current one lit.
         p.portraitLabel = Line(p, 11, -50)
@@ -1393,15 +1438,24 @@ function Window.ToggleSettings()
         p.larger:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18, -120)
         p.larger.label:SetText("+")
         p.larger:SetScript("OnClick", function() ns.Settings.StepScale(1) Window.FillSettings() Window.Refresh() end)
+        -- Pause or resume the company (#77).
+        p.pause = NewButton(p.content, nil)
+        p.pause:SetSize(284, Window.BUTTON)
+        p.pause:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -166)
+        p.pause:SetScript("OnClick", function()
+            local ok, err = ns.Host.setPaused(not ns.Host.paused)
+            if not ok then Report("pause refused: " .. err) end
+            Changed()
+        end)
         p.helpButton = NewButton(p.content, nil)
         p.helpButton:SetSize(138, Window.BUTTON)
-        p.helpButton:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -166)
+        p.helpButton:SetPoint("TOPLEFT", p, "TOPLEFT", 18, -202)
         p.helpButton:SetScript("OnClick", function() Window.ShowHelp() end)
         p.newGame = NewButton(p.content, nil)
         p.newGame:SetSize(138, Window.BUTTON)
-        p.newGame:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18, -166)
+        p.newGame:SetPoint("TOPRIGHT", p, "TOPRIGHT", -18, -202)
         -- While saving is off, changes here are not kept: say so.
-        p.notice = Line(p, 10, -204, { 1, 0.5, 0.3 })
+        p.notice = Line(p, 10, -240, { 1, 0.5, 0.3 })
         p.newGame:SetScript("OnClick", function()
             if ns.Host.blocked then
                 Report("not starting over: " .. ns.Host.blocked .. "; the saved data is kept untouched")
@@ -1433,6 +1487,8 @@ function Window.FillSettings()
     p.voice.check:SetShown(v.voice)
     p.voiceLabel:SetText(L["settings.greeting"])
     p.scaleLabel:SetText(ns.Locale.Format("settings.scale", { percent = math.floor(v.scale * 100 + 0.5) }))
+    p.pause.label:SetText(L[ns.Host.paused and "settings.resume" or "settings.pause"])
+    p.pause:SetEnabled(ns.Host.game ~= nil and ns.Host.running == true)
     p.helpButton.label:SetText(L["settings.help"])
     p.newGame.label:SetText(L["settings.newGame"])
     p.notice:SetShown(ns.Host.blocked ~= nil)
