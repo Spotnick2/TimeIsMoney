@@ -20,7 +20,7 @@ ns.ProbeBuild = Build
 
 local function Env()
     local build, interface = Build()
-    Print("client " .. build .. ", interface " .. interface .. ", API evidence 1.60.1.70205")
+    Print("client " .. build .. ", interface " .. interface .. ", API evidence 1.60.1.70338")
     local failed = 0
     for _, result in ipairs(Checks.environment(JSMath)) do
         if not result.ok then failed = failed + 1 end

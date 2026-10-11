@@ -47,7 +47,7 @@ assert(env.SLASH_TIMEISMONEY1 == "/timeismoney")
 assert(env.SLASH_TIMEISMONEY2 == "/tim")
 -- A save from a newer version blocks saving: reported, never replaced.
 env.SlashCmdList.TIMEISMONEY("  StAtUs  ")
-assert(captured.messages[#captured.messages - 1]:find("1.60.1.70205", 1, true))
+assert(captured.messages[#captured.messages - 1]:find("1.60.1.70338", 1, true))
 assert(captured.messages[#captured.messages - 1]:find("16001", 1, true))
 assert(Last():find("a save from a newer version (schema 999)", 1, true))
 env.SlashCmdList.TIMEISMONEY("start")

@@ -21,8 +21,8 @@ For prose-only advice say evidence is in the prompt. For code review allow readi
 files/shell commands in the read-only sandbox; "no commands" would prevent inspection.
 Provide CLAUDE.md, actual committed diff/head, relevant plan/issue and build evidence.
 Source references:
-C:\Projects\References\PORTING-TBC-TO-FOREVER.md
-C:\Projects\References\forever-api-1.60.1.70205.md
+C:\Projects\WoW\References\PORTING-TBC-TO-FOREVER.md
+C:\Projects\WoW\References\forever-api-1.60.1.70338.md
 docs/REFERENCES.md and docs/MODELS.md when relevant.
 
 Good bounded surfaces: JS/Lua numeric translations, scheduler/RNG consumption,

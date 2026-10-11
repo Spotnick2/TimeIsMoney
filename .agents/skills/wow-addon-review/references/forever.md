@@ -2,10 +2,10 @@
 
 Treat API codebase and content rules as separate dimensions. This project targets
 Vanilla-content Forever on Mainline UI APIs. Owner-supplied inventory:
-C:\Projects\References\forever-api-1.60.1.70205.md (Interface 16001, WOW_PROJECT_ID 18).
+C:\Projects\WoW\References\forever-api-1.60.1.70338.md (Interface 16001, WOW_PROJECT_ID 18).
 Standalone compatibility target: Lua 5.1 and double arithmetic; confirm client runtime.
 
-Read canonical C:\Projects\References\PORTING-TBC-TO-FOREVER.md and each finding's
+Read canonical C:\Projects\WoW\References\PORTING-TBC-TO-FOREVER.md and each finding's
 measured build. The inventory proves names/signatures, not working behavior.
 Do not apply TBC/Classic advice merely because the content resembles Vanilla.
 Runtime observations belong in docs/forever-api-notes.md.
