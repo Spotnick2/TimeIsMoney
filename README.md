@@ -35,7 +35,7 @@ closed), /tim pause, /tim settings, /tim reports, /tim minimap, /tim help, /tim 
 - [References and evidence](docs/REFERENCES.md).
 - [Agent instructions](CLAUDE.md), also reached through [AGENTS.md](AGENTS.md).
 
-Target: Forever Interface 16001; API evidence build 1.60.1.70205; offline Lua 5.1.
+Target: Forever Interface 16001; API evidence build 1.60.1.70338; offline Lua 5.1.
 Validate with **pwsh tests/run.ps1**; deploy with **pwsh Tools/deploy.ps1**.
 Deployment defaults to the Forever _classic_beta_ AddOns folder. Restart after
 first installing, enable script errors, then run /tim status.

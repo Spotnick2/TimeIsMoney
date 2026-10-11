@@ -226,6 +226,31 @@ Documented surface identical.
 No addon call, stub or fallback changes. The constant is evidence, not a measured
 claim; the 70205 measurements are the #9 and #10 sections above.
 
+## API evidence 1.60.1.70338
+
+The evidence moved from 1.60.1.70205 to 1.60.1.70338, the dump the owner
+generated in-client on 2026-10-10 (Interface 16001, WOW_PROJECT_ID 18; client
+built Oct 9 2026). The shared references moved to C:\Projects\WoW\References.
+`..\AltStable\Tools\ForeverAPIDump\Compare-Dumps.ps1` against 70205:
+
+```
+## Documented functions - +25 -19
+## Documented events - +25 -21
+## Documented tables - +6 -5
+## Widget methods - no change (7530)
+## Namespace functions - +4 -0
+## Global functions - +60 -9 (walks _G: addon noise, not listed)
+## Namespace candidates - +525 -324 (walks _G: addon noise, not listed)
+```
+
+Every documented change is in C_Discord and C_VoiceChat (channel/member IDs typed
+VoiceChatID/DiscordMemberOpaqueID instead of number; voice-provider calls, events
+and the VoiceProviderID enum added; Login takes an optional channel type), the
+VOICE_CHAT_* event payloads, the LFG entry/listing/search structures (voiceMode
+added) and the new GetGlancingBlowChance/GetGlancingBlowPenalty. No addon, probe,
+test or stub calls any of them; no call, stub or fallback changes. The constant is
+evidence, not a measured claim: no TimeIsMoney smoke on 70338 is recorded here yet.
+
 ## #18 host adapter in the client
 
 Measured 2026-10-04 on client 1.60.1.70205 (owner session, TimeIsMoney deployed with
@@ -278,7 +303,7 @@ Measured 2026-10-04 on client 1.60.1.70205 (owner session, schema 1 deployed):
 
 ## Future probes
 
-Supplied API evidence: 1.60.1.70205, Interface 16001. Shared measurements from
+Supplied API evidence: 1.60.1.70338, Interface 16001. Shared measurements from
 AltStable and the canonical porting guide retain their own tested builds.
 
 Record date, actual GetBuildInfo result, runtime Lua/numeric observations,

@@ -1,4 +1,4 @@
--- Allowlist from forever-api-1.60.1.70205.md; no rendering/persistence claim.
+-- Allowlist from forever-api-1.60.1.70338.md; no rendering/persistence claim.
 -- libGlass: a LibGlass-1.0 checkout to load for real (its XML's files, called as
 -- the client would), or nil for the recording stand-in below.
 local function New(saved, libGlass)
@@ -7,7 +7,7 @@ local function New(saved, libGlass)
         TimeIsMoneyDB = saved, SlashCmdList = {}, _VERSION = _VERSION,
         tostring = tostring,
         print = function(message) captured.messages[#captured.messages + 1] = message end,
-        GetBuildInfo = function() return "1.60.1", "70205", "Oct 2 2026", 16001 end,
+        GetBuildInfo = function() return "1.60.1", "70338", "Oct 9 2026", 16001 end,
         -- Standard Lua the simulation and host use (test_sim.lua enforces Sim's set).
         math = math, string = string, table = table, pairs = pairs, ipairs = ipairs, type = type,
         tonumber = tonumber, error = error, setmetatable = setmetatable, next = next, select = select,

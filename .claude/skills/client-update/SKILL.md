@@ -7,7 +7,7 @@ allowed-tools: [Bash, Read, Edit, Write, Grep, Glob]
 # New Forever build
 
 Read CLAUDE.md and Compat.lua's API_EVIDENCE_BUILD. TimeIsMoney does not own dump
-tooling: ..\AltStable\Tools\ForeverAPIDump and C:\Projects\References own the shared
+tooling: ..\AltStable\Tools\ForeverAPIDump and C:\Projects\WoW\References own the shared
 dump/converters. Do not delete old dumps or mutate sibling working trees.
 If the requested build dump exists, use it. Otherwise ask the owner to generate
 it in-client with /apidump, then run the shared converter only when access is authorized.
