@@ -249,7 +249,11 @@ and the VoiceProviderID enum added; Login takes an optional channel type), the
 VOICE_CHAT_* event payloads, the LFG entry/listing/search structures (voiceMode
 added) and the new GetGlancingBlowChance/GetGlancingBlowPenalty. No addon, probe,
 test or stub calls any of them; no call, stub or fallback changes. The constant is
-evidence, not a measured claim: no TimeIsMoney smoke on 70338 is recorded here yet.
+evidence, not a measured claim.
+
+**Client check, 2026-10-11 (owner):** on 1.60.1.70338 the owner played the game
+and reported that it works. The report gives no deployed commit, LibGlass revision,
+`/tim status` figures, or reload and full-exit results.
 
 ## #18 host adapter in the client
 
