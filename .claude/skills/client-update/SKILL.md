@@ -6,15 +6,12 @@ allowed-tools: [Bash, Read, Edit, Write, Grep, Glob]
 
 # New Forever build
 
-Read CLAUDE.md and Compat.lua's API_EVIDENCE_BUILD. TimeIsMoney does not own dump
-tooling: ..\AltStable\Tools\ForeverAPIDump and C:\Projects\WoW\References own the shared
-dump/converters. Do not delete old dumps or mutate sibling working trees.
-If the requested build dump exists, use it. Otherwise ask the owner to generate
-it in-client with /apidump, then run the shared converter only when access is authorized.
+Read CLAUDE.md and Compat.lua's API_EVIDENCE_BUILD. Run the shared forever-api-dump
+skill (C:\Projects\WoW\.claude\skills\forever-api-dump\SKILL.md) first: it covers the
+dump, conversion and diff. Do not mutate sibling working trees.
 
-Use the shared Compare-Dumps.ps1 workflow; rg every changed function/event/widget
-against addon calls and tests. Documented sections are native evidence; _G addon
-walks alone are not compatibility findings. Check argument/return/event shape.
+For its impact step, rg every changed function/event/widget against addon calls and
+tests. Check argument/return/event shape.
 Before updating stubs, establish the changed native signature independently.
 
 Prepare one issue/branch/PR. Fix reachable incompatibilities, update
