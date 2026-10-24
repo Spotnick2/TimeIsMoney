@@ -1,5 +1,5 @@
 param(
-    [string]$AddOnsPath = 'C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns',
+    [string]$AddOnsPath = 'C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns',
     # The LibGlass-1.0 dev checkout (the packager embeds the pinned tag instead).
     [string]$LibGlass = $(if ($env:LIBGLASS) { $env:LIBGLASS } else { Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'LibGlass' })
 )

@@ -1,5 +1,5 @@
 param(
-    [string]$AddOnsPath = 'C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns'
+    [string]$AddOnsPath = 'C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns'
 )
 # Developer-only: installs the TimeIsMoneyProbe measurement addon (#9). TOC
 # entries under Sim/ come from the repository's Sim folder; the rest from Probe/.
