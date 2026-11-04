@@ -1,6 +1,18 @@
 # Changelog
 
-## 0.1.0
+## v1.0.0
+
+Version 1.0 of Time Is Money, for World of Warcraft: Forever (Interface 16001). The
+game is the one 0.1.0 shipped. This release refreshes the glass and the places you
+can get it.
+
+- **Refreshed glass (LibGlass r11).** The progress bars are now see-through, as
+  the glass was designed. Unavailable buttons now dim their shine and edge glow
+  too, so they stand apart from the ones you can press.
+- **More places to get it.** Each version is now also published on Wago Addons and
+  as a GitHub Release, with the file WowUp reads to install and update it.
+
+## v0.1.0
 
 The first release, for World of Warcraft: Forever (Interface 16001).
 

@@ -4,6 +4,8 @@
 ## Author: Spotnick
 ## Version: @project-version@
 ## SavedVariables: TimeIsMoneyDB
+## X-Curse-Project-ID: 1733557
+## X-Wago-ID: RNL47eNo
 
 Libs\LibGlass-1.0\LibGlass-1.0.xml
 Compat.lua
