@@ -6,6 +6,8 @@ toc:close()
 assert(text:find("## Interface: 16001", 1, true))
 assert(text:find("## Version: @project-version@", 1, true))
 assert(text:find("## SavedVariables: TimeIsMoneyDB", 1, true))
+assert(text:find("## X-Curse-Project-ID: 1733557\n", 1, true), "the CurseForge project ID")
+assert(text:find("## X-Wago-ID: RNL47eNo\n", 1, true), "the Wago project ID")
 for line in text:gmatch("[^\r\n]+") do
     line = line:match("^%s*(.-)%s*$")
     -- The embedded LibGlass is the stubs' stand-in (its own repo tests the library).

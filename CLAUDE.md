@@ -110,7 +110,7 @@ pwsh tests/run.ps1 (accepts -Lua and requires a matching compiler).
 pwsh Tools/deploy.ps1 (accepts -AddOnsPath).
 python Tools/check_package.py .release/<archive>.zip
 
-Default deploy: C:\Program Files (x86)\World of Warcraft\_classic_beta_\Interface\AddOns.
+Default deploy: C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns.
 Providing tools does not authorize deployment into the installed game.
 A new addon folder needs restart. /console scriptErrors 1; /tim status.
 
@@ -133,4 +133,15 @@ escalation limits; no silent stronger model/high effort or automatic delegation.
 Keep diffs small; stop at the authorized milestone. Ask before new dependencies.
 Paperclips reuse terms: the owner handles them and directed (2026-10-04) to
 proceed as if approved, so Sim/ ships in the addon and package. MIT covers original/compatible attributed code,
-not Paperclips or Blizzard assets. CurseForge/webhook/releases are future owner work.
+not Paperclips or Blizzard assets.
+
+## Releasing
+
+Guide: C:\Projects\WoW\References\Docs\RELEASING.md; checklist: docs/RELEASE.md.
+CurseForge project 1733557 (curseforge.com/wow/addons/time-is-money) builds from the
+tag webhook; no CurseForge key lives here. Wago project RNL47eNo
+(addons.wago.io/addons/RNL47eNo). A vX.Y.Z tag's package-check run publishes the
+checked zip as a GitHub Release with release.json, and on Wago (WAGO_API_TOKEN).
+A release tag (vX.Y.Z, not an alpha or beta) updates README.md and the untracked
+README.curseforge.md in its prep PR (RELEASING.md section 3); say in the PR whether
+README.curseforge.md changed, since the owner pastes it into CurseForge and Wago.
