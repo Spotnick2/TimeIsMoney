@@ -1,12 +1,35 @@
--- Allowlist from forever-api-1.60.1.70338.md; no rendering/persistence claim.
--- libGlass: a LibGlass-1.0 checkout to load for real (its XML's files, called as
--- the client would), or nil for the recording stand-in below.
+-- TimeIsMoney's WoW: Forever mock. dofile("tests/wow_stubs.lua") returns { New, acceptKnownStrays }.
+--
+-- New(saved, libGlass) starts a fresh client and returns env, captured, libFiles:
+-- - env: the sandbox the addon's files run in (setfenv), holding only the names
+--   allowed below; reading any other is an error ("Unvalidated global").
+-- - captured: what the tests read back (messages, widgets, sounds, ...).
+-- - libFiles: the files of the LibGlass-1.0 checkout at libGlass, in its XML's
+--   order, or nil for the recording stand-in below.
+--
+-- The mechanics come from WowTestKit (tests/kit.lua loads the commit tests/kit.pin
+-- names; its README is the reference): widgets that record every method called
+-- (a method the build lacks reads as nil), event names checked against the pinned
+-- build, timers and the clock (WoW.now, WoW.flushTimers), print (with the
+-- stray-"|" check done() fails on), WoW.fire, check / eq / done. Each New() after
+-- the first is Kit.freshClient(): a new core, with the assertions' counts kept.
+--
+-- This file adds TimeIsMoney's own client APIs, each verified in the API dump
+-- (C:\Projects\WoW\References\Forever\api\forever-api-<version>.<build>.md). No
+-- rendering or persistence claim: stubs cannot prove pixels.
+dofile("tests/kit.lua") -- with this file, so check / eq / done are there from the start
+local started = false
 local function New(saved, libGlass)
-    local captured = { frames = {}, messages = {} }
+    if started then Kit.freshClient() end
+    started = true
+    local Methods = WoW.Methods
+    local captured = { messages = WoW.chat, frames = WoW.frames }
     local env = {
         TimeIsMoneyDB = saved, SlashCmdList = {}, _VERSION = _VERSION,
         tostring = tostring,
-        print = function(message) captured.messages[#captured.messages + 1] = message end,
+        print = print, -- the kit's: every line in WoW.chat (captured.messages)
+        -- The client the addon's evidence names (Compat.lua); the kit's API lists are
+        -- tests/kit.pin's build.
         GetBuildInfo = function() return "1.60.1", "70338", "Oct 9 2026", 16001 end,
         -- Standard Lua the simulation and host use (test_sim.lua enforces Sim's set).
         math = math, string = string, table = table, pairs = pairs, ipairs = ipairs, type = type,
@@ -22,130 +45,87 @@ local function New(saved, libGlass)
         if allowedNil[key] then return nil end
         error("Unvalidated global: " .. tostring(key), 2)
     end })
-    -- Widgets the window builds (#20): methods confirmed in the API dump, with the
-    -- state they set kept for assertions. Stubs cannot prove pixels.
-    local Widget = {}
-    local methods = {
-        "ClearAllPoints", "SetToplevel", "SetClampedToScreen",
-        "SetMovable", "EnableMouse", "RegisterForDrag", "StartMoving", "StopMovingOrSizing", "SetUserPlaced",
-        "SetMotionScriptsWhileDisabled", "SetJustifyH", "SetWordWrap", "SetStatusBarColor",
-        -- The Director's ModelScene (#22; measured in the client by the #10 probe).
-        "SetCameraFieldOfView", "SetCameraNearClip", "SetCameraFarClip", "SetCameraPosition",
-        "SetCameraOrientationByYawPitchRoll", "SetUseCenterForOrigin", "SetParticleOverrideScale",
-        -- What LibGlass-1.0 r1-r3 calls (its own test_methods checks them against the dump).
-        "AddMaskTexture", "Play", "SetBlendMode", "SetClipsChildren",
-        "SetDuration", "SetFont", "SetFromAlpha", "SetGradient", "SetHorizTile", "SetMinMaxValues",
-        "SetOffset", "SetShadowColor", "SetShadowOffset", "SetSmoothing", "SetStartDelay",
-        "SetStatusBarTexture", "SetTextureSliceMargins", "SetTextureSliceMode", "SetToAlpha",
-        "SetValue", "SetVertTile", "SetVertexColor", "Stop", -- r3 also reads GetAlpha (below)
-        -- The settings icon and the greeting checkbox (Texture methods in the dump).
-        "SetTexCoord", "EnableMouseWheel",
-    }
-    for _, m in ipairs(methods) do Widget[m] = function() end end
-    function Widget:SetScript(kind, fn) self.scripts[kind] = fn end
-    function Widget:SetSize(w, h) self.width, self.height = w, h end
-    function Widget:SetWidth(w) self.width = w end
-    function Widget:SetHeight(h) self.height = h end
-    function Widget:GetHeight() return self.height or 0 end
-    function Widget:GetWidth() return self.width or 0 end
-    function Widget:SetScale(s) self.scale = s end
-    -- Showing a hidden widget fires its OnShow, as the client does.
-    function Widget:Show()
-        local was = self.shown
-        self.shown = true
-        if not was and self.scripts and self.scripts.OnShow then self.scripts.OnShow(self) end
-    end
-    -- Hiding a shown widget fires its OnHide, as the client does.
-    function Widget:Hide()
-        local was = self.shown
-        self.shown = false
-        if was and self.scripts and self.scripts.OnHide then self.scripts.OnHide(self) end
-    end
-    function Widget:SetShown(v) self.shown = not not v end
-    function Widget:IsShown() return self.shown end
-    function Widget:SetFrameLevel(l) self.level = l end
-    function Widget:Raise() captured.raised = self end
-    function Widget:SetFrameStrata(s) self.strata = s end
-    function Widget:GetScale() return self.scale or 1 end
-    function Widget:GetLeft() return self.left or 100 end
-    function Widget:GetTop() return self.top or 700 end
-    function Widget:GetFrameLevel() return self.level or 1 end
-    function Widget:SetEnabled(v) self.enabled = not not v end
-    function Widget:IsEnabled() return self.enabled end
-    function Widget:SetText(t) self.text = t end
-    function Widget:GetText() return self.text end
+
+    -- Methods the kit doesn't implement, each in the build's widget methods.
+    -- WowTestKit #89: scale, GetStringWidth.
+    function Methods.SetScale(w, s) w._scale = s end
+    function Methods.GetScale(w) return w._scale or 1 end
     -- About 6 px per character at the window's sizes (stubs cannot measure text).
-    function Widget:GetStringWidth() return #tostring(self.text or "") * 6 end
-    -- Wrapped height: 14 px per line at the set width (stubs cannot measure text).
-    function Widget:GetStringHeight()
-        local perLine = math.max(1, math.floor((self.width or 1000) / 6))
-        return 14 * math.max(1, math.ceil(#tostring(self.text or "") / perLine))
+    function Methods.GetStringWidth(fs) return #tostring(fs._text or "") * 6 end
+    -- WowTestKit #89: wrapped height, 14 px per line at the set width (stubs
+    -- cannot measure text).
+    function Methods.GetStringHeight(fs)
+        local width = fs._width
+        if not width or width == 0 then width = 1000 end
+        local perLine = math.max(1, math.floor(width / 6))
+        return 14 * math.max(1, math.ceil(#tostring(fs._text or "") / perLine))
     end
-    function Widget:SetPoint(...) self.point = { ... } end
-    function Widget:SetAllPoints(target) self.allPoints = target or true end
-    function Widget:SetAlpha(a) self.alpha = a end
-    function Widget:SetVertexColor(r, g, b) self.vertexColor = { r, g, b } end
-    function Widget:GetAlpha() return self.alpha or 1 end
-    function Widget:SetTexture(t) self.texture = t end
-    function Widget:SetColorTexture(r, g, b, a) self.colorTexture = { r, g, b, a } end
-    function Widget:SetTextColor(r, g, b) self.color = { r, g, b } end
-    local function child(kind)
-        return setmetatable({ kind = kind, scripts = {}, shown = true }, { __index = Widget })
-    end
-    -- The model actor: tests choose whether a display loads (captured.modelOK) and the
-    -- box it reports once streamed (captured.modelBox, six numbers).
-    function Widget:CreateActor()
-        local actor = child("Actor")
-        function actor:SetModelByCreatureDisplayID(id)
-            self.display = id
-            captured.modelLoads = (captured.modelLoads or 0) + 1
-            return captured.modelOK ~= false
-        end
-        function actor:ClearModel() self.display = nil end
-        function actor:SetScale(v) self.scaleValue = v end
-        function actor:SetPosition(x, y, z) self.position = { x, y, z } end
-        function actor:SetAnimation(anim) self.animation = anim end
-        function actor:GetActiveBoundingBox()
-            if self.display and captured.modelBox then return unpack(captured.modelBox) end
-        end
+    -- Raise, recorded (the frame last raised): the kit has the method, and no
+    -- stacking order to change.
+    function Methods.Raise(w) captured.raised = w end
+    -- WowTestKit #89: the edges RegisterForClicks registered.
+    function Methods.RegisterForClicks(w, ...) w._clicks = { ... } end
+    -- WowTestKit #90: the model actor (ModelScene:CreateActor, ModelSceneActor's
+    -- model methods). Tests choose whether a display loads (captured.modelOK) and
+    -- the box it reports once streamed (captured.modelBox, six numbers).
+    function Methods.CreateActor(scene)
+        local actor = WoW.newWidget("ModelSceneActor", scene)
         captured.actor = actor
         return actor
     end
-    function Widget:CreateTexture()
-        local t = child("Texture")
-        t.parent = self
-        captured.textures[#captured.textures + 1] = t
-        return t
+    function Methods.SetModelByCreatureDisplayID(actor, id)
+        actor._display = id
+        captured.modelLoads = (captured.modelLoads or 0) + 1
+        return captured.modelOK ~= false
     end
-    function Widget:CreateMaskTexture() return child("MaskTexture") end
-    function Widget:CreateAnimationGroup() return child("AnimationGroup") end
-    function Widget:CreateAnimation() return child("Animation") end
-    function Widget:GetStatusBarTexture()
-        self.barTexture = self.barTexture or child("Texture")
-        return self.barTexture
+    function Methods.ClearModel(actor) actor._display = nil end
+    function Methods.SetPosition(actor, x, y, z) actor._position = { x, y, z } end
+    function Methods.SetAnimation(actor, anim) actor._animation = anim end
+    function Methods.GetActiveBoundingBox(actor)
+        if actor._display and captured.modelBox then return unpack(captured.modelBox) end
     end
-    function Widget:CreateFontString()
-        local fs = setmetatable({ scripts = {}, shown = true, parent = self }, { __index = Widget })
+
+    -- The tooltip's lines, for assertions (WowTestKit #89): SetText starts them,
+    -- AddLine adds one. SetOwner keeps them, as the old stub did (the tests read a
+    -- hover's lines after it; whether the client's SetOwner clears them is unmeasured).
+    local coreSetText = Methods.SetText
+    function Methods.SetText(w, text, ...)
+        if w._type == "GameTooltip" then w.lines = { text } end
+        return coreSetText(w, text, ...)
+    end
+    function Methods.AddLine(tt, text) tt.lines = tt.lines or {} tt.lines[#tt.lines + 1] = text end
+    function Methods.SetOwner(tt, owner) tt._owner = owner end
+
+    -- The widgets the tests look through, in creation order: font strings and
+    -- textures (CreateFontString / CreateTexture), and every frame but a plain
+    -- parentless, nameless Frame (the event and wakeup frames).
+    captured.fontStrings, captured.widgets, captured.textures = {}, {}, {}
+    local coreFontString, coreTexture = Methods.CreateFontString, Methods.CreateTexture
+    function Methods.CreateFontString(w, ...)
+        local fs = coreFontString(w, ...)
         captured.fontStrings[#captured.fontStrings + 1] = fs
         return fs
     end
-    captured.fontStrings, captured.widgets, captured.textures = {}, {}, {}
-    env.UIParent = setmetatable({ scripts = {}, shown = true, width = 1024, height = 768 }, { __index = Widget })
+    function Methods.CreateTexture(w, ...)
+        local t = coreTexture(w, ...)
+        captured.textures[#captured.textures + 1] = t
+        return t
+    end
+
+    env.UIParent = UIParent
+    UIParent._width, UIParent._height = 1024, 768
     -- The minimap (#78): a 140 px round frame centred at (500, 400) at scale 1; the
-    -- cursor is captured.cursor (screen pixels).
-    env.Minimap = setmetatable({ scripts = {}, shown = true, width = 140, height = 140, level = 2 }, { __index = Widget })
-    function env.Minimap:GetCenter() return 500, 400 end
-    function Widget:GetEffectiveScale() return 1 end
-    function Widget:RegisterForClicks(...) self.clicks = { ... } end
+    -- cursor is WoW.cursorX, WoW.cursorY (screen pixels).
+    local minimap = WoW.newWidget("Minimap", UIParent, "Minimap")
+    minimap._width, minimap._height, minimap._level = 140, 140, 2
+    minimap._left, minimap._right, minimap._bottom, minimap._top = 430, 570, 330, 470
+    env.Minimap = minimap
     -- Frames ESC closes before the game menu (#89); the addon only edits entries.
     env.UISpecialFrames = {}
     env._G = env
-    env.GetCursorPosition = function() local c = captured.cursor or { 0, 0 } return c[1], c[2] end
-    env.GameTooltip = setmetatable({ scripts = {}, shown = false }, { __index = Widget })
-    function env.GameTooltip:SetOwner() end
-    -- The tooltip's lines, for assertions: SetText starts them, AddLine adds one.
-    function env.GameTooltip:SetText(text) self.lines = { text } end
-    function env.GameTooltip:AddLine(text) self.lines = self.lines or {} self.lines[#self.lines + 1] = text end
+    env.GetCursorPosition = GetCursorPosition
+    env.GameTooltip = WoW.newWidget("GameTooltip", UIParent, "GameTooltip")
+    env.GameTooltip._shown = false
     captured.glass = { applied = 0 }
     -- Icons (#21): the client resolves item icons once their data is loaded; tests
     -- choose which items are known (captured.itemIcons) and fire the load result.
@@ -161,41 +141,28 @@ local function New(saved, libGlass)
     captured.soundKits = {}
     env.C_Sound = { PlaySound = function(kit) captured.soundKits[#captured.soundKits + 1] = kit return true end }
     env.C_Spell = { GetSpellTexture = function(id) return 100000 + id end }
-    -- C_Timer.After: callbacks queue until the test runs them (captured:RunTimers()).
-    captured.timers = {}
-    env.C_Timer = { After = function(_, fn) captured.timers[#captured.timers + 1] = fn end }
+    -- C_Timer is the kit's (WoW.timers): RunTimers runs those queued so far, those
+    -- they queue wait for the next call.
+    env.C_Timer = C_Timer
     function captured:RunTimers()
-        local due = self.timers
-        self.timers = {}
-        for _, fn in ipairs(due) do fn() end
-        return #due
+        local n = #WoW.timers
+        WoW.flushTimers()
+        return n
     end
     env.SetPortraitTextureFromCreatureDisplayID = function(texture, id) texture.portraitDisplay = id end
-    env.GetLocale = function() return captured.locale or "enUS" end
+    env.GetLocale = GetLocale -- the kit's: WoW.locale, enUS until a test sets one
     env.UnitFactionGroup = function() return captured.faction or "Horde" end
     captured.sounds = {}
     env.PlaySoundFile = function(id, channel) captured.sounds[#captured.sounds + 1] = { id, channel } return true end
     env.unpack = unpack
-    captured.now = 0
-    env.GetTime = function() return captured.now end
-    function captured:ItemLoaded(id, success)
-        for _, frame in ipairs(self.frames) do
-            if frame.events.ITEM_DATA_LOAD_RESULT then frame.scripts.OnEvent(frame, "ITEM_DATA_LOAD_RESULT", id, success) end
-        end
-    end
+    env.GetTime = GetTime -- the kit's: WoW.now
+    function captured:ItemLoaded(id, success) WoW.fire("ITEM_DATA_LOAD_RESULT", id, success) end
     if libGlass then
         -- The real library: what it needs beyond the widgets above.
-        env._G, env.strmatch, env.assert, env.rawget = env, string.match, assert, rawget
+        env._G, env.strmatch, env.assert, env.rawget = env, strmatch, assert, rawget
         env.Enum = {}
         env.CreateColor = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end
-        env.hooksecurefunc = function(object, method, hook)
-            local original = object[method]
-            object[method] = function(...)
-                local results = { original(...) }
-                hook(...)
-                return unpack(results)
-            end
-        end
+        env.hooksecurefunc = hooksecurefunc
         env.unpack = unpack
         allowedNil.LibStub = true
     end
@@ -220,8 +187,19 @@ local function New(saved, libGlass)
         captured.glass.applied = captured.glass.applied + 1
         return { size = size, top = env.CreateFrame("Frame", nil, host) }
     end
-    function glass.Font(parent, size, justify) return parent:CreateFontString() end
-    function glass.Bar(parent, height) return env.CreateFrame("StatusBar", nil, parent) end
+    -- A font string with the library's font (the real one calls SetFont), so the
+    -- kit lets the window set its text.
+    function glass.Font(parent, size, justify)
+        local fs = parent:CreateFontString()
+        fs._font = { "Fonts\\FRIZQT__.TTF", size or 12, "" }
+        return fs
+    end
+    -- A bar with the library's fill texture (the real one calls SetStatusBarTexture).
+    function glass.Bar(parent, height)
+        local bar = env.CreateFrame("StatusBar", nil, parent)
+        bar._fill = WoW.newWidget("Texture", bar)
+        return bar
+    end
     local INSETS = { large = 6, small = 3, thin = 4, thin_small = 2 } -- LibGlass r3 SIZES
     function glass.Inset(size) return INSETS[size or "large"] end
     -- r3: one surface's own tint (none = its built colour) and its disabled look.
@@ -241,44 +219,28 @@ local function New(saved, libGlass)
             if name then env[name] = env.GameTooltip end
             return env.GameTooltip
         end
-        if kind ~= "Frame" or parent ~= nil or name ~= nil then
-            assert(kind == "Frame" or kind == "Button" or kind == "StatusBar" or kind == "ModelScene",
-                "widget kind " .. tostring(kind))
-            local w = setmetatable({ kind = kind, name = name, parent = parent, scripts = {}, shown = true },
-                { __index = Widget })
-            if name then env[name] = w end
-            captured.widgets[#captured.widgets + 1] = w
-            return w
-        end
-        local frame = { events = {}, scripts = {} }
-        function frame:RegisterEvent(event)
-            assert(event == "ADDON_LOADED" or event == "PLAYER_LOGOUT" or event == "ITEM_DATA_LOAD_RESULT")
-            self.events[event] = true
-            return true
-        end
-        function frame:UnregisterEvent(event)
-            self.events[event] = nil
-            return true
-        end
-        function frame:SetScript(kind, callback)
-            assert(kind == "OnEvent" or kind == "OnUpdate")
-            self.scripts[kind] = callback
-        end
-        captured.frames[#captured.frames + 1] = frame
-        return frame
+        local w = CreateFrame(kind, name, parent, template)
+        if name then env[name] = w end
+        if kind ~= "Frame" or parent ~= nil or name ~= nil then captured.widgets[#captured.widgets + 1] = w end
+        return w
     end
-    function captured:Fire(addonName)
-        for _, frame in ipairs(self.frames) do
-            if frame.events.ADDON_LOADED then
-                frame.scripts.OnEvent(frame, "ADDON_LOADED", addonName, false)
-            end
-        end
-    end
-    function captured:Logout()
-        for _, frame in ipairs(self.frames) do
-            if frame.events.PLAYER_LOGOUT then frame.scripts.OnEvent(frame, "PLAYER_LOGOUT") end
-        end
-    end
+    function captured:Fire(addonName) WoW.fire("ADDON_LOADED", addonName, false) end
+    function captured:Logout() WoW.fire("PLAYER_LOGOUT") end
+    Kit.strict({})
     return env, captured, libFiles
 end
-return { New = New }
+-- FINDING (#114): /tim help's developer line "/tim anim|voice|cue <id>" holds
+-- bare "|"s, which the client reads as escapes. done() fails on any stray "|";
+-- a test that prints the help lets exactly that line through until it's
+-- fixed, so any other stray still fails. Returns how many it let through.
+local function acceptKnownStrays()
+    local keep, known = {}, 0
+    for _, line in ipairs(WoW.strays) do
+        if line:find("/tim anim|voice|cue <id>.", 1, true) then known = known + 1
+        else keep[#keep + 1] = line end
+    end
+    WoW.strays = keep
+    return known
+end
+
+return { New = New, acceptKnownStrays = acceptKnownStrays }

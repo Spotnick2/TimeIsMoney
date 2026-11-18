@@ -57,7 +57,7 @@ paths raise explicit errors naming their issue; never let them diverge silently.
 WoW's Lua raises on x/0, x%0 and NaN division, and NaN compares true: in Sim use
 JSMath.div/isNaN/lt/gt, never x ~= x or a possibly-zero divisor (forever-api-notes).
 
-tests: Lua 5.1 loader behavior with allowlist stub and PowerShell runner.
+tests: Lua 5.1 loader behavior with allowlist stub on WowTestKit and PowerShell runner.
 Tools/deploy.ps1: TOC inputs and runtime media, deployed dev version only.
 Tools/check_package.py: exact archive contents/version validation.
 .github/workflows/package-check.yml: original byte checks, Lua checks, Windows
@@ -106,7 +106,17 @@ Closing WoW stops simulation; no offline catch-up.
 ## Toolchain and validation
 
 Lua 5.1: C:\Program Files (x86)\Lua\5.1\lua.exe and luac.exe.
-pwsh tests/run.ps1 (accepts -Lua and requires a matching compiler).
+pwsh tests/run.ps1 (accepts -Lua and -KitDev, and requires a matching compiler).
+
+The test scaffolding is WowTestKit (`C:\Projects\WoW\WowTestKit`; its README is the reference)
+at the commit and client build `tests\kit.pin` names. `tests\run.ps1` puts that commit in
+`%LOCALAPPDATA%\WowTestKit\<sha>` and hands off to the kit's runner; CI fetches it with
+`tests\fetch_kit.sh`. `tests\kit.lua`, `kit.ps1` and `fetch_kit.sh` are the kit's bootstrap
+copies: never edit them here. A kit need is an issue on the kit, worked around in
+`tests\wow_stubs.lua` with a `-- WowTestKit #N:` comment meanwhile. `tests\run.ps1 -KitDev`
+runs against the `..\WowTestKit` working copy instead of the pin. The addon still loads into
+its own sandbox (`Stubs.New`: only the names the stub allows), on the kit's widgets, timers
+and print; `tests\test_methods.lua` checks every widget method it calls against the build.
 pwsh Tools/deploy.ps1 (accepts -AddOnsPath).
 python Tools/check_package.py .release/<archive>.zip
 

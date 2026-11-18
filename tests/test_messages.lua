@@ -32,13 +32,13 @@ for _, file in ipairs({ "Sim/Workshop.lua", "Sim/Projects.lua", "Sim/Planet.lua"
         end
     end
 end
-assert(count >= 80, "found " .. count .. " messages")
-assert(#missing == 0, "unmapped messages:\n" .. table.concat(missing, "\n"))
+check(count >= 80, "found " .. count .. " messages")
+check(#missing == 0, "unmapped messages:\n" .. table.concat(missing, "\n"))
 
 -- Messages with values: every pattern renders in Time Is Money terms.
 local function says(message, expected)
     local got = Messages.Translate(message)
-    assert(got == expected, message .. " -> " .. tostring(got))
+    check(got == expected, message .. " -> " .. tostring(got))
 end
 says("500 clips created in 1 minute 5 seconds", "500 handfuls of bolts made in 1 minute 5 seconds")
 says("One Trillion Clips Created in 2 hours 1 second", "One trillion handfuls of bolts made in 2 hours 1 second")
@@ -54,26 +54,26 @@ says("The swarm has generated a gift of 3 additional computational capacity",
     "The Company Network produced a breakthrough: 3 more computing capacity.")
 -- Credits stay as written (attribution), marked as credits.
 local text, isCredit = Messages.Translate("a game by Frank Lantz")
-assert(text == "Credits: a game by Frank Lantz" and isCredit)
+check(text == "Credits: a game by Frank Lantz" and isCredit)
 -- Effects as the simulation applies them: proportional to the count, in the plan's
 -- names (no "drone") (consult on #22).
-assert(not Messages.Translate("Adversarial cohesion online. Each drone added to the flock increases every drone's output 2x."):lower():find("drone"))
-assert(Messages.Translate("Self-correcting factories online. Each factory added to the network increases every factory's output 1,000x."):find("grows with the number of foundries", 1, true))
+check(not Messages.Translate("Adversarial cohesion online. Each drone added to the flock increases every drone's output 2x."):lower():find("drone"))
+check(Messages.Translate("Self-correcting factories online. Each factory added to the network increases every factory's output 1,000x."):find("grows with the number of foundries", 1, true))
 -- The opening readout has the owner's wording; nothing unmapped slips through.
 -- The company follows the player's faction (goblins are neutral in Forever).
-assert(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Durotar Supply and Logistics.")
+check(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Durotar Supply and Logistics.")
 captured.faction = "Alliance"
-assert(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Azeroth Commerce Authority.")
+check(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Azeroth Commerce Authority.")
 captured.faction = "Neutral"
-assert(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Durotar Supply and Logistics.")
+check(Messages.Translate("Welcome to Universal Paperclips") == "Welcome to Durotar Supply and Logistics.")
 captured.faction = nil
-assert(Messages.Translate("Clips are great") == nil and Messages.Translate("") == nil)
+check(Messages.Translate("Clips are great") == nil and Messages.Translate("") == nil)
 
 -- Every key the reports and beats use exists in English (a missing one shows [key]).
-for _, key in pairs(Messages.EXACT) do assert(not L[key]:find("^%["), key) end
-for _, p in ipairs(Messages.PATTERNS) do assert(not L[p[2]]:find("^%["), p[2]) end
+for _, key in pairs(Messages.EXACT) do check(not L[key]:find("^%["), key) end
+for _, p in ipairs(Messages.PATTERNS) do check(not L[p[2]]:find("^%["), p[2]) end
 for _, beat in ipairs(ns.Dialogue.BEATS) do
-    assert(not L[beat[1]]:find("^%[") and not L[beat[2]]:find("^%["), beat[2])
+    check(not L[beat[1]]:find("^%[") and not L[beat[2]]:find("^%["), beat[2])
 end
 
 -- A translation can put values in any order ({name} placeholders), use its own
@@ -87,7 +87,7 @@ ns.Locale.Register("xxXX", {
     ["word.strategy.one"] = "strategie", ["word.strategy.few"] = "strategie2", ["word.strategy.many"] = "strategie5",
     group = ".", decimal = ",",
 })
-assert(ns.Locale.Use("xxXX") == "xxXX")
+check(ns.Locale.Use("xxXX") == "xxXX")
 says("1,000 clips created in 2 seconds", "After 2 sekundy, 1.000 handfuls were made")
 says("1,000 clips created in 5 seconds", "After 5 sekund, 1.000 handfuls were made")
 says("1,000 clips created in 21 seconds", "After 21 sekunda, 1.000 handfuls were made")
@@ -95,15 +95,15 @@ says("GREEDY scored 1,200 and beat 3 strats. Yomi increased by 1,200", "+1.200 C
 says("Investment engine upgraded, expected profit/loss ratio now 0.51",
     "Cartel Investments upgraded: expected profit/loss ratio now 0,51")
 -- A value with "%" or "{" is used as written, never read as a placeholder.
-assert(ns.Locale.Format("msg.strategyAdded", { name = "50% {name}" }) == "50% {name} added to the negotiation strategies.")
+check(ns.Locale.Format("msg.strategyAdded", { name = "50% {name}" }) == "50% {name} added to the negotiation strategies.")
 ns.Locale.Use("enUS")
 
 -- Localization: another locale's strings win; a key it lacks falls back to English.
 ns.Locale.Register("frFR", { ["beat.greeting"] = "Le temps, c'est de l'argent, l'ami !", ["time.minutes"] = "%s minutes" })
-assert(ns.Locale.Use("frFR") == "frFR")
-assert(ns.L["beat.greeting"] == "Le temps, c'est de l'argent, l'ami !")
-assert(ns.L["beat.welcome"]:find("Welcome aboard", 1, true), "English fills what a locale lacks")
-assert(ns.Locale.Use("zzZZ") == "enUS", "an unknown locale uses English")
+check(ns.Locale.Use("frFR") == "frFR")
+check(ns.L["beat.greeting"] == "Le temps, c'est de l'argent, l'ami !")
+check(ns.L["beat.welcome"]:find("Welcome aboard", 1, true), "English fills what a locale lacks")
+check(ns.Locale.Use("zzZZ") == "enUS", "an unknown locale uses English")
 ns.Locale.Use("enUS")
 
 -- In the window: the newest message shows as the company's report under the beat.
@@ -111,22 +111,22 @@ env.SlashCmdList.TIMEISMONEY("start")
 local game = ns.Host.game
 game:displayMessage("AutoClippers available for purchase")
 ns.Window.Refresh()
-assert(h.shownText("Whirring Bronze Gizmos available for purchase."))
+check(h.shownText("Whirring Bronze Gizmos available for purchase."))
 game:displayMessage("a game by Frank Lantz")
 ns.Window.Refresh()
-assert(h.shownText("Credits: a game by Frank Lantz"))
+check(h.shownText("Credits: a game by Frank Lantz"))
 game:displayMessage("Welcome to Universal Paperclips")
 ns.Window.Refresh()
-assert(h.shownText("Welcome to Durotar Supply and Logistics.") and not h.shownText("Universal Paperclips"))
+check(h.shownText("Welcome to Durotar Supply and Logistics.") and not h.shownText("Universal Paperclips"))
 -- An unmapped message is never shown; the earlier reports stay (newest first).
 game:displayMessage("Some unmapped reference text")
 ns.Window.Refresh()
-assert(not h.shownText("unmapped") and ns.Director.strip.report.text == "Welcome to Durotar Supply and Logistics.")
+check(not h.shownText("unmapped") and ns.Director.strip.report._text == "Welcome to Durotar Supply and Logistics.")
 -- Three reports, newest first, older ones fading.
 local r = ns.Director.strip.reports
-assert(r[2].text == "Credits: a game by Frank Lantz" and r[3].text == "Whirring Bronze Gizmos available for purchase.")
+check(r[2]._text == "Credits: a game by Frank Lantz" and r[3]._text == "Whirring Bronze Gizmos available for purchase.")
 ns.Director.Tick(1) -- the newest line has faded in (#90)
-assert(r[1].alpha > r[2].alpha and r[2].alpha > r[3].alpha)
+check(r[1]._alpha > r[2]._alpha and r[2]._alpha > r[3]._alpha)
 
-print((libGlass and "messages (real LibGlass)" or "messages (LibGlass stand-in)")
-    .. ": every simulation message mapped, patterns, credits, keys, locale fallback and the strip report passed")
+-- Covered: every simulation message mapped, patterns, credits, keys, locale fallback and the strip report.
+done(libGlass and "test_messages (real LibGlass)" or "test_messages (LibGlass stand-in)")
