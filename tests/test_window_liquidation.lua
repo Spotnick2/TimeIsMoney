@@ -24,75 +24,75 @@ end
 
 -- Before the ending, everything shows.
 local p = at(0)
-assert(p.probeDesign and p.space and p.battle and p.honor and p.wireProduction and p.swarm and p.strategy
+check(p.probeDesign and p.space and p.battle and p.honor and p.wireProduction and p.swarm and p.strategy
     and p.quantum and p.qCompute and p.computing and p.projects and p.creation and p.clipsPerSec)
 
 -- 1: the probe design at once, then trust, max trust, space, combat and Renown.
 p = at(1, { endTimer1 = 0 })
-assert(not p.probeDesign and p.increaseProbeTrust and p.space)
+check(not p.probeDesign and p.increaseProbeTrust and p.space)
 p = at(1, { endTimer1 = 50 })
-assert(not p.increaseProbeTrust and p.increaseMaxTrust)
+check(not p.increaseProbeTrust and p.increaseMaxTrust)
 p = at(1, { endTimer1 = 100 })
-assert(not p.increaseMaxTrust and p.space)
+check(not p.increaseMaxTrust and p.space)
 p = at(1, { endTimer1 = 150 })
-assert(not p.space and p.battle)
+check(not p.space and p.battle)
 p = at(1, { endTimer1 = 175 })
-assert(not p.battle and p.honor)
+check(not p.battle and p.honor)
 p = at(1, { endTimer1 = 190 })
-assert(not p.honor)
+check(not p.honor)
 -- 2: copper production goes and the bars come back; then the network's gifts,
 -- engine and slider.
 p = at(2, { endTimer2 = 0 })
-assert(not p.wireProduction and p.wireTrans and p.swarmGift and p.swarm)
+check(not p.wireProduction and p.wireTrans and p.swarmGift and p.swarm)
 p = at(2, { endTimer2 = 50 })
-assert(not p.swarmGift and p.swarm)
+check(not p.swarmGift and p.swarm)
 p = at(2, { endTimer2 = 100 })
-assert(not p.swarm and p.swarmSlider)
+check(not p.swarm and p.swarmSlider)
 p = at(2, { endTimer2 = 150 })
-assert(not p.swarmSlider)
+check(not p.swarmSlider)
 -- 3: bolts per second, Available Bolts and the space foundry count; 4: the
 -- Negotiation Simulator.
 p = at(3)
-assert(not p.clipsPerSec and not p.toth and not p.factorySpace and p.strategy)
+check(not p.clipsPerSec and not p.toth and not p.factorySpace and p.strategy)
 p = at(4)
-assert(not p.strategy and p.qCompute)
+check(not p.strategy and p.qCompute)
 -- 5: Compute goes, then the chips one by one (chip 10 first), then the calculator.
 p = at(5, { endTimer4 = 0 })
-assert(not p.qCompute and p.quantum and View.chipShown(S, 10))
+check(not p.qCompute and p.quantum and View.chipShown(S, 10))
 S.endTimer4 = 10
-assert(not View.chipShown(S, 10) and View.chipShown(S, 9))
+check(not View.chipShown(S, 10) and View.chipShown(S, 9))
 S.endTimer4 = 174
-for i = 1, 10 do assert(not View.chipShown(S, i)) end
+for i = 1, 10 do check(not View.chipShown(S, i)) end
 p = at(5, { endTimer4 = 250 })
-assert(not p.quantum)
+check(not p.quantum)
 -- 6: the processors; 7: computing and projects.
 p = at(6)
-assert(not p.processor and p.computing)
+check(not p.processor and p.computing)
 p = at(7)
-assert(not p.computing and not p.projects and p.creation)
+check(not p.computing and not p.projects and p.creation)
 
 -- Timers as the reference checked them: once project148 runs endTimer1, the state
 -- after a tick is one ahead of the value the ending block saw.
 S.project148.flag = 1
 p = at(1, { endTimer1 = 50 })
-assert(p.increaseProbeTrust, "the check saw 49")
+check(p.increaseProbeTrust, "the check saw 49")
 p = at(1, { endTimer1 = 51 })
-assert(not p.increaseProbeTrust)
+check(not p.increaseProbeTrust)
 S.project148.flag = 0
 
 -- The window at each stage (review of #60).
 -- 1: the design's heading goes with it; the trust increases outlast it, untitled.
 at(1, { endTimer1 = 10 })
 Window.Refresh()
-assert(not h.shownText("Dragonling Design") and h.button("btnIncreaseProbeTrust"))
+check(not h.shownText("Dragonling Design") and h.button("btnIncreaseProbeTrust"))
 -- 2: the network's heading goes at 100; the slider stays until 150, untitled.
 at(2, { endTimer2 = 120 })
 Window.Refresh()
-assert(not h.shownText("Company Network") and h.labelled(">>"))
+check(not h.shownText("Company Network") and h.labelled(">>"))
 -- 5: Compute goes; chips 10, 9 and 8 are gone at endTimer4 100, seven remain.
 at(5, { endTimer4 = 100 })
 Window.Refresh()
-assert(not h.button("btnQcompute") and h.shownText("Resonance Calculator"))
+check(not h.button("btnQcompute") and h.shownText("Resonance Calculator"))
 local chipRow
 for _, column in ipairs(Window.columns) do
     for _, card in ipairs(column) do
@@ -104,12 +104,12 @@ for i, cell in ipairs(chipRow.cells) do
     if h.visible(cell) then chips = chips + 1 end
     if h.visible(chipRow.slots[i]) then slots = slots + 1 end
 end
-assert(chips == 7 and slots == 7, chips .. " chips show")
+check(chips == 7 and slots == 7, chips .. " chips show")
 -- compDiv holds the network, the slider and the calculator: hidden with it.
 S.dismantle = 0
 S.compFlag = 0
 p = View.panels(S)
-assert(not p.swarm and not p.swarmSlider and not p.quantum and not p.trust and not p.swarmGift)
+check(not p.swarm and not p.swarmSlider and not p.quantum and not p.trust and not p.swarmGift)
 S.compFlag = 1
 
 -- The window follows: drawn at the seventh dismantling, the late cards are gone.
@@ -119,9 +119,9 @@ for _, title in ipairs({ "Dragonling Design", "Space Exploration", "Combat", "Ne
     "Resonance Calculator", "Copper Production", "Company Network", "The Ledger", "Projects" }) do
     -- Card titles only: the Director's strip may name The Ledger as its speaker.
     local found = h.shownText(title)
-    assert(not found or found.parent == ns.Director.strip, title .. " still shows")
+    check(not found or found._parent == ns.Director.strip, title .. " still shows")
 end
-assert(h.shownText("Manufacturing"))
+check(h.shownText("Manufacturing"))
 
 -- Last, the simulation itself runs the final timer: once memory is gone and the
 -- last bar is used, endTimer6 counts and Manufacturing closes at 250 ticks.
@@ -132,31 +132,31 @@ for _ = 1, 40 do
     if S.endTimer6 >= before + 250 then break end
     Host.update(0.5)
 end
-assert(Host.running and S.endTimer6 >= before + 250, "the simulation advanced the final timer: " .. S.endTimer6)
+check(Host.running and S.endTimer6 >= before + 250, "the simulation advanced the final timer: " .. S.endTimer6)
 Window.Refresh()
-assert(not h.shownText("Manufacturing"))
+check(not h.shownText("Manufacturing"))
 -- Only manual production remains.
 local make = h.button("btnMakePaperclip")
-assert(make and h.shownText("Handfuls of Copper Bolts"))
+check(make and h.shownText("Handfuls of Copper Bolts"))
 local others = 0
 for _, w in ipairs(captured.widgets) do
-    if w.kind == "Button" and h.visible(w) and w.id and w.id ~= "btnMakePaperclip" then others = others + 1 end
+    if w._type == "Button" and h.visible(w) and w.id and w.id ~= "btnMakePaperclip" then others = others + 1 end
 end
-assert(others == 0, others .. " other controls still show")
+check(others == 0, others .. " other controls still show")
 
 -- Paused in the single-column window: the title bar keeps room for "(Paused)",
 -- Resume and the three squares (Codex review of #79).
-local single = Window.frame.width
-assert(ns.Host.setPaused(true))
+local single = Window.frame._width
+check(ns.Host.setPaused(true))
 Window.Refresh()
 local inset = 6
-assert(h.visible(Window.resume) and Window.frame.width >= Window.HeaderWidth(), "the paused header fits")
-assert(Window.HeaderWidth() > single, "the paused header is what widens it")
-assert(inset + Window.title:GetStringWidth() + 12 <= Window.frame.width - inset - 3 * 32 - 8 - Window.resume:GetWidth() - 8,
+check(h.visible(Window.resume) and Window.frame._width >= Window.HeaderWidth(), "the paused header fits")
+check(Window.HeaderWidth() > single, "the paused header is what widens it")
+check(inset + Window.title:GetStringWidth() + 12 <= Window.frame._width - inset - 3 * 32 - 8 - Window.resume:GetWidth() - 8,
     "the title ends before Resume")
-assert(ns.Host.setPaused(false))
+check(ns.Host.setPaused(false))
 Window.Refresh()
-assert(Window.frame.width == single, "back to one column when resumed")
+check(Window.frame._width == single, "back to one column when resumed")
 
-print((libGlass and "window liquidation (real LibGlass)" or "window liquidation (LibGlass stand-in)")
-    .. ": every closing in order, the chips one by one, the final timer and manual production alone passed")
+-- Covered: every closing in order, the chips one by one, the final timer and manual production alone.
+done(libGlass and "test_window_liquidation (real LibGlass)" or "test_window_liquidation (LibGlass stand-in)")

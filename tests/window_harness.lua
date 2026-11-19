@@ -45,25 +45,42 @@ local function Helpers(captured)
     -- Visible as the client decides: shown, and every parent shown.
     local function visible(w)
         while w do
-            if w.shown == false then return false end
-            w = w.parent
+            if w._shown == false then return false end
+            w = w._parent
         end
         return true
     end
     h.visible = visible
+    -- The anchor SetPoint set last (the kit keeps every SetPoint and SetAllPoints
+    -- since the last ClearAllPoints, in order), or nil.
+    function h.point(w)
+        for i = #w._points, 1, -1 do
+            if w._points[i][1] ~= "ALL" then return w._points[i] end
+        end
+    end
+    -- What SetAllPoints anchored w to last (true for its parent), or nil.
+    function h.allPoints(w)
+        for i = #w._points, 1, -1 do
+            local p = w._points[i]
+            if p[1] == "ALL" then return p[2] or true end
+        end
+    end
+    h.acceptKnownStrays = Stubs.acceptKnownStrays -- FINDING (#114), tests/wow_stubs.lua
+    -- Enabled, as the client's IsEnabled reads it, without recording a call.
+    function h.enabled(b) return not b._disabled end
     function h.button(id)
         for _, w in ipairs(captured.widgets) do
-            if w.kind == "Button" and w.id == id and visible(w) then return w end
+            if w._type == "Button" and w.id == id and visible(w) then return w end
         end
     end
     function h.labelled(text)
         for _, w in ipairs(captured.widgets) do
-            if w.kind == "Button" and visible(w) and w.label and w.label.text == text then return w end
+            if w._type == "Button" and visible(w) and w.label and w.label._text == text then return w end
         end
     end
     function h.shownText(fragment)
         for _, fs in ipairs(captured.fontStrings) do
-            if visible(fs) and fs.text and tostring(fs.text):find(fragment, 1, true) then return fs end
+            if visible(fs) and fs._text and tostring(fs._text):find(fragment, 1, true) then return fs end
         end
     end
     function h.digest(t, seen)

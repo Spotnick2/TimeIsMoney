@@ -1,0 +1,6 @@
+# WowTestKit for these tests: the commit, and the client build to test against.
+# build: the kit's newest. Compat.lua's API_EVIDENCE_BUILD is 1.60.1.70338, which the
+# kit has no data for (its oldest is 70450), so the tests check against 70959.
+sha=3cba24fd68e35758c19671bcedfefa9ad228c60f
+build=70959
+api=2

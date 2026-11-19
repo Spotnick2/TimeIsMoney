@@ -12,32 +12,32 @@ local S = game.S
 Window.Refresh()
 
 -- The addon's own tooltip, from the client's template.
-assert(captured.tooltipCreated and captured.tooltipCreated.name == "TimeIsMoneyTooltip"
+check(captured.tooltipCreated and captured.tooltipCreated.name == "TimeIsMoneyTooltip"
     and captured.tooltipCreated.template == "GameTooltipTemplate")
 
 -- Every main action has a tooltip saying what it does, available or not.
 local function tipOf(id)
     local b = assert(h.button(id), id)
-    b.scripts.OnEnter(b)
+    b._scripts.OnEnter(b)
     local lines = env.GameTooltip.lines
-    b.scripts.OnLeave(b)
+    b._scripts.OnLeave(b)
     return table.concat(lines, "|")
 end
 S.wireSupply, S.wireCost, S.wire = 1500, 13, 42
 Window.Refresh()
-assert(h.button("btnBuyWire").label.text:find("^Buy 1,500 Copper Bars %("), "the shipment size on the button")
-assert(tipOf("btnBuyWire"):find("Buys 1,500 Copper Bars for", 1, true))
-assert(tipOf("btnMakePaperclip"):find("one handful of bolts from one Copper Bar", 1, true) and tipOf("btnMakePaperclip"):find("Copper Bars left: 42", 1, true))
-assert(tipOf("btnLowerPrice"):find("Lowers the price", 1, true) and tipOf("btnRaisePrice"):find("Raises the price", 1, true))
+check(h.button("btnBuyWire").label._text:find("^Buy 1,500 Copper Bars %("), "the shipment size on the button")
+check(tipOf("btnBuyWire"):find("Buys 1,500 Copper Bars for", 1, true))
+check(tipOf("btnMakePaperclip"):find("one handful of bolts from one Copper Bar", 1, true) and tipOf("btnMakePaperclip"):find("Copper Bars left: 42", 1, true))
+check(tipOf("btnLowerPrice"):find("Lowers the price", 1, true) and tipOf("btnRaisePrice"):find("Raises the price", 1, true))
 S.funds, S.adCost, S.marketingLvl = 0, 100, 1
 Host.update(0.02)
 Window.Refresh()
 local campaign = tipOf("btnExpandMarketing")
-assert(campaign:find("Raises demand by 10%", 1, true) and campaign:find("Not enough Company Funds", 1, true),
+check(campaign:find("Raises demand by 10%", 1, true) and campaign:find("Not enough Company Funds", 1, true),
     "what it does, and why not now")
 for _, id in ipairs({ "btnMakePaperclip", "btnBuyWire", "btnToggleWireBuyer", "btnMakeClipper", "btnMakeMegaClipper",
     "btnExpandMarketing", "btnLowerPrice", "btnRaisePrice", "btnAddProc", "btnAddMem" }) do
-    assert(View.actionTip(id, S) and #View.actionTip(id, S) >= 1, "a description for " .. id)
+    check(View.actionTip(id, S) and #View.actionTip(id, S) >= 1, "a description for " .. id)
 end
 
 -- Every action control the window builds says what it does (Codex review of #91):
@@ -53,27 +53,27 @@ for _, name in ipairs({ "Speed", "Nav", "Rep", "Haz", "Fac", "Harv", "Wire", "Co
 end
 for id in pairs(ids) do
     local tip = View.actionTip(id, S)
-    assert(tip and #tip >= 1 and not tip[1]:find("^act%."), "a description for " .. id)
+    check(tip and #tip >= 1 and not tip[1]:find("^act%."), "a description for " .. id)
     scanned = scanned + 1
 end
-assert(scanned >= 50, "the scan found the actions: " .. scanned)
+check(scanned >= 50, "the scan found the actions: " .. scanned)
 -- Unlocked later: the investment engine's buttons, enabled and disabled.
 S.investmentEngineFlag = 1
 Window.Refresh()
 local deposit = h.button("btnInvest")
-assert(deposit, "the Deposit button shows once the engine is unlocked")
+check(deposit, "the Deposit button shows once the engine is unlocked")
 do
-    assert(tipOf("btnInvest"):find("Moves your Company Funds", 1, true))
+    check(tipOf("btnInvest"):find("Moves your Company Funds", 1, true))
 end
-assert(View.actionTip("btnInvest", S)[1]:find("copper fraction is lost", 1, true))
+check(View.actionTip("btnInvest", S)[1]:find("copper fraction is lost", 1, true))
 
 -- Investment cash, stocks and total keep a fixed width too.
-assert(source:find('invest:Stat%("Cash", function%(S%) return View.moneyFixed'), "cash is fixed-width")
+check(source:find('invest:Stat%("Cash", function%(S%) return View.moneyFixed'), "cash is fixed-width")
 
 -- Available Board Trust beside the total.
 S.compFlag, S.trust, S.processors, S.memory = 1, 7, 3, 2
 Window.Refresh()
-assert(View.availableTrust(S) == 2 and h.shownText("Available"))
+check(View.availableTrust(S) == 2 and h.shownText("Available"))
 
 -- A project costing more Operations than the Punch Cards hold says how to get there.
 S.memory = 0 -- no capacity: any Operations price exceeds it
@@ -81,22 +81,22 @@ local blocked
 for _, p in ipairs(View.projects(game)) do
     if ns.ProjectText[p.name].priceTag and ns.ProjectText[p.name].priceTag:find(" ops", 1, true) then blocked = p end
 end
-assert(blocked, "an Operations-priced project is on offer")
-assert(blocked.capacity and blocked.capacity:find("add Punch Cards", 1, true), "it says how to get there")
+check(blocked, "an Operations-priced project is on offer")
+check(blocked.capacity and blocked.capacity:find("add Punch Cards", 1, true), "it says how to get there")
 S.memory = 1000
-for _, p in ipairs(View.projects(game)) do assert(p.capacity == nil, "no capacity line when it fits") end
+for _, p in ipairs(View.projects(game)) do check(p.capacity == nil, "no capacity line when it fits") end
 
 -- Fixed-width coins for right-aligned values.
 local I = View.COIN_ICONS
 -- One reference unit is one silver: 205.04 is 2 gold 5 silver 4 copper.
-assert(View.moneyFixed(205.04) == "2" .. I.g .. " 05" .. I.s .. " 04" .. I.c)
-assert(View.moneyFixed(50.04) == "50" .. I.s .. " 04" .. I.c and View.moneyFixed(0.09) == "9" .. I.c)
-assert(View.moneyFixed(200) == "2" .. I.g .. " 00" .. I.s .. " 00" .. I.c)
-assert(View.money(200) == "2" .. I.g, "buttons and tags stay compact")
+check(View.moneyFixed(205.04) == "2" .. I.g .. " 05" .. I.s .. " 04" .. I.c)
+check(View.moneyFixed(50.04) == "50" .. I.s .. " 04" .. I.c and View.moneyFixed(0.09) == "9" .. I.c)
+check(View.moneyFixed(200) == "2" .. I.g .. " 00" .. I.s .. " 00" .. I.c)
+check(View.money(200) == "2" .. I.g, "buttons and tags stay compact")
 
 -- Credits.
 Window.ShowHelp()
-assert(h.shownText("a game by Frank Lantz") and h.shownText("Bennett Foddy") and h.shownText("decisionproblem.com/paperclips"))
+check(h.shownText("a game by Frank Lantz") and h.shownText("Bennett Foddy") and h.shownText("decisionproblem.com/paperclips"))
 
 -- ESC: panels first, then the ledger. An ESC press as the client makes it: every
 -- shown frame named in UISpecialFrames is hidden, walking the table with pairs.
@@ -109,49 +109,49 @@ local function esc()
     end
     captured:RunTimers() -- the next frame
 end
-assert(has("TimeIsMoneyHelp") and not has("TimeIsMoneyWindow"), "with Help open, ESC closes Help, not the ledger")
+check(has("TimeIsMoneyHelp") and not has("TimeIsMoneyWindow"), "with Help open, ESC closes Help, not the ledger")
 esc()
-assert(not Window.help:IsShown() and Window.frame:IsShown(), "one ESC: Help only (the ledger is listed only afterwards)")
-assert(has("TimeIsMoneyWindow"), "then the ledger is listed")
+check(not Window.help:IsShown() and Window.frame:IsShown(), "one ESC: Help only (the ledger is listed only afterwards)")
+check(has("TimeIsMoneyWindow"), "then the ledger is listed")
 env.SlashCmdList.TIMEISMONEY("settings")
-assert(has("TimeIsMoneySettings") and not has("TimeIsMoneyWindow"))
+check(has("TimeIsMoneySettings") and not has("TimeIsMoneyWindow"))
 esc()
-assert(not Window.settings:IsShown() and Window.frame:IsShown())
+check(not Window.settings:IsShown() and Window.frame:IsShown())
 -- The first confirmation of the session is listed too (it starts hidden).
 Window.NewGame()
-assert(Window.dialog:IsShown() and has("TimeIsMoneyConfirm") and not has("TimeIsMoneyWindow"), "the first confirmation")
+check(Window.dialog:IsShown() and has("TimeIsMoneyConfirm") and not has("TimeIsMoneyWindow"), "the first confirmation")
 esc()
-assert(not Window.dialog:IsShown() and Window.frame:IsShown(), "ESC closes only the confirmation")
+check(not Window.dialog:IsShown() and Window.frame:IsShown(), "ESC closes only the confirmation")
 esc()
-assert(not Window.frame:IsShown(), "and the next ESC the ledger")
+check(not Window.frame:IsShown(), "and the next ESC the ledger")
 local count = 0
 for _, n in ipairs(list) do if n == "TimeIsMoneyWindow" then count = count + 1 end end
-assert(count == 1, "listed once")
+check(count == 1, "listed once")
 env.SlashCmdList.TIMEISMONEY("")
 
 -- A hovered tooltip stays the same size across redraws (lines are rebuilt, never
 -- appended to the button's own tip).
 local make = h.button("btnMakePaperclip")
-make.scripts.OnEnter(make)
+make._scripts.OnEnter(make)
 local n1 = #env.GameTooltip.lines
 for _ = 1, 5 do Window.Refresh() end
-assert(#env.GameTooltip.lines == n1, "no growth while hovered: " .. #env.GameTooltip.lines .. " vs " .. n1)
-make.scripts.OnLeave(make)
-make.scripts.OnEnter(make)
-assert(#env.GameTooltip.lines == n1, "and none carried into the next hover")
-make.scripts.OnLeave(make)
+check(#env.GameTooltip.lines == n1, "no growth while hovered: " .. #env.GameTooltip.lines .. " vs " .. n1)
+make._scripts.OnLeave(make)
+make._scripts.OnEnter(make)
+check(#env.GameTooltip.lines == n1, "and none carried into the next hover")
+make._scripts.OnLeave(make)
 
 -- A lit button keeps its tint through a press (Resume while paused).
-assert(Host.setPaused(true))
+check(Host.setPaused(true))
 Window.Refresh()
 local resume = Window.resume
 local lit = resume.glass.surfaceTint
-resume.scripts.OnEnter(resume)
-resume.scripts.OnMouseDown(resume)
-resume.scripts.OnMouseUp(resume)
-resume.scripts.OnLeave(resume)
-assert(resume.glass.surfaceTint == lit, "Resume stays lit")
-assert(Host.setPaused(false))
+resume._scripts.OnEnter(resume)
+resume._scripts.OnMouseDown(resume)
+resume._scripts.OnMouseUp(resume)
+resume._scripts.OnLeave(resume)
+check(resume.glass.surfaceTint == lit, "Resume stays lit")
+check(Host.setPaused(false))
 
 -- Capacity: a computed Operations price counts (Photonic Chips); a negative one
 -- (the reversion) never asks for Punch Cards.
@@ -162,21 +162,21 @@ local function capacityFor(name)
     return View.projects(game)[1].capacity
 end
 S.memory, S.qChipCost, S.project51 = 5, 10000, { flag = 0 }
-assert(capacityFor("project51") and capacityFor("project51"):find("10,000", 1, true), "the computed chip price")
+check(capacityFor("project51") and capacityFor("project51"):find("10,000", 1, true), "the computed chip price")
 S.memory = 0
-assert(capacityFor("project217") == nil, "a negative price never needs capacity")
+check(capacityFor("project217") == nil, "a negative price never needs capacity")
 
 -- Every card's title says what the card is for (owner, 2026-10-08).
 local cards = 0
 for _, column in ipairs(Window.columns) do
     for _, card in ipairs(column) do
-        local title = card.title.text
+        local title = card.title._text
         local key = card.key
-        assert(key and not ns.L["card." .. key]:find("^card%."), "a description for " .. tostring(title))
+        check(key and not ns.L["card." .. key]:find("^card%."), "a description for " .. tostring(title))
         cards = cards + 1
     end
 end
-assert(cards >= 14, "every card: " .. cards)
+check(cards >= 14, "every card: " .. cards)
 
 -- The crystals: the Arcane Crystal icon, charge as opacity, red while negative,
 -- faint slots for the ones not owned, and a tooltip.
@@ -191,53 +191,54 @@ S.qChips[1].value, S.qChips[2].value, S.qChips[3].value = 0.6, -0.5, 0
 S.qFlag = 1
 Window.Refresh()
 local c1, c2, c3 = chipRow.cells[1], chipRow.cells[2], chipRow.cells[3]
-assert(c1.icon == ns.Assets.IdentityIcon("chips"), "the Arcane Crystal icon")
-assert(math.abs(c1.alpha - 0.6) < 1e-9 and c1.vertexColor[2] == 1, "positive: as is, by its charge")
-assert(math.abs(c2.alpha - 0.5) < 1e-9 and c2.vertexColor[2] < 0.5, "negative: red, never invisible")
-assert(c3.alpha == 0 and chipRow.slots[3].shown, "not owned: an empty slot")
-chipRow.tipArea.scripts.OnEnter(chipRow.tipArea)
-assert(env.GameTooltip.lines[1] == "Arcane Crystals: 2 of 10", "the tooltip counts them")
-assert(env.GameTooltip.lines[2]:find("gold while positive, red while negative", 1, true)
+check(c1.icon == ns.Assets.IdentityIcon("chips"), "the Arcane Crystal icon")
+check(math.abs(c1._alpha - 0.6) < 1e-9 and c1._vertex[2] == 1, "positive: as is, by its charge")
+check(math.abs(c2._alpha - 0.5) < 1e-9 and c2._vertex[2] < 0.5, "negative: red, never invisible")
+check(c3._alpha == 0 and chipRow.slots[3]._shown, "not owned: an empty slot")
+chipRow.tipArea._scripts.OnEnter(chipRow.tipArea)
+check(env.GameTooltip.lines[1] == "Arcane Crystals: 2 of 10", "the tooltip counts them")
+check(env.GameTooltip.lines[2]:find("gold while positive, red while negative", 1, true)
     and not env.GameTooltip.lines[2]:find("blue", 1, true), "it names the colours shown")
-chipRow.tipArea.scripts.OnLeave(chipRow.tipArea)
+chipRow.tipArea._scripts.OnLeave(chipRow.tipArea)
 
 -- The ending: every crystal at the reference's 0.5, owned or not, still shows.
 S.qChips[3].active, S.qChips[3].value = 0, 0.5
 Window.Refresh()
-assert(math.abs(chipRow.cells[3].alpha - 0.5) < 1e-9, "an unowned crystal at 0.5 shows, as in the reference")
+check(math.abs(chipRow.cells[3]._alpha - 0.5) < 1e-9, "an unowned crystal at 0.5 shows, as in the reference")
 
 -- A project's hint names the resource actually short (review of #93).
-assert(View.shortOf("(15,000 yomi, 30,000 ops)", { yomi = 20000, operations = 10000, creativity = 0, funds = 0 }) == "operations")
-assert(View.shortOf("(3,000 Yomi)", { yomi = 0, operations = 0, creativity = 0, funds = 0 }) == "yomi", "capital Yomi")
-assert(View.shortOf("(3,000 yomi, $10,000,000)", { yomi = 5000, operations = 0, creativity = 0, funds = 5 }) == "funds")
-assert(View.shortOf("(25 creat, 2,500 ops)", { yomi = 0, operations = 5000, creativity = 30, funds = 0 }) == nil, "nothing short")
+check(View.shortOf("(15,000 yomi, 30,000 ops)", { yomi = 20000, operations = 10000, creativity = 0, funds = 0 }) == "operations")
+check(View.shortOf("(3,000 Yomi)", { yomi = 0, operations = 0, creativity = 0, funds = 0 }) == "yomi", "capital Yomi")
+check(View.shortOf("(3,000 yomi, $10,000,000)", { yomi = 5000, operations = 0, creativity = 0, funds = 5 }) == "funds")
+check(View.shortOf("(25 creat, 2,500 ops)", { yomi = 0, operations = 5000, creativity = 30, funds = 0 }) == nil, "nothing short")
 
 -- The strip's minimum follows the picture: the 3D scene, or the 84 px portrait.
-assert(ns.Director.MinStrip(ns.Dialogue.DIRECTOR) == ns.Director.HEIGHT + 8)
-assert(ns.Director.MinStrip(ns.Dialogue.LEDGER) == ns.Director.PORTRAIT + 8)
+check(ns.Director.MinStrip(ns.Dialogue.DIRECTOR) == ns.Director.HEIGHT + 8)
+check(ns.Director.MinStrip(ns.Dialogue.LEDGER) == ns.Director.PORTRAIT + 8)
 ns.Settings.Set("model", false)
-assert(ns.Director.MinStrip(ns.Dialogue.DIRECTOR) == ns.Director.PORTRAIT + 8)
+check(ns.Director.MinStrip(ns.Dialogue.DIRECTOR) == ns.Director.PORTRAIT + 8)
 ns.Settings.Set("model", true)
 
 -- The fallback picture fits the short strip, and the click area follows the
 -- picture shown (Codex review of #93).
 local strip = ns.Director.strip
-local pp = strip.portrait.point
-assert(pp[1] == "TOP" and pp[2] == strip and pp[5] == -4, "the portrait sits at the strip's top")
-assert(-pp[5] + ns.Director.PORTRAIT <= ns.Director.PORTRAIT + 8, "inside the short strip")
+local pp = h.point(strip.portrait)
+check(pp[1] == "TOP" and pp[2] == strip and pp[5] == -4, "the portrait sits at the strip's top")
+check(-pp[5] + ns.Director.PORTRAIT <= ns.Director.PORTRAIT + 8, "inside the short strip")
 ns.Settings.Set("model", false)
 Window.Refresh()
-assert(strip.pictureArea.allPoints == strip.portrait, "the click area covers the portrait")
+check(h.allPoints(strip.pictureArea) == strip.portrait, "the click area covers the portrait")
 ns.Settings.Set("model", true)
 Window.Refresh()
-assert(strip.pictureArea.allPoints == strip.scene, "and the scene when the model shows")
+check(h.allPoints(strip.pictureArea) == strip.scene, "and the scene when the model shows")
 
 -- A negative Operations price (Reverse the Hourglass) says Operations must fall.
 local reversion
 for _, e in ipairs(ns.Workshop.projects) do if e.name == "project217" then reversion = e end end
 S.operations = -9990
 local why = View.unavailable(reversion.id, S)
-assert(why:find("must fall to %-10,000") and not why:find("Copper Modulators generate", 1, true), why)
-assert(View.shortOf("(-10,000 ops)", { yomi = 0, operations = -9990, creativity = 0, funds = 0 }) == nil)
+check(why:find("must fall to %-10,000") and not why:find("Copper Modulators generate", 1, true), why)
+check(View.shortOf("(-10,000 ops)", { yomi = 0, operations = -9990, creativity = 0, funds = 0 }) == nil)
 
-print("ux3: action tooltips, shipment size, available trust, capacity hint, fixed coins, own tooltip, credits and ESC order passed")
+-- Covered: action tooltips, shipment size, available trust, capacity hint, fixed coins, own tooltip, credits and ESC order.
+done("test_ux3")

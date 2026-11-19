@@ -65,6 +65,12 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq lua5.1
+      # The tests run on WowTestKit at the commit tests/kit.pin names (the Windows
+      # job's tests/run.ps1 fetches it itself, through tests/kit.ps1).
+      - name: Fetch WowTestKit at its pin
+        run: |
+          bash tests/fetch_kit.sh "$RUNNER_TEMP/WowTestKit"
+          echo "WOWTESTKIT=$RUNNER_TEMP/WowTestKit" >> "$GITHUB_ENV"
       - name: Syntax-check Lua and run tests
         run: |
           set -euo pipefail

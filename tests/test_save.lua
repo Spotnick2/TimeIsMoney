@@ -1,4 +1,6 @@
 -- Saved games (#19): a restored game continues exactly like an uninterrupted one.
+dofile("tests/kit.lua") -- the assertions (check, done); this file builds its own client
+
 local ns = {}
 local function load(path) assert(loadfile(path))("TimeIsMoney", ns) end
 load("Sim/Reference.lua")
@@ -25,7 +27,7 @@ end
 local function write(v)
     local t = type(v)
     if t == "number" then
-        assert(v == v and v ~= math.huge and v ~= -math.huge, "the writer gets only finite numbers")
+        check(v == v and v ~= math.huge and v ~= -math.huge, "the writer gets only finite numbers")
         return string.format("%.14g", v)
     elseif t == "string" then
         return string.format("%q", v)
@@ -88,15 +90,15 @@ local function continuation(name, setup, at, finish, commands)
     local saved = roundTrip(Save.encode(b, rb))
     local rc = newRandom(saved.random.s1, saved.random.s2, saved.random.count)
     local c = Save.decode(saved, rc, false)
-    assert(c.clock.now == at, name .. ": restored clock")
+    check(c.clock.now == at, name .. ": restored clock")
     play(c, at, finish)
     local ok, where = equal(a.S, c.S, "S")
-    assert(ok, name .. ": state differs at " .. tostring(where))
-    assert(ra.count == rc.count, name .. ": draws " .. ra.count .. " vs " .. rc.count)
-    assert(equal(a.readouts, c.readouts, "readouts"), name .. ": readouts")
-    assert(equal(a.disabled, c.disabled, "disabled"), name .. ": controls")
-    assert(equal(a.projectElements, c.projectElements, "elements"), name .. ": project buttons")
-    assert(equal(a.clock:describe(), c.clock:describe(), "timers"), name .. ": timers")
+    check(ok, name .. ": state differs at " .. tostring(where))
+    check(ra.count == rc.count, name .. ": draws " .. ra.count .. " vs " .. rc.count)
+    check(equal(a.readouts, c.readouts, "readouts"), name .. ": readouts")
+    check(equal(a.disabled, c.disabled, "disabled"), name .. ": controls")
+    check(equal(a.projectElements, c.projectElements, "elements"), name .. ": project buttons")
+    check(equal(a.clock:describe(), c.clock:describe(), "timers"), name .. ": timers")
     return a, c
 end
 
@@ -112,7 +114,7 @@ local a = continuation("tournament", function(game, S)
     S.compFlag, S.strategyEngineFlag, S.memory, S.standardOps = 1, 1, 20, 15000
     game:setValue("stratPicker", "0")
 end, 175, 4600, { { at = 20, click = "btnNewTournament" }, { at = 30, click = "btnRunTournament" } })
-assert(a.S.resultsFlag == 1 or a.S.currentRound > 1, "the tournament progressed")
+check(a.S.resultsFlag == 1 or a.S.currentRound > 1, "the tournament progressed")
 
 -- Investments: stocks held across the save.
 continuation("investments", set({ funds = 20000, investmentEngineFlag = 1, sellDelay = 4 }), 2777, 6000,
@@ -141,10 +143,10 @@ do
     S.nanValue, S.infValue, S.negZero, S.huge, S.tiny = JSMath.NAN, -math.huge, JSMath.NEG_ZERO, 3e55, 5e-324
     S.bigInt = 2 ^ 52 + 1
     local c = Save.decode(roundTrip(Save.encode(game, nil)), newRandom(1, 2), false)
-    assert(JSMath.isNaN(c.S.nanValue) and c.S.infValue == -math.huge and 1 / c.S.negZero < 0)
-    assert(c.S.huge == 3e55 and c.S.tiny == 5e-324 and c.S.bigInt == 2 ^ 52 + 1)
-    assert(c.S.incomeThen == JSMath.undefined, "undefined survives")
-    assert(c.S.strats[1] == c.S.allStrats[1], "shared references survive")
+    check(JSMath.isNaN(c.S.nanValue) and c.S.infValue == -math.huge and 1 / c.S.negZero < 0)
+    check(c.S.huge == 3e55 and c.S.tiny == 5e-324 and c.S.bigInt == 2 ^ 52 + 1)
+    check(c.S.incomeThen == JSMath.undefined, "undefined survives")
+    check(c.S.strats[1] == c.S.allStrats[1], "shared references survive")
 end
 
 -- Automatic tournaments continue after a restore with results shown (the results
@@ -154,7 +156,7 @@ local tourney = continuation("autoTourney", function(game, S)
     game:setValue("stratPicker", "0")
 end, 2000, 5000, { { at = 20, click = "btnNewTournament" }, { at = 30, click = "btnRunTournament" } })
 -- Saved mid-countdown (results shown); by the end the next tournament has started.
-assert(tourney.S.tourneyInProg == 1 and tourney.resultsTableDisplay == "none", "the next automatic tournament")
+check(tourney.S.tourneyInProg == 1 and tourney.resultsTableDisplay == "none", "the next automatic tournament")
 
 -- Damaged timer lists are refused, not shortened.
 do
@@ -162,11 +164,11 @@ do
     local saved = Save.encode(game, nil)
     saved.clock.timers[1] = nil
     local ok, err = pcall(Save.decode, saved, newRandom(3, 4), false)
-    assert(not ok and err:find("not a dense list", 1, true), tostring(err))
+    check(not ok and err:find("not a dense list", 1, true), tostring(err))
     saved = Save.encode(game, nil)
     table.remove(saved.clock.timers, 1)
     ok, err = pcall(Save.decode, saved, newRandom(3, 4), false)
-    assert(not ok and err:find("Malformed save", 1, true), tostring(err))
+    check(not ok and err:find("Malformed save", 1, true), tostring(err))
 end
 
 -- Damaged parts are refused, never filled in (review of #55).
@@ -176,7 +178,7 @@ do
         local saved = roundTrip(Save.encode(game, nil))
         damage(saved)
         local ok, err = pcall(Save.decode, saved, newRandom(5, 6), false)
-        assert(not ok and tostring(err):find(why, 1, true), why .. ": " .. tostring(err))
+        check(not ok and tostring(err):find(why, 1, true), why .. ": " .. tostring(err))
     end
     -- Missing or mistyped state fields (Codex review of #55).
     refused(function(d) d.nodes[d.root].humanFlag = nil end, "state field humanFlag")
@@ -209,7 +211,8 @@ for _, bad in ipairs({ "text", {}, { schema = 2 }, { schema = 1, nodes = {}, roo
     { schema = 1, nodes = { [1] = { x = { r = 9 } } }, root = 1, clock = { now = 0, nextId = 1, order = 0, timers = {} },
         controls = {} } }) do
     local ok, err = pcall(Save.decode, bad, newRandom(1, 1), false)
-    assert(not ok and tostring(err):find("Malformed save", 1, true), tostring(err))
+    check(not ok and tostring(err):find("Malformed save", 1, true), tostring(err))
 end
 
-print("save: continuation (workshop, tournament, investments, planet, battle, ending), exact numbers and malformed saves passed")
+-- Covered: continuation (workshop, tournament, investments, planet, battle, ending), exact numbers and malformed saves.
+done("test_save")
