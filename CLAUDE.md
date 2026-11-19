@@ -80,17 +80,17 @@ Read docs/MODELS.md: Director = Gazlowe display 7052; framing/fallback measured 
 
 ## Client evidence and saves
 
-Forever: Vanilla content on Mainline UI codebase. Supplied dump: 1.60.1.70338,
+Forever: Vanilla content on Mainline UI codebase. Supplied dump: 1.60.1.70959,
 Interface 16001, WOW_PROJECT_ID 18. Lua 5.1/doubles are offline targets; check the
 installed client runtime/numeric configuration. API names do not prove behavior.
 
 Before adding APIs/stubs read:
-C:\Projects\WoW\References\Forever\api\forever-api-1.60.1.70338.md
+C:\Projects\WoW\References\Forever\api\forever-api-1.60.1.70959.md
 Canonical build-specific measured caveats:
 C:\Projects\WoW\References\Docs\PORTING-TBC-TO-FOREVER.md
 Item sources:
-C:\Projects\WoW\References\Forever\consumables\forever-consumables-1.60.1.70009.md
-C:\Projects\WoW\References\Forever\recipes\forever-recipes-2026-09-30.md
+C:\Projects\WoW\References\Forever\consumables\forever-consumables-1.60.1.70959.md
+C:\Projects\WoW\References\Forever\recipes\forever-recipes-2026-11-14.md
 
 Scopes in docs/REFERENCES.md. Keep shared references external, not stale full copies.
 Addon-specific measurements go in docs/forever-api-notes.md.

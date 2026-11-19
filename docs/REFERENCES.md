@@ -39,9 +39,9 @@ Developer execution and native-DOM comparison: [reference runner](reference/RUNN
 
 | Local source | Scope |
 | --- | --- |
-| C:\Projects\WoW\References\Forever\api\forever-api-1.60.1.70338.md | Client API inventory: Interface 16001, WOW_PROJECT_ID 18; presence/signatures, not working behavior. Against 1.60.1.70205: only Discord/VoiceChat ID types, voice-provider calls/events, LFG voiceMode fields and glancing-blow functions changed; none used here. |
-| C:\Projects\WoW\References\Forever\consumables\forever-consumables-1.60.1.70009.md | Client classID 0 consumables scan, not all items. Reaper kit 4391 and battery 274048 included. |
-| C:\Projects\WoW\References\Forever\recipes\forever-recipes-2026-09-30.md | Wowhead snapshot; client availability can differ. Matches 12 of the brief's 14 identities. |
+| C:\Projects\WoW\References\Forever\api\forever-api-1.60.1.70959.md | Client API inventory: Interface 16001, WOW_PROJECT_ID 18; presence/signatures, not working behavior. Against 1.60.1.70338: mail/secure-transfer, title icons, game rules, transmog, external-event URL, a few pet/cursor/BattleNet calls and the PLAYER_LEVEL_UP/PARTY_INVITE_REQUEST payloads changed; none used here (#119). |
+| C:\Projects\WoW\References\Forever\consumables\forever-consumables-1.60.1.70959.md | Client classID 0 consumables scan, not all items. Reaper kit 4391 and battery 274048 included, unchanged from the 70009 scan. |
+| C:\Projects\WoW\References\Forever\recipes\forever-recipes-2026-11-14.md | Wowhead snapshot; client availability can differ. Matches 12 of the brief's 14 identities; covers the same asset item IDs as the 2026-09-30 snapshot that UI/Assets.lua was built from. |
 | C:\Projects\WoW\References\Docs\PORTING-TBC-TO-FOREVER.md | Canonical measured field notes, build-specific. Full client exit matters for persistence evidence. |
 
 Keep shared sources external, not stale full duplicates. On other machines obtain

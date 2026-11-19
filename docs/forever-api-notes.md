@@ -255,6 +255,38 @@ evidence, not a measured claim.
 and reported that it works. The report gives no deployed commit, LibGlass revision,
 `/tim status` figures, or reload and full-exit results.
 
+## API evidence 1.60.1.70959 (#119)
+
+The evidence moved from 1.60.1.70338 to 1.60.1.70959, the dump generated in-client
+on 2026-11-17 (Interface 16001, WOW_PROJECT_ID 18; client built Nov 13 2026). The
+builds in between (70450 to 70938) were skipped here. The tests already ran against
+70959 (`tests\kit.pin`). Shared
+`C:\Projects\WoW\References\Tools\ForeverAPIDump\Compare-Dumps.ps1` against 70338:
+
+```
+## Documented functions - +28 -9
+## Documented events - +9 -3
+## Documented tables - +9 -6
+## Widget methods - no change (7530)
+## Namespace functions - +15 -2
+## Global functions - +181 -54 (walks _G: addon noise, not listed)
+## Namespace candidates - +1246 -705 (walks _G: addon noise, not listed)
+```
+
+The re-signatured calls are C_Texture's title-icon functions (optional subIcon),
+C_GameRules.SetSDHDToggleValue (usage location) and C_TransmogOutfitInfo's
+secondary-slot state (an option argument). Removed: C_GamepadTargeting.HasReticleHoverTarget,
+C_GameRules.SetForeverExperiencePreset (split into Pre/PostLogin; the preset enum's
+Modern became Enhanced) and C_SecureTransfer.GetMailInfo (now Mail Send/Receive
+info). Added: C_Mail.IsCODEnabled, C_SecureTransfer.TakeMailMoney, a few BattleNet,
+pet, cursor and trade-skill calls, the external-event URL calls and events, and new
+fields in the PLAYER_LEVEL_UP and PARTY_INVITE_REQUEST payloads. No addon, probe,
+test, stub or LibGlass (r11) file calls any of them; no call, stub or fallback
+changes. Item, spell, ModelScene, frame and timer APIs are unchanged in the dump.
+The consumables scan (now 70959) and the recipe snapshot (now 2026-11-14) still list
+the asset items. The constant is evidence, not a measured claim: 70959 has no
+client check yet.
+
 ## #18 host adapter in the client
 
 Measured 2026-10-04 on client 1.60.1.70205 (owner session, TimeIsMoney deployed with
@@ -307,7 +339,7 @@ Measured 2026-10-04 on client 1.60.1.70205 (owner session, schema 1 deployed):
 
 ## Future probes
 
-Supplied API evidence: 1.60.1.70338, Interface 16001. Shared measurements from
+Supplied API evidence: 1.60.1.70959, Interface 16001. Shared measurements from
 AltStable and the canonical porting guide retain their own tested builds.
 
 Record date, actual GetBuildInfo result, runtime Lua/numeric observations,
