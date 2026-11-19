@@ -23,7 +23,7 @@ local function New(saved, libGlass)
     if started then Kit.freshClient() end
     started = true
     local Methods = WoW.Methods
-    local captured = { messages = WoW.chat, frames = WoW.frames }
+    local captured = { messages = WoW.chat }
     local env = {
         TimeIsMoneyDB = saved, SlashCmdList = {}, _VERSION = _VERSION,
         tostring = tostring,
@@ -97,9 +97,11 @@ local function New(saved, libGlass)
     function Methods.SetOwner(tt, owner) tt._owner = owner end
 
     -- The widgets the tests look through, in creation order: font strings and
-    -- textures (CreateFontString / CreateTexture), and every frame but a plain
-    -- parentless, nameless Frame (the event and wakeup frames).
-    captured.fontStrings, captured.widgets, captured.textures = {}, {}, {}
+    -- textures (CreateFontString / CreateTexture); the plain parentless, nameless
+    -- Frames (captured.frames: the event and wakeup frames); and every other frame
+    -- (captured.widgets). The two frame lists are disjoint, as the old stub's were;
+    -- WoW.frames is every frame.
+    captured.fontStrings, captured.widgets, captured.textures, captured.frames = {}, {}, {}, {}
     local coreFontString, coreTexture = Methods.CreateFontString, Methods.CreateTexture
     function Methods.CreateFontString(w, ...)
         local fs = coreFontString(w, ...)
@@ -221,7 +223,8 @@ local function New(saved, libGlass)
         end
         local w = CreateFrame(kind, name, parent, template)
         if name then env[name] = w end
-        if kind ~= "Frame" or parent ~= nil or name ~= nil then captured.widgets[#captured.widgets + 1] = w end
+        if kind ~= "Frame" or parent ~= nil or name ~= nil then captured.widgets[#captured.widgets + 1] = w
+        else captured.frames[#captured.frames + 1] = w end
         return w
     end
     function captured:Fire(addonName) WoW.fire("ADDON_LOADED", addonName, false) end

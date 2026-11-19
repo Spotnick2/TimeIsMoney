@@ -6,34 +6,49 @@ local env, captured, ns = Harness.Load()
 local h = Harness.Helpers(captured)
 local Host, Window = ns.Host, ns.Window
 
--- A client frame: every OnUpdate the client would run, i.e. the parentless frames
--- (the host wakeup) and every visible widget (the window's polls). Counts how often
--- the host steps.
+-- A client frame: the kit's WoW.step, i.e. the C_Timer callbacks due (C_Timer.After(0)
+-- ones run on the next frame, as in the client), then OnUpdate once on every visible
+-- frame (the host wakeup, the window's polls) and never on a hidden one. Counts how
+-- often the host steps, and each frame's OnUpdate runs.
 local steps = 0
 local update = Host.update
 Host.update = function(elapsed)
     steps = steps + 1
     return update(elapsed)
 end
+local runs, counted = {}, {}
 local function frame(elapsed)
     steps = 0
-    captured:RunTimers() -- C_Timer.After(0) callbacks run on the next frame, as in the client
-    for _, f in ipairs(captured.frames) do
-        if f._scripts.OnUpdate then f._scripts.OnUpdate(f, elapsed) end
+    local shown = {}
+    for _, f in ipairs(WoW.frames) do
+        local fn = f._scripts.OnUpdate
+        if fn and counted[f] ~= fn then
+            local wrapped = function(self, ...) runs[self] = (runs[self] or 0) + 1 return fn(self, ...) end
+            f._scripts.OnUpdate, counted[f] = wrapped, wrapped
+        end
+        runs[f] = 0
+        if fn then shown[f] = h.visible(f) end
     end
-    for _, w in ipairs(captured.widgets) do
-        if w._scripts.OnUpdate and h.visible(w) then w._scripts.OnUpdate(w, elapsed) end
-    end
+    WoW.step(elapsed)
     check(steps == 1, "the host steps once per client frame, not " .. steps)
+    local wrong
+    for f, was in pairs(shown) do
+        if runs[f] ~= (was and 1 or 0) then wrong = (f._name or f._type) .. " ran " .. runs[f] .. " times" end
+    end
+    check(wrong == nil, "each shown frame's OnUpdate runs once per client frame, a hidden one's never: " .. tostring(wrong))
+    return runs
 end
 -- Per-frame work outside the simulation: scripts on every frame, shown or not, and
 -- queued C_Timer callbacks.
 local function perFrame()
     local n = 0
-    for _, f in ipairs(captured.frames) do if f._scripts.OnUpdate then n = n + 1 end end
-    for _, w in ipairs(captured.widgets) do if w._scripts.OnUpdate then n = n + 1 end end
+    for _, f in ipairs(WoW.frames) do if f._scripts.OnUpdate then n = n + 1 end end
     return n .. " scripts, " .. #WoW.timers .. " timers"
 end
+-- The host's wakeup: the one parentless frame with an OnUpdate.
+local wakeup
+for _, f in ipairs(captured.frames) do if f._scripts.OnUpdate then wakeup = f end end
+check(wakeup ~= nil, "the host has its wakeup frame")
 local function timers(game)
     local kinds = {}
     for _, t in ipairs(game.clock:save().timers) do kinds[#kinds + 1] = t.kind end
@@ -48,12 +63,23 @@ local fresh, freshAt = timers(Host.game), Host.game.clock.now
 check(fresh ~= "", "a running company has timers")
 local work = perFrame()
 
+-- Shown: the window's polls and the host wakeup each run exactly once a frame.
+local shownRuns = frame(0.02)
+check(Window.frame._scripts.OnUpdate and shownRuns[Window.frame] == 1 and shownRuns[wakeup] == 1,
+    "a shown window updates once per client frame, and so does the host")
+
 -- Hidden: the company keeps running at the same rate (a window poll calling the
 -- host, or a host tied to the window, would fail the step count or the time).
 Window.frame:Hide()
 local before = Host.game.clock.now
-for _ = 1, 50 do frame(0.02) end
+local windowRuns, wakeupRuns = 0, 0
+for _ = 1, 50 do
+    local r = frame(0.02)
+    windowRuns, wakeupRuns = windowRuns + r[Window.frame], wakeupRuns + r[wakeup]
+end
 check(Host.game.clock.now == before + 1000, "a hidden window does not pause the company")
+check(windowRuns == 0 and wakeupRuns == 50,
+    "a hidden window never updates, the host wakeup still does: " .. windowRuns .. ", " .. wakeupRuns)
 
 -- Opened and closed many times: one step per frame, no new per-frame work.
 for _ = 1, 20 do
