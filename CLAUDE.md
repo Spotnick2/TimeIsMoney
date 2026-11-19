@@ -145,6 +145,20 @@ Paperclips reuse terms: the owner handles them and directed (2026-10-04) to
 proceed as if approved, so Sim/ ships in the addon and package. MIT covers original/compatible attributed code,
 not Paperclips or Blizzard assets.
 
+## Consulting Codex
+
+The shared codex-consult skill (user level) has the invocation and the gotchas. For this repo:
+
+- Hand Codex CLAUDE.md with the committed diff/head, the relevant plan or issue, and
+  the evidence: C:\Projects\WoW\References\Docs\PORTING-TBC-TO-FOREVER.md, the
+  newest C:\Projects\WoW\References\Forever\api\forever-api-<version>.<build>.md
+  (highest build), and docs/REFERENCES.md / docs/MODELS.md when relevant.
+- Good bounded surfaces: JS/Lua numeric translations, scheduler/RNG consumption,
+  save continuation, model loading/framing.
+- Ask for concrete reachable defects and accept "no defect found"; don't solicit
+  complexity for a single-owner addon. Verify each finding against the evidence.
+- An actual PR review uses wow-addon-review's scope and posting contract.
+
 ## Releasing
 
 Guide: C:\Projects\WoW\References\Docs\RELEASING.md; checklist: docs/RELEASE.md.

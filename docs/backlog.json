@@ -37,7 +37,7 @@
       "key": "foundation",
       "milestone": "M0",
       "title": "Project scaffold, instructions, skills, validation and packaging",
-      "scope": "Create the setup using Gnomesweeper, AltStable and Glass* conventions: AGENTS.md + CLAUDE.md, Codex and Claude wow-addon-review skills, Claude codex-consult/client-update, TOC 16001, Compat.lua, load event and /tim commands, account-wide SavedVariables declaration, Lua 5.1 checks, deployment, .pkgmeta and packaging CI. Preserve the supplied docs and storyboards byte-for-byte. Keep the owner-created MIT license. Issue-first workflow, PRs and owner-controlled merges/reviews. No simulation/UI/model implementation in this milestone.",
+      "scope": "Create the setup using Gnomesweeper, AltStable and Glass* conventions: AGENTS.md + CLAUDE.md, Codex and Claude wow-addon-review skills, Claude client-update, TOC 16001, Compat.lua, load event and /tim commands, account-wide SavedVariables declaration, Lua 5.1 checks, deployment, .pkgmeta and packaging CI. Preserve the supplied docs and storyboards byte-for-byte. Keep the owner-created MIT license. Issue-first workflow, PRs and owner-controlled merges/reviews. No simulation/UI/model implementation in this milestone.",
       "acceptance": "Offline checks and package dry run pass; local design docs and both storyboards are committed; slash commands load in-client on a recorded build. No saved progress is overwritten.",
       "dependencies": [],
       "labels": [
