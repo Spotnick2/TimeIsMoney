@@ -92,7 +92,7 @@ The glass is [LibGlass-1.0](https://github.com/Spotnick2/LibGlass) (MIT).
 - [Agent instructions](https://github.com/Spotnick2/TimeIsMoney/blob/main/CLAUDE.md),
   also reached through [AGENTS.md](https://github.com/Spotnick2/TimeIsMoney/blob/main/AGENTS.md).
 
-Target: Forever Interface 16001; API evidence build 1.60.1.70338; offline Lua 5.1.
+Target: Forever Interface 16001; API evidence build 1.60.1.70959; offline Lua 5.1.
 Validate with **pwsh tests/run.ps1**; deploy with **pwsh Tools/deploy.ps1**, which
 defaults to the `_forever_` AddOns folder. Restart after first installing, enable
 script errors, then run /tim status.

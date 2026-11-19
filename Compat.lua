@@ -3,7 +3,7 @@ TimeIsMoney = TimeIsMoney or {}
 local TIM = TimeIsMoney
 
 -- Source evidence, not a measured-runtime claim.
-TIM.API_EVIDENCE_BUILD = "1.60.1.70338"
+TIM.API_EVIDENCE_BUILD = "1.60.1.70959"
 TIM.API = {}
 
 -- Icons (#21): item and spell icons by ID, the item data request, and the clock

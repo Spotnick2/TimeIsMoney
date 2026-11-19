@@ -52,7 +52,7 @@ check(env.SLASH_TIMEISMONEY1 == "/timeismoney")
 check(env.SLASH_TIMEISMONEY2 == "/tim")
 -- A save from a newer version blocks saving: reported, never replaced.
 env.SlashCmdList.TIMEISMONEY("  StAtUs  ")
-check(captured.messages[#captured.messages - 1]:find("1.60.1.70338", 1, true))
+check(captured.messages[#captured.messages - 1]:find("1.60.1.70959", 1, true))
 check(captured.messages[#captured.messages - 1]:find("16001", 1, true))
 check(Last():find("a save from a newer version (schema 999)", 1, true))
 env.SlashCmdList.TIMEISMONEY("start")

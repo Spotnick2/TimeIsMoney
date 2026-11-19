@@ -30,7 +30,7 @@ local function New(saved, libGlass)
         print = print, -- the kit's: every line in WoW.chat (captured.messages)
         -- The client the addon's evidence names (Compat.lua); the kit's API lists are
         -- tests/kit.pin's build.
-        GetBuildInfo = function() return "1.60.1", "70338", "Oct 9 2026", 16001 end,
+        GetBuildInfo = function() return "1.60.1", "70959", "Nov 13 2026", 16001 end,
         -- Standard Lua the simulation and host use (test_sim.lua enforces Sim's set).
         math = math, string = string, table = table, pairs = pairs, ipairs = ipairs, type = type,
         tonumber = tonumber, error = error, setmetatable = setmetatable, next = next, select = select,
